@@ -2391,7 +2391,8 @@ body {
 
 /* ── Mobile: remove top corners when panel spans full width ────────────── */
 @media (max-width: 539px) {
-  #chat-panel {
+  #chat-panel,
+  .sheet {
     border-radius: 0;
   }
 
