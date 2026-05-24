@@ -2,8 +2,8 @@ import { state } from '../state.js'
 import { db } from '../db.js'
 import { TARGETS } from '../config.js'
 import { dateStr, fmtDateShort, fmt, round, sumFood, calculateNetActiveCalories } from '../utils.js'
-import { monthNavHTML, monthHeatmapHTML, sparklineHTML } from '../charts.js'
-import { foodByMeal } from '../renderers.js'
+import { calTrendHTML, mealMacroAvgHTML, sparklineHTML } from '../charts.js'
+import { foodItem } from '../renderers.js'
 import { materialIcon } from '../icons.js'
 
 function renderWeightSection(data) {
@@ -48,22 +48,12 @@ export async function renderNutrition(monthOffset) {
   const panel = document.getElementById('panel-nutrition')
   if (!state.currentUser) { panel.innerHTML = ''; return }
 
-  if (monthOffset === undefined) monthOffset = state.heatmapMonthOffset || 0
-
   const data = await db.load()
   const today = dateStr()
 
-  const ref = new Date()
-  ref.setDate(1)
-  ref.setMonth(ref.getMonth() + monthOffset)
-  const year = ref.getFullYear()
-  const month = ref.getMonth()
-  const monthLabel = ref.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-  const daysInMonth = new Date(year, month + 1, 0).getDate()
-
-  const monthDays = []
-  for (let day = 1; day <= daysInMonth; day++) {
-    const d = new Date(year, month, day)
+  const recentDays = []
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i)
     const ds = dateStr(d)
     const food = data.food[ds] || []
     const workouts = data.workouts[ds] || []
@@ -72,13 +62,10 @@ export async function renderNutrition(monthOffset) {
     const baseTarget = TARGETS.calories.rest
     const target = baseTarget + burned
     const diff = input - target
-    monthDays.push({ ds, d, food, input, burned, baseTarget, target, diff, isToday: ds === today })
+    recentDays.push({ ds, d, food, input, burned, baseTarget, target, diff, isToday: ds === today })
   }
 
-  const loggedDays = monthDays.filter(day => day.food.length > 0).length
-  const onTrackDays = monthDays.filter(day => Math.abs(day.diff) <= Math.max(50, day.target * 0.3)).length
-
-  const feedDays = monthDays.filter(day => day.food.length > 0).reverse()
+  const feedDays = recentDays.filter(day => day.food.length > 0).reverse()
   const feedHTML = feedDays.map(({ ds, food, isToday, d }) => {
     const label = isToday
       ? 'Today'
@@ -88,20 +75,19 @@ export async function renderNutrition(monthOffset) {
     return `
       <div class="workout-day-group">
         <div class="workout-day-hd${isToday ? ' today-hd' : ''}">${label} ${macroSummary}</div>
-        ${foodByMeal(food, ds)}
+        ${food.map(e => foodItem(e, ds)).join('')}
       </div>`
   }).join('')
 
   panel.innerHTML = `
     <div class="panel-inner">
       <div class="panel-left">
-        ${monthNavHTML(monthOffset)}
+        <div class="section-label">Last 30 days</div>
         <div class="chart-card">
-          <div class="chart-header">
-            <span class="chart-title">Nutrition calendar</span>
-            <span class="chart-sub">${loggedDays} logged days · ${onTrackDays} days within 30% of target</span>
-          </div>
-          ${monthHeatmapHTML(data, monthOffset, 'nutrition')}
+          ${calTrendHTML(data, 30, { title: 'Caloric intake', primary: 'input' })}
+        </div>
+        <div class="chart-card">
+          ${mealMacroAvgHTML(data, 30)}
         </div>
         <div class="section-divider"></div>
         <div class="section-label">Weight</div>
