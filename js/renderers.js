@@ -24,9 +24,10 @@ function isPresetEntry(desc) {
 // date param is passed so edit/delete actions know which day the entry belongs to
 export const foodItem = (e, date) => {
   const fromPreset = isPresetEntry(e.description)
+  const mealIcon = MEAL_ICON[e.meal || 'uncategorised'] || FOOD_ICON
   return `
   <div class="log-item">
-    <div class="log-icon">${FOOD_ICON}</div>
+    <div class="log-icon">${mealIcon}</div>
     <div class="log-body">
       <div class="log-desc">${e.description}</div>
       <div class="log-tags">
@@ -131,7 +132,8 @@ export const workoutItem = (e, date) => {
     </div>`
 }
 
-export function foodByMeal(food, date) {
+export function foodByMeal(food, date, options = {}) {
+  const compact = options.compact === true
   const groups = {}
   for (const e of food) {
     const m = e.meal || 'uncategorised'
@@ -140,8 +142,8 @@ export function foodByMeal(food, date) {
   return [...MEAL_ORDER, 'uncategorised']
     .filter(m => groups[m]?.length)
     .map(m => `
-      <div class="meal-section">
-        <div class="meal-section-hd">${MEAL_ICON[m] || ''} ${MEAL_LABEL[m] || m}</div>
+      <div class="meal-section${compact ? ' meal-section-compact' : ''}">
+        <div class="meal-section-hd${compact ? ' meal-section-hd-compact' : ''}">${MEAL_ICON[m] || ''} ${MEAL_LABEL[m] || m}</div>
         ${groups[m].map(e => foodItem(e, date)).join('')}
       </div>`)
     .join('')

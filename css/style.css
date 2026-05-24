@@ -510,6 +510,85 @@ body {
   display: block;
 }
 
+.meal-macro-chart {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(68px, 1fr));
+  gap: 10px;
+  align-items: end;
+}
+
+.meal-macro-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.meal-macro-kcal {
+  min-height: 14px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--tx);
+  line-height: 1;
+}
+
+.meal-macro-bar {
+  width: 100%;
+  height: 140px;
+  display: flex;
+  flex-direction: column-reverse;
+  overflow: hidden;
+  border-radius: 12px;
+  background: var(--track);
+  border: 1px solid var(--border);
+}
+
+.meal-macro-seg {
+  width: 100%;
+  transition: height .4s cubic-bezier(.4, 0, .2, 1);
+}
+
+.meal-macro-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--tx2);
+  text-align: center;
+  line-height: 1.1;
+}
+
+.meal-macro-detail {
+  min-height: 2.4em;
+  font-size: 10px;
+  color: var(--tx3);
+  text-align: center;
+  line-height: 1.2;
+}
+
+.meal-macro-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  justify-content: center;
+  margin-top: 10px;
+}
+
+.meal-macro-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--tx3);
+  font-weight: 600;
+}
+
+.meal-macro-legend-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
 /* ── Streak card ───────────────────────────────────────────── */
 .streak-card {
   background: var(--card);
@@ -1636,6 +1715,16 @@ body {
   padding: 2px 0 6px;
   border-bottom: 1px solid var(--border);
   margin-bottom: 4px;
+}
+
+.meal-section-compact {
+  margin-top: 8px;
+}
+
+.meal-section-hd-compact {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 2px;
 }
 
 /* ── Entry context menu ───────────────────────────────────────────── */

@@ -1,4 +1,4 @@
-import { TARGETS, MEAL_ORDER, MEAL_LABEL } from '../config.js'
+import { TARGETS, MEAL_ORDER, MEAL_LABEL, MEAL_ICON } from '../config.js'
 import { state } from '../state.js'
 import { db } from '../db.js'
 import { dateStr, sumFood, formatTimeTo24H, calculateNetActiveCalories } from '../utils.js'
@@ -40,20 +40,18 @@ export async function renderToday() {
   document.getElementById('week-chart-card').innerHTML  = weekChartHTML(data)
   document.getElementById('streak-card').innerHTML      = streakHTML(data)
 
-  // Group food by meal
-  const mealSections = MEAL_ORDER.map(meal => {
-    const items = food.filter(e => (e.meal || 'snack') === meal)
-    if (!items.length) return ''
-    return `
-      <div class="meal-section">
-        <div class="meal-section-hd">${MEAL_LABEL[meal]}</div>
-        ${items.map(e => foodItem(e, today)).join('')}
-      </div>`
-  }).join('')
+  const orderedFood = food
+    .map((entry, index) => ({ entry, index }))
+    .sort((a, b) => {
+      const mealA = MEAL_ORDER.indexOf(a.entry.meal || 'snack')
+      const mealB = MEAL_ORDER.indexOf(b.entry.meal || 'snack')
+      return (mealA - mealB) || (a.index - b.index)
+    })
+    .map(({ entry }) => entry)
 
   document.getElementById('today-logs').innerHTML = `
     <div class="section-label">Food</div>
-    ${mealSections || ''}
+    ${orderedFood.map(e => foodItem(e, today)).join('') || ''}
     <button class="log-add-btn" data-action="open-food-sheet" data-meal="snack">+ Add meal</button>
     <div class="section-label" style="margin-top:14px">Activities</div>
     ${workouts.map(e => workoutItem(e, today)).join('')}

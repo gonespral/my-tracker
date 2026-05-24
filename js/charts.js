@@ -1,4 +1,4 @@
-import { TARGETS, ACTIVITY_TYPE, detectActivityType } from './config.js'
+import { TARGETS, MEAL_ORDER, MEAL_LABEL, ACTIVITY_TYPE, detectActivityType } from './config.js'
 import { dateStr, sumFood, fmt, round, calculateNetActiveCalories } from './utils.js'
 import { typeIcon } from './icons.js'
 
@@ -285,12 +285,90 @@ export function calTrendHTML(data, nDays = 30, options = {}) {
 
   const isBurnedPrimary = options.primary === 'burned'
   return buildCalorieTrendHTML(days, {
-    title: options.title || (isBurnedPrimary ? 'Calorie burn' : 'Caloric input'),
+    title: options.title || (isBurnedPrimary ? 'Calorie burn' : 'Caloric intake'),
     primaryLabel: isBurnedPrimary ? 'burned' : 'input',
     secondaryLabel: isBurnedPrimary ? 'input' : 'burned',
     primaryColor: isBurnedPrimary ? '#f97316' : 'var(--accent)',
     secondaryColor: isBurnedPrimary ? 'var(--accent)' : '#f97316',
   })
+}
+
+export function mealMacroAvgHTML(data, nDays = 30) {
+  const mealKeys = [...MEAL_ORDER, 'uncategorised']
+  const totals = Object.fromEntries(mealKeys.map(meal => [meal, { calories: 0, protein: 0, carbs: 0, fat: 0 }]))
+
+  for (let i = nDays - 1; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i)
+    const ds = dateStr(d)
+    const grouped = {}
+
+    for (const entry of (data.food[ds] || [])) {
+      const meal = entry.meal || 'uncategorised'
+      ;(grouped[meal] = grouped[meal] || []).push(entry)
+    }
+
+    for (const meal of mealKeys) {
+      const dayTotals = sumFood(grouped[meal] || [])
+      totals[meal].calories += dayTotals.calories
+      totals[meal].protein += dayTotals.protein
+      totals[meal].carbs += dayTotals.carbs
+      totals[meal].fat += dayTotals.fat
+    }
+  }
+
+  const averages = mealKeys.map(meal => {
+    const avg = {
+      calories: totals[meal].calories / nDays,
+      protein: totals[meal].protein / nDays,
+      carbs: totals[meal].carbs / nDays,
+      fat: totals[meal].fat / nDays,
+    }
+    return {
+      meal,
+      label: MEAL_LABEL[meal] || (meal === 'uncategorised' ? 'Other' : meal),
+      avg,
+      totalMacros: avg.protein + avg.carbs + avg.fat,
+    }
+  }).filter(row => row.meal !== 'uncategorised' || row.totalMacros > 0 || row.avg.calories > 0)
+
+  if (!averages.length) return '<div class="empty">No nutrition data yet.</div>'
+
+  const maxStack = Math.max(...averages.map(row => row.totalMacros), 1)
+  const segments = [
+    { key: 'protein', label: 'Protein', color: 'var(--accent)' },
+    { key: 'carbs', label: 'Carbs', color: '#3b82f6' },
+    { key: 'fat', label: 'Fat', color: '#f59e0b' },
+  ]
+
+  const cols = averages.map(row => {
+    const macrosSummary = `P${fmt(row.avg.protein)} · C${fmt(row.avg.carbs)} · F${fmt(row.avg.fat)}`
+    const segs = segments.map((seg, idx) => {
+      const val = row.avg[seg.key]
+      const pct = val > 0 ? Math.max((val / maxStack) * 100, 2) : 0
+      const radius = idx === 0 ? 'border-radius:0 0 10px 10px;' : idx === segments.length - 1 ? 'border-radius:10px 10px 0 0;' : ''
+      return `<div class="meal-macro-seg meal-macro-${seg.key}" title="${seg.label} ${fmt(val)}g" style="height:${pct}%;background:${seg.color};${radius}"></div>`
+    }).join('')
+
+    return `
+      <div class="meal-macro-col">
+        <div class="meal-macro-kcal">${fmt(row.avg.calories)} kcal</div>
+        <div class="meal-macro-bar">${segs}</div>
+        <div class="meal-macro-label">${row.label}</div>
+        <div class="meal-macro-detail">${macrosSummary}</div>
+      </div>`
+  }).join('')
+
+  return `
+    <div class="chart-header">
+      <span class="chart-title">Macros intake</span>
+      <span class="chart-sub">Stacked grams</span>
+    </div>
+    <div class="meal-macro-chart">
+      ${cols}
+    </div>
+    <div class="meal-macro-legend">
+      ${segments.map(seg => `<div class="meal-macro-legend-item"><span class="meal-macro-legend-swatch" style="background:${seg.color}"></span>${seg.label}</div>`).join('')}
+    </div>`
 }
 
 export function macroBarsHTML(totals, label = "Today's macros") {
