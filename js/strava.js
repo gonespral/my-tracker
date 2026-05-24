@@ -374,8 +374,11 @@ export async function pushActivityToStrava(entry) {
   if (resp.status === 401) { disconnectStrava(true); throw new Error('Session expired — please reconnect Strava') }
   if (resp.status === 403) throw new Error('Write permission missing — reconnect Strava to enable pushing')
   if (!resp.ok) {
-    const err = await resp.json().catch(() => ({}))
-    throw new Error(err.message || `Strava API error (${resp.status})`)
+    const raw = await resp.text().catch(() => '')
+    console.error('Strava push failed', resp.status, raw, JSON.stringify(body))
+    let msg = `${resp.status}`
+    try { const j = JSON.parse(raw); msg = j.message || j.error || JSON.stringify(j.errors) || msg } catch (_) {}
+    throw new Error(`Strava: ${msg}`)
   }
   return resp.json()
 }
