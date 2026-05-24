@@ -321,110 +321,62 @@ const ACTIVITY_TYPE_TO_STRAVA = {
   kickboxing: 'Kickboxing', wrestling: 'Wrestling',
 }
 
-function buildTCX(entry, startUTCISO) {
-  const totalSecs = entry.duration_min ? Math.round(entry.duration_min * 60) : 0
-  const distanceM = entry.distance_km ? entry.distance_km * 1000 : 0
-  const calories  = entry.calories_burned || 0
-  const hr        = entry.heart_rate_avg || 0
-
-  // TCX Sport attribute only supports Running/Biking/Other — correct sport_type is
-  // applied via PUT after Strava processes the upload.
-  const tcxSport = ['run', 'walk', 'hike'].includes((entry.activity_type || '').toLowerCase())
-    ? 'Running'
-    : ['cycle', 'ride'].includes((entry.activity_type || '').toLowerCase())
-      ? 'Biking'
-      : 'Other'
-
-  const hrLap = hr ? `\n        <AverageHeartRateBpm><Value>${hr}</Value></AverageHeartRateBpm>` : ''
-  const hrTp  = hr ? `\n            <HeartRateBpm><Value>${hr}</Value></HeartRateBpm>` : ''
-
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<TrainingCenterDatabase xmlns="http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2">
-  <Activities>
-    <Activity Sport="${tcxSport}">
-      <Id>${startUTCISO}</Id>
-      <Lap StartTime="${startUTCISO}">
-        <TotalTimeSeconds>${totalSecs}</TotalTimeSeconds>
-        <DistanceMeters>${distanceM}</DistanceMeters>
-        <Calories>${calories}</Calories>${hrLap}
-        <Intensity>Active</Intensity>
-        <TriggerMethod>Manual</TriggerMethod>
-        <Track>
-          <Trackpoint>
-            <Time>${startUTCISO}</Time>${hrTp}
-          </Trackpoint>
-        </Track>
-      </Lap>
-    </Activity>
-  </Activities>
-</TrainingCenterDatabase>`
-}
-
-async function patchSportType(token, uploadId, sportType) {
-  for (let i = 0; i < 10; i++) {
-    await new Promise(r => setTimeout(r, 2000))
-    const s = await fetch(`https://www.strava.com/api/v3/uploads/${uploadId}`,
-      { headers: { Authorization: `Bearer ${token}` } })
-    if (!s.ok) return
-    const data = await s.json()
-    if (data.error) return
-    if (data.activity_id) {
-      await fetch(`https://www.strava.com/api/v3/activities/${data.activity_id}`, {
-        method: 'PUT',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sport_type: sportType }),
-      })
-      return
-    }
-  }
-}
-
 export async function pushActivityToStrava(entry) {
   if (!stravaIsConnected()) throw new Error('Strava not connected')
+
   const token = await getValidAccessToken()
 
   const sportType = ACTIVITY_TYPE_TO_STRAVA[(entry.activity_type || '').toLowerCase()] || 'Workout'
 
-  // TCX timestamps are UTC — use entry.time directly (it's a real UTC ISO string)
-  const startUTCISO = entry.time || (entry.date ? entry.date + 'T00:00:00Z' : new Date().toISOString())
+  // entry.time is a true UTC ISO string (stored via toUTCISO which uses local setHours → toISOString).
+  // Strava's start_date_local wants the original wall-clock time with no timezone suffix,
+  // so we reformat using local-time getters to undo the UTC conversion.
+  let startDate
+  if (entry.time) {
+    const d = new Date(entry.time)
+    const pad = n => String(n).padStart(2, '0')
+    startDate = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+  } else {
+    startDate = entry.date ? entry.date + 'T00:00:00' : new Date().toISOString().slice(0, 19)
+  }
 
+  // Build description with all metadata + source attribution.
+  // Strava's create endpoint only accepts name, sport_type, start_date_local, elapsed_time,
+  // distance, and description — everything else goes in the description text.
   const meta = []
-  if (entry.duration_min)    meta.push(`Duration: ${entry.duration_min} min`)
-  if (entry.distance_km)     meta.push(`Distance: ${entry.distance_km} km`)
+  if (entry.duration_min) meta.push(`Duration: ${entry.duration_min} min`)
+  if (entry.distance_km) meta.push(`Distance: ${entry.distance_km} km`)
   if (entry.calories_burned) meta.push(`Calories: ${entry.calories_burned} kcal`)
-  if (entry.heart_rate_avg)  meta.push(`Avg HR: ${entry.heart_rate_avg} bpm`)
-  if (entry.intensity)       meta.push(`Intensity: ${entry.intensity}`)
+  if (entry.heart_rate_avg) meta.push(`Avg HR: ${entry.heart_rate_avg} bpm`)
+  if (entry.intensity) meta.push(`Intensity: ${entry.intensity}`)
   const descParts = []
   if (entry.description) descParts.push(entry.description)
   if (meta.length) descParts.push(meta.join(' · '))
   descParts.push('Logged via MyTracker\nhttps://github.com/gonespral/my-tracker')
   const description = descParts.join('\n\n')
 
-  const form = new FormData()
-  form.append('file', new Blob([buildTCX(entry, startUTCISO)], { type: 'application/tcx+xml' }), 'activity.tcx')
-  form.append('name', entry.description || 'Workout')
-  form.append('description', description)
-  form.append('data_type', 'tcx')
+  const body = {
+    name: entry.description || 'Workout',
+    sport_type: sportType,
+    start_date_local: startDate,
+    elapsed_time: entry.duration_min ? Math.round(entry.duration_min * 60) : 0,
+    description,
+  }
+  if (entry.distance_km) body.distance = entry.distance_km * 1000
 
-  const resp = await fetch('https://www.strava.com/api/v3/uploads', {
+  const resp = await fetch('https://www.strava.com/api/v3/activities', {
     method: 'POST',
-    headers: { Authorization: `Bearer ${token}` },
-    body: form,
+    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
   })
 
   if (resp.status === 401) { disconnectStrava(true); throw new Error('Session expired — please reconnect Strava') }
   if (resp.status === 403) throw new Error('Write permission missing — reconnect Strava to enable pushing')
   if (!resp.ok) {
     const err = await resp.json().catch(() => ({}))
-    throw new Error(err.message || `Strava upload error (${resp.status})`)
+    throw new Error(err.message || `Strava API error (${resp.status})`)
   }
-
-  const uploadData = await resp.json()
-
-  // Correct the sport_type in the background — TCX only supports Running/Biking/Other
-  if (uploadData.id) patchSportType(token, uploadData.id, sportType).catch(() => {})
-
-  return uploadData
+  return resp.json()
 }
 
 export async function disconnectStrava(silent = false) {
