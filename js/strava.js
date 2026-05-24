@@ -324,7 +324,7 @@ function buildWorkoutJSON(entry) {
     utc_offset: utcOffset,
     elapsed_time: elapsedSecs,
     creator: { name: 'MyTracker' },
-    sets: [{ exercise_type: 'WORKOUT_EXERCISE', duration: elapsedSecs }],
+    sets: [{ exercise_type: 'WORKOUT', duration: elapsedSecs }],
   }
 
   if (entry.calories_burned) payload.total_calories = Math.round(entry.calories_burned)
@@ -366,10 +366,8 @@ export async function pushActivityToStrava(entry) {
   if (resp.status === 401) { disconnectStrava(true); throw new Error('Session expired — please reconnect Strava') }
   if (resp.status === 403) throw new Error('Write permission missing — reconnect Strava to enable pushing')
   if (!resp.ok) {
-    const body = await resp.text().catch(() => '')
-    console.error('Strava upload error', resp.status, body)
-    let detail = body
-    try { const j = JSON.parse(body); detail = j.error || j.message || body } catch (_) {}
+    const err = await resp.json().catch(() => ({}))
+    const detail = err.error || err.message || JSON.stringify(err)
     throw new Error(`Strava ${resp.status}: ${detail}`)
   }
   return resp.json()
