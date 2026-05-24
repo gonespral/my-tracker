@@ -1990,6 +1990,41 @@ body {
   background: #d0dae4;
 }
 
+.google-signin-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 22px;
+  background: #fff;
+  color: #3c4043;
+  border: 1px solid #dadce0;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  font-family: 'DM Sans', sans-serif;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.12s;
+}
+
+.google-signin-btn:hover {
+  background: #f8f9fa;
+  transform: translateY(-1px);
+}
+
+.google-signin-btn:active {
+  transform: translateY(0);
+}
+
+[data-theme="dark"] .google-signin-btn {
+  background: #1f1f1f;
+  color: #e3e3e3;
+  border-color: #444746;
+}
+
+[data-theme="dark"] .google-signin-btn:hover {
+  background: #2d2f31;
+}
+
 /* ── panel-inner: two-column layout for nutrition / workouts ───── */
 .panel-inner {
   padding: 16px 14px calc(24px + var(--chat-peek-h));
