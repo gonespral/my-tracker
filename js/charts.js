@@ -1,5 +1,6 @@
 import { TARGETS, ACTIVITY_TYPE, detectActivityType } from './config.js'
 import { dateStr, sumFood, fmt, round } from './utils.js'
+import { typeIcon } from './icons.js'
 
 export function calRingHTML(consumed, target, burned = 0) {
   const effectiveTarget = target + burned
@@ -26,13 +27,13 @@ export function calRingHTML(consumed, target, burned = 0) {
         <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${color}" stroke-width="${sw}"
           stroke-dasharray="${circ.toFixed(2)}" stroke-dashoffset="${off.toFixed(2)}"
           stroke-linecap="round" transform="rotate(-90 ${cx} ${cy})"
-          style="transition:stroke-dashoffset .5s cubic-bezier(.4,0,.2,1)"/>
+          style="--ring-circ:${circ.toFixed(2)};--ring-off:${off.toFixed(2)};animation:ring-fill .7s cubic-bezier(.4,0,.2,1) both"/>
         ${burned > 0 ? `
         <circle cx="${cx}" cy="${cy}" r="${ri}" fill="none" stroke="var(--track)" stroke-width="${swi}" opacity="0.7"/>
         <circle cx="${cx}" cy="${cy}" r="${ri}" fill="none" stroke="#f97316" stroke-width="${swi}"
           stroke-dasharray="${circi.toFixed(2)}" stroke-dashoffset="${burnOff.toFixed(2)}"
           stroke-linecap="round" transform="rotate(-90 ${cx} ${cy})"
-          style="transition:stroke-dashoffset .5s cubic-bezier(.4,0,.2,1)"/>` : ''}
+          style="--ring-circ:${circi.toFixed(2)};--ring-off:${burnOff.toFixed(2)};animation:ring-fill .7s cubic-bezier(.4,0,.2,1) .1s both"/>` : ''}
       </svg>
       <div class="ring-center">
         <div class="ring-big-num">${round(consumed).toLocaleString()}</div>
@@ -64,10 +65,10 @@ export function macroRingHTML(label, value, target, unit, accentColor) {
           <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${color}" stroke-width="${sw}"
             stroke-dasharray="${circ.toFixed(2)}" stroke-dashoffset="${off.toFixed(2)}"
             stroke-linecap="round" transform="rotate(-90 ${cx} ${cy})"
-            style="transition:stroke-dashoffset .5s cubic-bezier(.4,0,.2,1)"/>
+            style="--ring-circ:${circ.toFixed(2)};--ring-off:${off.toFixed(2)};animation:ring-fill .7s cubic-bezier(.4,0,.2,1) both"/>
         </svg>
         <div class="ring-center">
-          <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:15px;color:var(--tx);line-height:1">
+          <div style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:15px;color:var(--tx);line-height:1">
             ${fmt(value)}
           </div>
           <div style="font-size:9px;color:var(--tx3);margin-top:1px">${unit}</div>
@@ -366,8 +367,7 @@ export function monthHeatmapHTML(data, monthOffset = 0) {
     if (hasWorkout) {
       const w = dayWorkouts[0]
       const type = w.activity_type || detectActivityType(w.description)
-      const emoji = (ACTIVITY_TYPE[type] || ACTIVITY_TYPE.lift).emoji
-      cells.push(`<div class="${cls}" data-action="goto-activity-date" data-date="${ds}" style="cursor:pointer">${emoji}</div>`)
+      cells.push(`<div class="${cls}" data-action="goto-activity-date" data-date="${ds}" style="cursor:pointer">${typeIcon(type, 13)}</div>`)
     } else {
       cells.push(`<div class="${cls}">${isFuture ? '' : day}</div>`)
     }
@@ -384,15 +384,15 @@ export function monthHeatmapHTML(data, monthOffset = 0) {
 
   return `
     <div class="chart-header">
-      <div style="display:flex;align-items:center;gap:8px">
-        <button type="button" class="hm-nav-btn" data-action="heatmap-month" data-offset="${prevOffset}">‹</button>
-        <span class="chart-title">${monthName}</span>
-        <button type="button" class="hm-nav-btn" data-action="heatmap-month" data-offset="${nextOffset}" ${canGoNext ? '' : 'disabled'}>›</button>
-      </div>
+      <span class="chart-title">${monthName}</span>
       <span class="chart-sub">${workoutDays} activit${workoutDays !== 1 ? 'ies' : 'y'}</span>
     </div>
     <div class="heatmap-dow">${dayLabels.map(l => `<div class="hm-label">${l}</div>`).join('')}</div>
-    <div class="heatmap-grid">${cells.join('')}</div>`
+    <div class="heatmap-grid">${cells.join('')}</div>
+    <div class="hm-nav-row">
+      <button type="button" class="hm-nav-btn" data-action="heatmap-month" data-offset="${prevOffset}">‹ Prev</button>
+      <button type="button" class="hm-nav-btn" data-action="heatmap-month" data-offset="${nextOffset}" ${canGoNext ? '' : 'disabled'}>Next ›</button>
+    </div>`
 }
 
 export function workoutFreqHTML(data, weeks = 8) {
@@ -448,6 +448,7 @@ export function activityStatsHTML(data, nDays = 30) {
     const d = new Date(); d.setDate(d.getDate() - i)
     const ds = dateStr(d)
     for (const w of (data.workouts[ds] || [])) {
+      if (w.isDuplicate) continue
       sessions++
       totalCal  += w.calories_burned || 0
       if (w.duration_min)   { totalDur  += w.duration_min;   durCount++ }
@@ -473,13 +474,14 @@ export function activityStatsHTML(data, nDays = 30) {
     </div>`).join('')}</div>`
 }
 
-export function activityTypeBreakdownHTML(data, nDays = 30) {
+export function activityTypeBreakdownHTML(data, year, month) {
   const counts = {}
   let total = 0
-  for (let i = 0; i < nDays; i++) {
-    const d = new Date(); d.setDate(d.getDate() - i)
-    const ds = dateStr(d)
+  const daysInMonth = new Date(year, month + 1, 0).getDate()
+  for (let day = 1; day <= daysInMonth; day++) {
+    const ds = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
     for (const w of (data.workouts[ds] || [])) {
+      if (w.isDuplicate) continue
       const type = w.activity_type || detectActivityType(w.description)
       counts[type] = (counts[type] || 0) + 1
       total++
@@ -493,7 +495,7 @@ export function activityTypeBreakdownHTML(data, nDays = 30) {
     const pct  = Math.round((count / total) * 100)
     return `
       <div class="type-bar-row">
-        <div class="type-bar-emoji">${info.emoji}</div>
+        <div class="type-bar-icon">${typeIcon(type, 15)}</div>
         <div class="type-bar-label">${info.label}</div>
         <div class="type-bar-track">
           <div class="type-bar-fill" style="width:${pct}%;background:${info.color}"></div>
