@@ -11,7 +11,7 @@ import { state } from '../state.js'
 import { supabase, db, getWorkoutConflictPreference, setWorkoutConflictPreference } from '../db.js'
 import { fmt, round, cap } from '../utils.js'
 import { openSheet, showToast, closeMenus, closeSheets } from '../ui.js'
-import { connectStrava, disconnectStrava, syncStrava, updateStravaSettingsSection } from '../strava.js'
+import { connectStrava, disconnectStrava, syncStrava, updateStravaSettingsSection, stravaAutoPushEnabled } from '../strava.js'
 import { connectGoogleHealth, disconnectGoogleHealth, syncGoogleHealth, updateGoogleHealthSettingsSection } from '../google-health.js'
 import { materialIcon } from '../icons.js'
 
@@ -252,6 +252,16 @@ export async function renderSettings() {
           Force Sync Now
         </button>
         <button id="remove-strava-btn" class="link-btn" style="margin-top:12px;color:var(--danger);display:block">Remove all synced activities</button>
+        <div class="toggle-row" style="margin-top:14px">
+          <div>
+            <div style="font-size:14px;font-weight:500;color:var(--tx)">Auto push to Strava</div>
+            <div style="font-size:12px;color:var(--tx3);margin-top:2px">Automatically push new logged activities to Strava</div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="strava-auto-push-toggle" ${stravaAutoPushEnabled() ? 'checked' : ''}>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
       </div>
     `)}
 
@@ -440,6 +450,11 @@ export async function renderSettings() {
     db.bust()
     document.dispatchEvent(new Event('workout-conflict-pref-changed'))
     showToast('✅ Default activity source updated')
+  })
+
+  document.getElementById('strava-auto-push-toggle')?.addEventListener('change', e => {
+    localStorage.setItem('strava-auto-push', e.target.checked ? 'true' : 'false')
+    showToast(e.target.checked ? '✅ Auto push enabled' : 'Auto push disabled')
   })
 
   document.getElementById('connect-strava-btn').addEventListener('click', connectStrava)

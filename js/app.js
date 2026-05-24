@@ -9,7 +9,7 @@ import { renderToday, openFoodSheet, openFoodSheetWithPreset, openWorkoutSheet, 
 import { renderNutrition } from './tabs/nutrition.js'
 import { renderWorkouts } from './tabs/workouts.js'
 import { renderSettings, openPresetSheet, deletePreset, openWorkoutPresetSheet, deleteWorkoutPreset } from './tabs/settings.js'
-import { handleStravaCallback, syncStrava, stravaIsConnected } from './strava.js'
+import { handleStravaCallback, syncStrava, stravaIsConnected, pushActivityToStrava, stravaAutoPushEnabled } from './strava.js'
 import { handleGoogleHealthCallback, syncGoogleHealth, googleHealthIsConnected } from './google-health.js'
 
 function signIn(provider = 'github') {
@@ -88,6 +88,19 @@ document.addEventListener('click', async (e) => {
       try { await db.deleteWorkout(id); await renderActive() }
       catch (err) { showToast('❌ ' + err.message) }
       break
+
+    case 'push-to-strava': {
+      closeMenus()
+      const cacheData = state.dbCache || await db.load()
+      const pushEntry = Object.values(cacheData.workouts || {}).flat().find(w => w.id === id)
+      if (!pushEntry) { showToast('❌ Activity not found'); break }
+      showToast('🔄 Pushing to Strava…')
+      try {
+        await pushActivityToStrava(pushEntry)
+        showToast('✅ Pushed to Strava')
+      } catch (err) { showToast('❌ ' + err.message) }
+      break
+    }
 
     case 'activate-workout-conflict':
       closeMenus()
@@ -541,10 +554,16 @@ async function initApp() {
         await db.updateWorkout(editId, updateData)
         showToast(`✅ Updated ${desc}`)
       } else {
-        await db.addWorkout(dateVal, { description: desc, intensity, activity_type: activityType,
+        const newEntry = { description: desc, intensity, activity_type: activityType,
           calories_burned: calsBurned, duration_min: durationMin, distance_km: distanceKm, heart_rate_avg: heartRate,
-          time: toUTCISO(dateVal, timeVal || nowTime()) })
+          time: toUTCISO(dateVal, timeVal || nowTime()) }
+        await db.addWorkout(dateVal, newEntry)
         showToast(`${{ low: '😴', medium: '💪', high: '🔥' }[intensity]} Logged ${desc}`)
+        if (stravaAutoPushEnabled() && stravaIsConnected()) {
+          pushActivityToStrava({ ...newEntry, date: dateVal })
+            .then(() => showToast('✅ Auto-pushed to Strava'))
+            .catch(err => showToast('❌ Strava: ' + err.message))
+        }
       }
       await renderActive()
     } catch (err) { showToast('❌ ' + (err.message || 'Save failed')) }

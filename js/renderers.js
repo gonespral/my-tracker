@@ -2,6 +2,7 @@ import { MEAL_ORDER, MEAL_ICON, MEAL_LABEL, INTENSITY_ICON, detectActivityType }
 import { fmt, round, cap, formatTimeToAMPM } from './utils.js'
 import { typeIcon, SPORT_TYPE_MAP, materialIcon } from './icons.js'
 import { state } from './state.js'
+import { stravaIsConnected } from './strava.js'
 
 const FOOD_ICON = materialIcon('restaurant', 15)
 
@@ -95,6 +96,9 @@ export const workoutItem = (e, date) => {
   }
   if (isDismissed) {
     menuItems.push(`<button data-action="reflag-workout-conflict" data-group="${e.dismissedConflictGroupId}">Flag as duplicate</button>`)
+  }
+  if (!isStrava && stravaIsConnected()) {
+    menuItems.push(`<button data-action="push-to-strava" data-id="${e.id}">Push to Strava</button>`)
   }
   if (!isImported) {
     menuItems.push(`<button class="danger" data-action="delete-workout" data-id="${e.id}">Delete</button>`)

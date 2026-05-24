@@ -305,9 +305,50 @@ export function connectStrava() {
   url.searchParams.set('redirect_uri', redirectUri)
   url.searchParams.set('response_type', 'code')
   url.searchParams.set('approval_prompt', 'auto')
-  url.searchParams.set('scope', 'activity:read_all')
+  url.searchParams.set('scope', 'activity:read_all,activity:write')
   url.searchParams.set('state', 'strava-oauth')
   window.location.href = url.toString()
+}
+
+export const stravaAutoPushEnabled = () => localStorage.getItem('strava-auto-push') === 'true'
+
+const ACTIVITY_TYPE_TO_STRAVA = {
+  run: 'Run', walk: 'Walk', hike: 'Hike', cycle: 'Ride', ride: 'Ride',
+  swim: 'Swim', yoga: 'Yoga', gym: 'WeightTraining', weights: 'WeightTraining',
+  crossfit: 'CrossFit', rowing: 'Rowing', soccer: 'Soccer',
+  basketball: 'Basketball', tennis: 'Tennis', skiing: 'AlpineSki',
+}
+
+export async function pushActivityToStrava(entry) {
+  if (!stravaIsConnected()) throw new Error('Strava not connected')
+
+  const token = await getValidAccessToken()
+
+  const sportType = ACTIVITY_TYPE_TO_STRAVA[(entry.activity_type || '').toLowerCase()] || 'Workout'
+
+  let startDate = entry.time || (entry.date ? entry.date + 'T00:00:00' : new Date().toISOString())
+
+  const body = {
+    name: entry.description || 'Workout',
+    sport_type: sportType,
+    start_date_local: startDate,
+    elapsed_time: entry.duration_min ? Math.round(entry.duration_min * 60) : 0,
+  }
+  if (entry.distance_km) body.distance = entry.distance_km * 1000
+
+  const resp = await fetch('https://www.strava.com/api/v3/activities', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+
+  if (resp.status === 401) { disconnectStrava(true); throw new Error('Session expired — please reconnect Strava') }
+  if (resp.status === 403) throw new Error('Write permission missing — reconnect Strava to enable pushing')
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({}))
+    throw new Error(err.message || `Strava API error (${resp.status})`)
+  }
+  return resp.json()
 }
 
 export async function disconnectStrava(silent = false) {
