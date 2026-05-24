@@ -12,9 +12,9 @@ import { renderSettings, openPresetSheet, deletePreset, openWorkoutPresetSheet, 
 import { handleStravaCallback, syncStrava, stravaIsConnected } from './strava.js'
 import { handleGoogleHealthCallback, syncGoogleHealth, googleHealthIsConnected } from './google-health.js'
 
-function signIn() {
+function signIn(provider = 'github') {
   supabase.auth.signInWithOAuth({
-    provider: 'github',
+    provider,
     options: { redirectTo: window.location.origin + window.location.pathname },
   })
 }
@@ -55,7 +55,7 @@ document.addEventListener('click', async (e) => {
   const meal = actionEl.dataset.meal
 
   switch (action) {
-    case 'signin': signIn(); break
+    case 'signin': signIn(actionEl.dataset.provider || 'github'); break
 
     case 'toggle-menu':
       toggleEntryMenu(actionEl)
