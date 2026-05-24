@@ -1,14 +1,14 @@
 import { MEAL_ORDER, MEAL_ICON, MEAL_LABEL, INTENSITY_ICON, detectActivityType } from './config.js'
 import { fmt, round, cap } from './utils.js'
-import { typeIcon, SPORT_TYPE_MAP } from './icons.js'
+import { typeIcon, SPORT_TYPE_MAP, materialIcon } from './icons.js'
 import { state } from './state.js'
 
-const FOOD_SVG = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3zm0 0v7"/></svg>`
+const FOOD_ICON = materialIcon('restaurant', 15)
 
-const ICON_CLOCK = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>`
-const ICON_PIN   = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>`
-const ICON_HEART = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>`
-const ICON_FLAME = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>`
+const ICON_CLOCK = materialIcon('schedule', 10, { style: 'vertical-align:-1px' })
+const ICON_PIN   = materialIcon('location_on', 10, { style: 'vertical-align:-1px' })
+const ICON_HEART = materialIcon('favorite', 10, { style: 'vertical-align:-1px' })
+const ICON_FLAME = materialIcon('local_fire_department', 10, { style: 'vertical-align:-1px' })
 
 function workoutTypeIcon(desc) {
   return typeIcon(detectActivityType(desc))
@@ -26,7 +26,7 @@ export const foodItem = (e, date) => {
   const fromPreset = isPresetEntry(e.description)
   return `
   <div class="log-item">
-    <div class="log-icon">${FOOD_SVG}</div>
+    <div class="log-icon">${FOOD_ICON}</div>
     <div class="log-body">
       <div class="log-desc">${e.description}</div>
       <div class="log-tags">
@@ -41,7 +41,7 @@ export const foodItem = (e, date) => {
       <div class="log-cal-unit">kcal</div>
     </div>
     <div class="entry-menu-wrap">
-      <button class="entry-menu-btn" data-action="toggle-menu">⋮</button>
+      <button class="entry-menu-btn" data-action="toggle-menu">${materialIcon('more_vert', 16)}</button>
       <div class="entry-menu">
         <button data-action="edit-food" data-id="${e.id}" data-date="${date}">Edit</button>
         <button data-action="save-to-meals" data-id="${e.id}" data-date="${date}">Save to meals</button>
@@ -95,7 +95,7 @@ export const workoutItem = (e, date) => {
       </div>
       ${!isImported ? `
       <div class="entry-menu-wrap">
-        <button class="entry-menu-btn" data-action="toggle-menu">⋮</button>
+        <button class="entry-menu-btn" data-action="toggle-menu">${materialIcon('more_vert', 16)}</button>
         <div class="entry-menu">
           <button data-action="edit-workout" data-id="${e.id}" data-date="${date}">Edit</button>
           <button class="danger" data-action="delete-workout" data-id="${e.id}">Delete</button>

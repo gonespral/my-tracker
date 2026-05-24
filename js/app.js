@@ -395,7 +395,7 @@ async function initApp() {
     const arr = document.getElementById('toggle-arrow')
     if (window.innerWidth < 768) sec.style.display = state.statsOpen ? 'block' : 'none'
     lbl.textContent = state.statsOpen ? 'Hide stats' : 'Stats'
-    arr.textContent = state.statsOpen ? '↑' : '↓'
+    arr.textContent = state.statsOpen ? 'expand_less' : 'expand_more'
   })
 
   // ── Meal preset sheet: meal pill selection ──

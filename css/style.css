@@ -33,6 +33,17 @@ html, body {
   -webkit-font-smoothing: antialiased;
 }
 
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  vertical-align: middle;
+  user-select: none;
+}
+
 /* ── Dark mode ──────────────────────────────────────────── */
 [data-theme="dark"] {
   --bg:          #121212;
@@ -86,6 +97,7 @@ html, body {
   color: var(--tx3); padding: 5px; border-radius: 7px;
   transition: color 0.15s, background 0.15s;
 }
+.icon-btn .material-symbols-outlined { font-size: 18px; }
 .icon-btn:hover { color: var(--tx); background: var(--border); }
 .icon-sun  { display: none; }
 .icon-moon { display: block; }
