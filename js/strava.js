@@ -328,13 +328,33 @@ export async function pushActivityToStrava(entry) {
 
   const sportType = ACTIVITY_TYPE_TO_STRAVA[(entry.activity_type || '').toLowerCase()] || 'Workout'
 
-  let startDate = entry.time || (entry.date ? entry.date + 'T00:00:00' : new Date().toISOString())
+  // entry.time is a true UTC ISO string (stored via toUTCISO which uses local setHours → toISOString).
+  // Strava's start_date_local wants the original wall-clock time with no timezone suffix,
+  // so we reformat using local-time getters to undo the UTC conversion.
+  let startDate
+  if (entry.time) {
+    const d = new Date(entry.time)
+    const pad = n => String(n).padStart(2, '0')
+    startDate = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+  } else {
+    startDate = entry.date ? entry.date + 'T00:00:00' : new Date().toISOString().slice(0, 19)
+  }
+
+  // Build description: extra metadata + source attribution.
+  // Strava's create endpoint doesn't accept calories or HR as fields, so they go in the description.
+  const meta = []
+  if (entry.calories_burned) meta.push(`Calories: ${entry.calories_burned} kcal`)
+  if (entry.heart_rate_avg) meta.push(`Avg HR: ${entry.heart_rate_avg} bpm`)
+  const descLines = []
+  if (meta.length) descLines.push(meta.join(' · '))
+  descLines.push('Logged via MyTracker · https://github.com/gonespral/my-tracker')
 
   const body = {
     name: entry.description || 'Workout',
     sport_type: sportType,
     start_date_local: startDate,
     elapsed_time: entry.duration_min ? Math.round(entry.duration_min * 60) : 0,
+    description: descLines.join('\n'),
   }
   if (entry.distance_km) body.distance = entry.distance_km * 1000
 
