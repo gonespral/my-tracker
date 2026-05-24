@@ -1,9 +1,8 @@
 import { TARGETS, MEAL_ORDER, MEAL_LABEL } from '../config.js'
 import { state } from '../state.js'
 import { db } from '../db.js'
-import { dateStr } from '../utils.js'
-import { sumFood } from '../utils.js'
-import { calRingHTML, macroRingHTML, weekChartHTML, macroBarsHTML, streakHTML } from '../charts.js'
+import { dateStr, sumFood, formatTimeTo24H, calculateNetActiveCalories } from '../utils.js'
+import { calRingHTML, macroRingHTML, weekChartHTML, streakHTML } from '../charts.js'
 import { foodItem, workoutItem } from '../renderers.js'
 import { openSheet, showToast, closeMenus } from '../ui.js'
 
@@ -13,7 +12,6 @@ export async function renderToday() {
     document.getElementById('macro-rings').innerHTML    = ''
     document.getElementById('week-chart-card').innerHTML = ''
     document.getElementById('streak-card').innerHTML    = ''
-    document.getElementById('macro-bar-card').innerHTML = ''
     document.getElementById('today-logs').innerHTML     = ''
     return
   }
@@ -24,8 +22,8 @@ export async function renderToday() {
   const workouts = data.workouts[today] || []
   const totals      = sumFood(food)
   const training    = workouts.some(w => !w.isDuplicate)
-  const calTarget   = training ? TARGETS.calories.training : TARGETS.calories.rest
-  const burnedToday = workouts.filter(w => !w.isDuplicate).reduce((sum, w) => sum + (w.calories_burned || 0), 0)
+  const calTarget   = TARGETS.calories.rest
+  const burnedToday = calculateNetActiveCalories(workouts, TARGETS.calories.bmr)
 
   document.getElementById('cal-section').innerHTML =
     calRingHTML(totals.calories, calTarget, burnedToday) +
@@ -41,7 +39,6 @@ export async function renderToday() {
 
   document.getElementById('week-chart-card').innerHTML  = weekChartHTML(data)
   document.getElementById('streak-card').innerHTML      = streakHTML(data)
-  document.getElementById('macro-bar-card').innerHTML   = macroBarsHTML(totals)
 
   // Group food by meal
   const mealSections = MEAL_ORDER.map(meal => {
@@ -136,10 +133,12 @@ export function editFood(id, date) {
 }
 
 export function openWorkoutSheet(date = null) {
+  closeMenus()
   state.pendingEditWorkoutId = null
   state.pendingWorkoutDate   = date
   document.getElementById('w-desc').value = ''
   document.getElementById('w-date').value = date || dateStr()
+  document.getElementById('w-time').value = ''
   document.getElementById('w-activity-type').value = ''
   document.getElementById('w-calories-burned').value = ''
   document.getElementById('w-duration-min').value = ''
@@ -170,6 +169,7 @@ export function editWorkout(id, date) {
   state.pendingWorkoutDate   = entryDate
   document.getElementById('w-desc').value = entry.description || ''
   document.getElementById('w-date').value = entryDate
+  document.getElementById('w-time').value = entry.time ? formatTimeTo24H(entry.time) : ''
   document.getElementById('w-activity-type').value   = entry.activity_type   || ''
   document.getElementById('w-calories-burned').value = entry.calories_burned || ''
   document.getElementById('w-duration-min').value    = entry.duration_min    || ''

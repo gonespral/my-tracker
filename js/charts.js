@@ -1,5 +1,5 @@
 import { TARGETS, ACTIVITY_TYPE, detectActivityType } from './config.js'
-import { dateStr, sumFood, fmt, round } from './utils.js'
+import { dateStr, sumFood, fmt, round, calculateNetActiveCalories } from './utils.js'
 import { typeIcon } from './icons.js'
 
 export function calRingHTML(consumed, target, burned = 0) {
@@ -92,12 +92,12 @@ export function weekChartHTML(data) {
     days.push({
       ds, isToday: ds === today,
       cals: sumFood(food).calories,
-      target: workouts.some(w => !w.isDuplicate) ? TARGETS.calories.training : TARGETS.calories.rest,
+      target: TARGETS.calories.rest + calculateNetActiveCalories(workouts, TARGETS.calories.bmr),
       label: d.toLocaleDateString('en-US', { weekday: 'short' }),
     })
   }
 
-  const maxCal = Math.max(...days.map(d => d.cals), TARGETS.calories.training * 1.1, 100)
+  const maxCal = Math.max(...days.map(d => Math.max(d.cals, d.target)), TARGETS.calories.rest * 1.1, 100)
   const restTargetY = PT + (1 - TARGETS.calories.rest / maxCal) * cH
   const bW = cW / 7 * 0.6
   const bStep = cW / 7
@@ -159,23 +159,39 @@ function buildCalorieTrendHTML(days, { title, primaryLabel, secondaryLabel, prim
     isToday: day.isToday,
   }))
 
-  let primaryPaths = [], primarySeg = ''
+  let primaryPaths = [], primaryAreaPaths = [], primarySeg = '', currentSegmentPts = []
   let secondaryPaths = [], secondarySeg = ''
+  
   pts.forEach(p => {
-    if (p.primaryY !== null) { primarySeg += (primarySeg ? ' L' : 'M') + `${p.x.toFixed(1)},${p.primaryY.toFixed(1)}` }
-    else if (primarySeg)     { primaryPaths.push(primarySeg); primarySeg = '' }
+    if (p.primaryY !== null) {
+      primarySeg += (primarySeg ? ' L' : 'M') + `${p.x.toFixed(1)},${p.primaryY.toFixed(1)}`
+      currentSegmentPts.push(p)
+    } else {
+      if (primarySeg) {
+        primaryPaths.push(primarySeg)
+        if (currentSegmentPts.length >= 2) {
+          primaryAreaPaths.push(primarySeg 
+            + ` L${currentSegmentPts[currentSegmentPts.length-1].x.toFixed(1)},${(PT+cH).toFixed(1)}`
+            + ` L${currentSegmentPts[0].x.toFixed(1)},${(PT+cH).toFixed(1)} Z`)
+        }
+        primarySeg = ''
+        currentSegmentPts = []
+      }
+    }
+    
     if (p.secondaryY !== null) { secondarySeg += (secondarySeg ? ' L' : 'M') + `${p.x.toFixed(1)},${p.secondaryY.toFixed(1)}` }
     else if (secondarySeg)     { secondaryPaths.push(secondarySeg); secondarySeg = '' }
   })
-  if (primarySeg) primaryPaths.push(primarySeg)
+  
+  if (primarySeg) {
+    primaryPaths.push(primarySeg)
+    if (currentSegmentPts.length >= 2) {
+      primaryAreaPaths.push(primarySeg 
+        + ` L${currentSegmentPts[currentSegmentPts.length-1].x.toFixed(1)},${(PT+cH).toFixed(1)}`
+        + ` L${currentSegmentPts[0].x.toFixed(1)},${(PT+cH).toFixed(1)} Z`)
+    }
+  }
   if (secondarySeg) secondaryPaths.push(secondarySeg)
-
-  const filled = pts.filter(p => p.primaryY !== null)
-  const areaPath = filled.length >= 2
-    ? filled.map((p,i) => (i?'L':'M')+`${p.x.toFixed(1)},${p.primaryY.toFixed(1)}`).join(' ')
-      + ` L${filled[filled.length-1].x.toFixed(1)},${(PT+cH).toFixed(1)}`
-      + ` L${filled[0].x.toFixed(1)},${(PT+cH).toFixed(1)} Z`
-    : ''
 
   const restY = tY(TARGETS.calories.rest)
   const activeDays = days.filter(d => d.primary > 0)
@@ -191,18 +207,39 @@ function buildCalorieTrendHTML(days, { title, primaryLabel, secondaryLabel, prim
       ${p.date.toLocaleDateString('en-US',{month:'short',day:'numeric'})}
     </text>`).join('')
 
+  const validDays = days.filter(d => d.primary > 0 && d.secondary > 0)
+  let diffHtml = ''
+  if (validDays.length > 0) {
+    const isBurnedPrimary = primaryLabel === 'burned'
+    const totalBurn = validDays.reduce((s,d) => s + (isBurnedPrimary ? d.primary : d.secondary), 0)
+    const totalInput = validDays.reduce((s,d) => s + (isBurnedPrimary ? d.secondary : d.primary), 0)
+    const avgDiff = Math.round((totalInput - totalBurn) / validDays.length)
+    
+    if (Math.abs(avgDiff) > 10) {
+      const diffText = avgDiff > 0 ? `+${avgDiff.toLocaleString()} surplus/day` : `${Math.abs(avgDiff).toLocaleString()} deficit/day`
+      const diffColor = avgDiff > 0 ? 'var(--danger)' : 'var(--accent)'
+      diffHtml = `<span style="padding:2px 6px;border-radius:4px;background:${diffColor}15;color:${diffColor};font-size:10px;font-weight:600;line-height:1">${diffText}</span>`
+    } else {
+      diffHtml = `<span style="padding:2px 6px;border-radius:4px;background:var(--track);color:var(--tx2);font-size:10px;font-weight:600;line-height:1">Balanced avg</span>`
+    }
+  }
+
+  const uid = Math.random().toString(36).substring(7)
+  
   return `
     <div class="chart-header">
-      <span class="chart-title">${title}</span>
-      <span class="chart-sub">${primaryLabel}: ${avg.toLocaleString()} kcal/day${secondaryAvg ? ` · ${secondaryLabel}: ${secondaryAvg.toLocaleString()} kcal/day` : ''}</span>
+      <div style="display:flex;align-items:center;gap:6px">
+        <span class="chart-title" style="margin-bottom:0">${title}</span>
+        ${diffHtml}
+      </div>
     </div>
     <svg viewBox="0 0 ${W} ${H}" class="week-svg">
       <defs>
-        <linearGradient id="cal-grad-primary" x1="0" x2="0" y1="0" y2="1">
+        <linearGradient id="cal-grad-primary-${uid}" x1="0" x2="0" y1="0" y2="1">
           <stop offset="0%" stop-color="${primaryColor}" stop-opacity=".18"/>
           <stop offset="100%" stop-color="${primaryColor}" stop-opacity=".01"/>
         </linearGradient>
-        <linearGradient id="cal-grad-secondary" x1="0" x2="0" y1="0" y2="1">
+        <linearGradient id="cal-grad-secondary-${uid}" x1="0" x2="0" y1="0" y2="1">
           <stop offset="0%" stop-color="${secondaryColor}" stop-opacity=".10"/>
           <stop offset="100%" stop-color="${secondaryColor}" stop-opacity=".01"/>
         </linearGradient>
@@ -213,7 +250,7 @@ function buildCalorieTrendHTML(days, { title, primaryLabel, secondaryLabel, prim
         stroke="var(--border)" stroke-width="1" stroke-opacity=".6"/>
       <line x1="${PL}" y1="${restY.toFixed(1)}" x2="${(W-PR).toFixed(1)}" y2="${restY.toFixed(1)}"
         stroke="var(--border)" stroke-width="1" stroke-dasharray="4 3"/>
-      ${filled.length >= 2 ? `<path d="${areaPath}" fill="url(#cal-grad-primary)"/>` : ''}
+      ${primaryAreaPaths.map(area => `<path d="${area}" fill="url(#cal-grad-primary-${uid})"/>`).join('')}
       ${secondaryPaths.map(p => `<path d="${p}" fill="none" stroke="${secondaryColor}" stroke-width="1.6" stroke-opacity=".55"
         stroke-linecap="round" stroke-linejoin="round"/>`).join('')}
       ${primaryPaths.map(p => `<path d="${p}" fill="none" stroke="${primaryColor}" stroke-width="1.8"
@@ -230,11 +267,17 @@ export function calTrendHTML(data, nDays = 30, options = {}) {
   for (let i = nDays - 1; i >= 0; i--) {
     const d = new Date(); d.setDate(d.getDate() - i)
     const ds = dateStr(d)
-    const burned = (data.workouts[ds] || []).filter(w => !w.isDuplicate).reduce((sum, w) => sum + (w.calories_burned || 0), 0)
+    
+    // TDEE = Rest Target + Net Active Calories
+    const netActive = calculateNetActiveCalories(data.workouts[ds], TARGETS.calories.bmr)
+    const tdee = TARGETS.calories.rest + netActive
+    const foodItems = data.food[ds] || []
+    const input = foodItems.length > 0 ? sumFood(foodItems).calories : null
+
     days.push({
       ds,
-      primary: options.primary === 'burned' ? burned : sumFood(data.food[ds] || []).calories,
-      secondary: options.primary === 'burned' ? sumFood(data.food[ds] || []).calories : burned,
+      primary: options.primary === 'burned' ? tdee : input,
+      secondary: options.primary === 'burned' ? input : tdee,
       d,
       isToday: ds === today,
     })
@@ -360,6 +403,7 @@ export function sparklineHTML(weights) {
   const line = pts.map((p,i) => `${i?'L':'M'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ')
   const area = line + ` L${pts[pts.length-1].x.toFixed(1)},${H} L${pts[0].x.toFixed(1)},${H} Z`
 
+  const uid = Math.random().toString(36).substring(7)
   return `
     <div class="sparkline-card">
       <div class="chart-header">
@@ -368,12 +412,12 @@ export function sparklineHTML(weights) {
       </div>
       <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">
         <defs>
-          <linearGradient id="wg" x1="0" x2="0" y1="0" y2="1">
+          <linearGradient id="wg-${uid}" x1="0" x2="0" y1="0" y2="1">
             <stop offset="0%" stop-color="var(--accent)" stop-opacity=".18"/>
             <stop offset="100%" stop-color="var(--accent)" stop-opacity=".02"/>
           </linearGradient>
         </defs>
-        <path d="${area}" fill="url(#wg)"/>
+        <path d="${area}" fill="url(#wg-${uid})"/>
         <path d="${line}" fill="none" stroke="var(--accent)" stroke-width="2"
           stroke-linecap="round" stroke-linejoin="round"/>
         ${pts.map(p=>`<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3" fill="var(--accent)"/>`).join('')}
@@ -381,7 +425,23 @@ export function sparklineHTML(weights) {
     </div>`
 }
 
-export function monthHeatmapHTML(data, monthOffset = 0) {
+export function monthNavHTML(monthOffset = 0) {
+  const now = new Date()
+  now.setDate(1)
+  now.setMonth(now.getMonth() + monthOffset)
+  const monthName = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+  const prevOffset = monthOffset - 1
+  const nextOffset = monthOffset + 1
+  const canGoNext  = monthOffset < 0
+  return `
+    <div class="month-nav-bar">
+      <button type="button" class="month-nav-btn" data-action="heatmap-month" data-offset="${prevOffset}">‹</button>
+      <div class="month-nav-title">${monthName}</div>
+      <button type="button" class="month-nav-btn" data-action="heatmap-month" data-offset="${nextOffset}" ${canGoNext ? '' : 'disabled'}>›</button>
+    </div>`
+}
+
+export function monthHeatmapHTML(data, monthOffset = 0, type = 'workouts') {
   const now = new Date()
   now.setDate(1)
   now.setMonth(now.getMonth() + monthOffset)
@@ -391,50 +451,54 @@ export function monthHeatmapHTML(data, monthOffset = 0) {
   const daysInMonth = new Date(year, month + 1, 0).getDate()
   const firstDay = (new Date(year, month, 1).getDay() + 6) % 7  // Mon=0
 
-  const monthName = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
   const dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
 
   const cells = []
   for (let i = 0; i < firstDay; i++) cells.push(`<div class="hm-cell hm-empty"></div>`)
   for (let day = 1; day <= daysInMonth; day++) {
     const ds = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-    const dayWorkouts = data.workouts[ds] || []
-    const hasWorkout = dayWorkouts.some(w => !w.isDuplicate)
     const isToday = ds === today
     const isFuture = ds > today
     let cls = 'hm-cell'
-    if (hasWorkout) cls += ' hm-has'
-    if (isToday)    cls += ' hm-today'
-    if (isFuture)   cls += ' hm-future'
-    if (hasWorkout) {
-      const w = dayWorkouts[0]
-      const type = w.activity_type || detectActivityType(w.description)
-      cells.push(`<div class="${cls}" data-action="goto-activity-date" data-date="${ds}" style="cursor:pointer">${typeIcon(type, 13)}</div>`)
-    } else {
-      cells.push(`<div class="${cls}">${isFuture ? '' : day}</div>`)
+    if (isToday)  cls += ' hm-today'
+    if (isFuture) cls += ' hm-future'
+
+    if (type === 'workouts') {
+      const dayWorkouts = data.workouts[ds] || []
+      const hasWorkout = dayWorkouts.some(w => !w.isDuplicate)
+      if (hasWorkout) cls += ' hm-has'
+      
+      if (hasWorkout) {
+        const w = dayWorkouts[0]
+        const wtype = w.activity_type || detectActivityType(w.description)
+        cells.push(`<div class="${cls}" data-action="goto-activity-date" data-date="${ds}" style="cursor:pointer" title="${w.description}">${typeIcon(wtype, 13)}</div>`)
+      } else {
+        cells.push(`<div class="${cls}">${isFuture ? '' : day}</div>`)
+      }
+    } else if (type === 'nutrition') {
+      const food = data.food[ds] || []
+      if (food.length > 0) {
+        const input = sumFood(food).calories
+        const netActive = calculateNetActiveCalories(data.workouts[ds], TARGETS.calories.bmr)
+        const tdee = TARGETS.calories.rest + netActive
+        const diff = input - tdee
+        
+        let bg = 'var(--track)', color = 'var(--tx)'
+        if (diff > 100) { bg = 'var(--danger)'; color = '#fff' }
+        else if (diff < -100) { bg = 'var(--accent)'; color = '#fff' }
+        
+        cls += ' hm-has'
+        const diffText = diff > 0 ? `+${Math.round(diff)}` : Math.round(diff)
+        cells.push(`<div class="${cls}" data-action="goto-activity-date" data-date="${ds}" style="cursor:pointer;background:${bg};color:${color}" title="${diffText} kcal">${day}</div>`)
+      } else {
+        cells.push(`<div class="${cls}">${isFuture ? '' : day}</div>`)
+      }
     }
   }
 
-  const workoutDays = Object.keys(data.workouts || {}).filter(ds => {
-    const [y, m] = ds.split('-').map(Number)
-    return y === year && m === month + 1 && (data.workouts[ds] || []).some(w => !w.isDuplicate)
-  }).length
-
-  const prevOffset = monthOffset - 1
-  const nextOffset = monthOffset + 1
-  const canGoNext  = monthOffset < 0
-
   return `
-    <div class="chart-header">
-      <span class="chart-title">${monthName}</span>
-      <span class="chart-sub">${workoutDays} activit${workoutDays !== 1 ? 'ies' : 'y'}</span>
-    </div>
     <div class="heatmap-dow">${dayLabels.map(l => `<div class="hm-label">${l}</div>`).join('')}</div>
-    <div class="heatmap-grid">${cells.join('')}</div>
-    <div class="hm-nav-row">
-      <button type="button" class="hm-nav-btn" data-action="heatmap-month" data-offset="${prevOffset}">‹ Prev</button>
-      <button type="button" class="hm-nav-btn" data-action="heatmap-month" data-offset="${nextOffset}" ${canGoNext ? '' : 'disabled'}>Next ›</button>
-    </div>`
+    <div class="heatmap-grid">${cells.join('')}</div>`
 }
 
 export function workoutFreqHTML(data, weeks = 8) {
@@ -489,10 +553,11 @@ export function activityStatsHTML(data, nDays = 30) {
   for (let i = 0; i < nDays; i++) {
     const d = new Date(); d.setDate(d.getDate() - i)
     const ds = dateStr(d)
-    for (const w of (data.workouts[ds] || [])) {
+    const dayWorkouts = data.workouts[ds] || []
+    totalCal += calculateNetActiveCalories(dayWorkouts, TARGETS.calories.bmr)
+    for (const w of dayWorkouts) {
       if (w.isDuplicate) continue
       sessions++
-      totalCal  += w.calories_burned || 0
       if (w.duration_min)   { totalDur  += w.duration_min;   durCount++ }
       if (w.distance_km)    { totalDist += w.distance_km;    distCount++ }
       if (w.heart_rate_avg) { totalHR   += w.heart_rate_avg; hrCount++ }
@@ -501,7 +566,7 @@ export function activityStatsHTML(data, nDays = 30) {
 
   const stats = [
     { label: 'Sessions',    value: sessions,                          unit: '' },
-    { label: 'Cal burned',  value: totalCal ? round(totalCal) : '—', unit: totalCal ? ' kcal' : '' },
+    { label: 'Cal burned (excl. BMR)',  value: totalCal ? round(totalCal) : '—', unit: totalCal ? ' kcal' : '' },
   ]
   if (durCount > 0)  stats.push({ label: 'Avg duration',   value: Math.round(totalDur / durCount),   unit: ' min' })
   if (distCount > 0) stats.push({ label: 'Total distance',  value: totalDist.toFixed(1),              unit: ' km' })

@@ -1,7 +1,7 @@
 import { TARGETS } from './config.js'
 import { state } from './state.js'
 import { db } from './db.js'
-import { dateStr, nowTime, fmtDate, fmtDateShort, fmt, round, sumFood } from './utils.js'
+import { dateStr, nowTime, toUTCISO, fmtDate, fmtDateShort, fmt, round, sumFood } from './utils.js'
 import { openSheet, showToast, syncBackdrop } from './ui.js'
 
 export const CLAUDE_TOOLS = [
@@ -159,7 +159,11 @@ export async function buildClaudeSystem() {
     if (!df.length && !dw.length) continue
     recentLines.push(`${fmtDateShort(ds)}${i===0?' (today)':''}`+':')
     df.forEach(e => recentLines.push(`  food     [${e.id}] ${e.description} — ${round(e.calories)} kcal (${e.meal||'snack'})`))
-    dw.forEach(e => recentLines.push(`  workout  [${e.id}] ${e.description} (${e.intensity})${e.calories_burned?' '+e.calories_burned+' kcal burned':''}`))
+    dw.forEach(e => {
+      const isExternal = e.source === 'strava' || e.source === 'google-health'
+      const idStr = isExternal ? '[read-only external]' : `[${e.id}]`
+      recentLines.push(`  workout  ${idStr} ${e.description} (${e.intensity})${e.calories_burned?' '+e.calories_burned+' kcal burned':''}`)
+    })
   }
 
   const burnedToday = workouts.reduce((s, w) => s + (w.calories_burned || 0), 0)
@@ -181,6 +185,7 @@ ${mealsList}
 Rules:
 - Log food/workouts/weight for ANY date the user mentions. Use YYYY-MM-DD format.
 - To edit, call edit_food or edit_workout with the entry ID. Only send changed fields.
+- Never try to edit or delete [read-only external] workouts.
 - You may call multiple tools in one turn.
 - Estimate calories/macros from context; use preset values when name matches.
 - Keep replies concise. No markdown.`
@@ -229,10 +234,14 @@ export async function executeTool(name, input) {
       await db.addWorkout(date, { description: input.description, intensity: input.intensity,
         calories_burned: input.calories_burned||null, duration_min: input.duration_min||null,
         distance_km: input.distance_km||null, heart_rate_avg: input.heart_rate_avg||null,
-        duration: '', time: nowTime() })
+        time: toUTCISO(date, nowTime()) })
       return `logged for ${date}`
     }
     if (name === 'edit_workout') {
+      const workout = Object.values(state.dbCache?.workouts || {}).flat().find(w => w.id === input.id)
+      if (workout && (workout.source === 'strava' || workout.source === 'google-health')) {
+        return 'error: cannot edit synced external activities'
+      }
       const fields = {}
       if (input.description     !== undefined) fields.description     = input.description
       if (input.intensity       !== undefined) fields.intensity       = input.intensity
@@ -243,7 +252,14 @@ export async function executeTool(name, input) {
       await db.updateWorkout(input.id, fields)
       return 'updated'
     }
-    if (name === 'delete_workout')  { await db.deleteWorkout(input.id); return 'deleted' }
+    if (name === 'delete_workout')  { 
+      const workout = Object.values(state.dbCache?.workouts || {}).flat().find(w => w.id === input.id)
+      if (workout && (workout.source === 'strava' || workout.source === 'google-health')) {
+        return 'error: cannot delete synced external activities'
+      }
+      await db.deleteWorkout(input.id); 
+      return 'deleted' 
+    }
     if (name === 'log_weight')      { await db.upsertWeight({ kg: input.kg, date, time: nowTime() }); return `logged for ${date}` }
     if (name === 'save_meal_preset') {
       await db.addMeal({ name: input.name, calories: input.calories||0, protein: input.protein||0, carbs: input.carbs||0, fat: input.fat||0, meal: input.meal||'snack' })
@@ -252,12 +268,11 @@ export async function executeTool(name, input) {
     }
     if (name === 'set_targets') {
       if (input.cal_rest     !== undefined) TARGETS.calories.rest     = input.cal_rest
-      if (input.cal_training !== undefined) TARGETS.calories.training = input.cal_training
       if (input.protein_g    !== undefined) TARGETS.protein           = input.protein_g
       if (input.carbs_g      !== undefined) TARGETS.carbs             = input.carbs_g
       if (input.fat_g        !== undefined) TARGETS.fat               = input.fat_g
       await db.saveSettings({
-        cal_rest: TARGETS.calories.rest, cal_training: TARGETS.calories.training,
+        cal_rest: TARGETS.calories.rest,
         protein_g: TARGETS.protein, carbs_g: TARGETS.carbs, fat_g: TARGETS.fat,
       })
       return 'targets updated'
