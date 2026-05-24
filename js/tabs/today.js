@@ -9,21 +9,12 @@ import { openSheet, showToast, closeMenus } from '../ui.js'
 
 export async function renderToday() {
   if (!state.currentUser) {
-    document.getElementById('cal-section').innerHTML   = ''
-    document.getElementById('macro-rings').innerHTML   = ''
+    document.getElementById('cal-section').innerHTML    = ''
+    document.getElementById('macro-rings').innerHTML    = ''
     document.getElementById('week-chart-card').innerHTML = ''
-    document.getElementById('streak-card').innerHTML   = ''
+    document.getElementById('streak-card').innerHTML    = ''
     document.getElementById('macro-bar-card').innerHTML = ''
-    document.getElementById('today-logs').innerHTML = `
-      <div class="signin-prompt">
-        <div class="signin-icon">🚴</div>
-        <div class="signin-title">MyTracker</div>
-        <div class="signin-sub">Sign in to load your data</div>
-        <button class="github-signin-btn" data-action="signin">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58v-2.23c-3.34.73-4.03-1.42-4.03-1.42-.55-1.39-1.34-1.76-1.34-1.76-1.09-.74.08-.73.08-.73 1.2.08 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.49 1 .11-.78.42-1.31.76-1.61-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.14-.3-.54-1.52.12-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 3-.4c1.02 0 2.05.14 3 .4 2.28-1.55 3.29-1.23 3.29-1.23.66 1.66.24 2.88.12 3.18.77.84 1.24 1.91 1.24 3.22 0 4.61-2.81 5.63-5.48 5.92.43.37.82 1.1.82 2.22v3.29c0 .32.21.69.82.57C20.57 21.8 24 17.3 24 12c0-6.63-5.37-12-12-12z"/></svg>
-          Sign in with GitHub
-        </button>
-      </div>`
+    document.getElementById('today-logs').innerHTML     = ''
     return
   }
 
@@ -34,7 +25,7 @@ export async function renderToday() {
   const totals      = sumFood(food)
   const training    = workouts.length > 0
   const calTarget   = training ? TARGETS.calories.training : TARGETS.calories.rest
-  const burnedToday = workouts.reduce((sum, w) => sum + (w.calories_burned || 0), 0)
+  const burnedToday = workouts.filter(w => !w.isDuplicate).reduce((sum, w) => sum + (w.calories_burned || 0), 0)
 
   document.getElementById('cal-section').innerHTML =
     calRingHTML(totals.calories, calTarget, burnedToday) +
@@ -76,6 +67,8 @@ export async function renderToday() {
 export function openFoodSheet(meal = 'snack', date = null) {
   state.pendingEditFoodId = null
   state.pendingFoodDate   = date
+  const banner = document.getElementById('preset-match-banner')
+  if (banner) banner.style.display = 'none'
   const d = date || dateStr()
   document.getElementById('log-food-btn').textContent = 'Log Food'
   document.getElementById('f-date').value = d
@@ -91,8 +84,29 @@ export function openFoodSheet(meal = 'snack', date = null) {
   setTimeout(() => document.getElementById('f-desc').focus(), 360)
 }
 
+export function openFoodSheetWithPreset(preset) {
+  state.pendingEditFoodId = null
+  state.pendingFoodDate   = null
+  document.getElementById('log-food-btn').textContent = 'Log Food'
+  document.getElementById('f-date').value = dateStr()
+  document.querySelectorAll('#food-sheet .meal-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.meal === (preset.meal || 'snack')))
+  document.getElementById('f-desc').value = preset.name || ''
+  document.getElementById('f-cal').value  = preset.calories || ''
+  document.getElementById('f-pro').value  = preset.protein  || ''
+  document.getElementById('f-car').value  = preset.carbs    || ''
+  document.getElementById('f-fat').value  = preset.fat      || ''
+  document.getElementById('f-desc-ac').classList.remove('open')
+  const banner = document.getElementById('preset-match-banner')
+  banner.textContent = `Matched from saved meal: ${preset.name}`
+  banner.style.display = 'block'
+  openSheet('food-sheet')
+}
+
 export function editFood(id, date) {
   closeMenus()
+  const banner = document.getElementById('preset-match-banner')
+  if (banner) banner.style.display = 'none'
   // Find entry in cache
   let entry = null, entryDate = date
   if (date && state.dbCache?.food[date]) {

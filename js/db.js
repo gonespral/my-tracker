@@ -3,6 +3,22 @@ import { state } from './state.js'
 
 export const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 
+function markDuplicates(workoutsByDate) {
+  for (const workouts of Object.values(workoutsByDate)) {
+    const strava = workouts.filter(w => w.source === 'strava' && w.duration_min)
+    if (!strava.length) continue
+    for (const w of workouts) {
+      if (w.source !== 'google-health' || !w.duration_min) continue
+      const isDup = strava.some(s => {
+        const diff = Math.abs(s.duration_min - w.duration_min)
+        const avg  = (s.duration_min + w.duration_min) / 2
+        return diff / avg < 0.25 || diff <= 5
+      })
+      if (isDup) w.isDuplicate = true
+    }
+  }
+}
+
 export const db = {
   async load() {
     // No user → return empty immediately (no DB call, no error)
@@ -45,6 +61,7 @@ export const db = {
       const { user_id, created_at, date, ...entry } = r
       workouts[date] = [...(workouts[date] || []), entry]
     }
+    markDuplicates(workouts)
     const weights = (weightRows || []).map(({ id, user_id, created_at, ...r }) => r)
 
     state.dbCache = { food, workouts, weights }

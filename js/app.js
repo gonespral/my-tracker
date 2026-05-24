@@ -5,7 +5,7 @@ import { dateStr, nowTime } from './utils.js'
 import { showToast, openSheet, closeSheets, toggleEntryMenu, closeMenus } from './ui.js'
 import { startListening, stopListening } from './speech.js'
 import { openChat, clearChat, expandChatPanel, collapseChatPanel, toggleChatPanel, sendChatMessage, renderChat } from './ai.js'
-import { renderToday, openFoodSheet, openWorkoutSheet, editFood, editWorkout, saveToMeals } from './tabs/today.js'
+import { renderToday, openFoodSheet, openFoodSheetWithPreset, openWorkoutSheet, editFood, editWorkout, saveToMeals } from './tabs/today.js'
 import { renderNutrition } from './tabs/nutrition.js'
 import { renderWorkouts } from './tabs/workouts.js'
 import { renderSettings, openPresetSheet, deletePreset, openWorkoutPresetSheet, deleteWorkoutPreset } from './tabs/settings.js'
@@ -17,6 +17,11 @@ function signIn() {
     provider: 'github',
     options: { redirectTo: window.location.origin + window.location.pathname },
   })
+}
+
+function updateSigninOverlay() {
+  const overlay = document.getElementById('signin-overlay')
+  if (overlay) overlay.style.display = state.currentUser ? 'none' : 'flex'
 }
 
 // ── Tab routing ────────────────────────────────────────────────
@@ -33,6 +38,7 @@ export async function renderActive() {
 
 function switchTab(tab) {
   state.activeTab = tab
+  localStorage.setItem('tracker-tab', tab)
   document.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab))
   document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === `panel-${tab}`))
   renderActive()
@@ -148,6 +154,12 @@ document.addEventListener('click', async (e) => {
     case 'add-workout-preset':
       openWorkoutPresetSheet(null)
       break
+
+    case 'toggle-section': {
+      const accordion = actionEl.closest('.accordion')
+      if (accordion) accordion.classList.toggle('open')
+      break
+    }
   }
 })
 
@@ -186,7 +198,10 @@ async function initApp() {
     state.statsOpen = true
   }
 
-  // Tabs
+  // Tabs — restore last active tab
+  const savedTab = localStorage.getItem('tracker-tab')
+  if (savedTab && savedTab !== 'today') switchTab(savedTab)
+
   document.querySelectorAll('.tab').forEach(b =>
     b.addEventListener('click', () => switchTab(b.dataset.tab)))
 
@@ -201,14 +216,32 @@ async function initApp() {
   const handleMainInput = async () => {
     const text = mainInput.value.trim()
     if (!text) return
+
+    const chatPanel = document.getElementById('chat-panel')
+
+    // While in an active chat session, always continue the conversation
+    if (chatPanel.classList.contains('expanded')) {
+      mainInput.value = ''
+      resizeInput()
+      await sendChatMessage(text, renderActive)
+      return
+    }
+
+    // Try to match against saved meals before hitting Claude
+    if (!state.mealsCache) {
+      try { state.mealsCache = await db.loadMeals() } catch (_) {}
+    }
+    const match = findMatchingMeal(text)
+    if (match) {
+      mainInput.value = ''
+      resizeInput()
+      openFoodSheetWithPreset(match)
+      return
+    }
+
     mainInput.value = ''
     resizeInput()
-    const chatPanel = document.getElementById('chat-panel')
-    if (chatPanel.classList.contains('expanded')) {
-      await sendChatMessage(text, renderActive)
-    } else {
-      openChat(text, renderActive)
-    }
+    openChat(text, renderActive)
   }
 
   document.getElementById('send-btn').addEventListener('click', handleMainInput)
@@ -446,6 +479,46 @@ async function initApp() {
   }
 }
 
+// ── Meal fuzzy matching ───────────────────────────────────────
+
+// Words that signal a question or command — always route to Claude
+const QUERY_RE = /\b(edit|delete|remove|update|change|modify|how|what|why|when|where|which|who|can|could|would|should|help|show|tell|find|is|are|was|were|did|does|do)\b/i
+
+function mealSimilarity(input, mealName) {
+  const norm = s => s.toLowerCase().replace(/[^a-z0-9 ]/g, '').replace(/\s+/g, ' ').trim()
+  const a = norm(input)
+  const b = norm(mealName)
+  if (!a || !b) return 0
+  if (a === b) return 1
+
+  const ta = a.split(' ')
+  const tbSet = new Set(b.split(' '))
+
+  // Count words in input that don't appear in the meal name.
+  // More than 1 extra word means it's likely a sentence, not a food reference.
+  const extraWords = ta.filter(t => !tbSet.has(t))
+  if (extraWords.length > 1) return 0
+
+  const allTokens = new Set([...ta, ...tbSet])
+  const hits = ta.filter(t => tbSet.has(t)).length
+  const jaccard = hits / allTokens.size
+  const containsBonus = (b.includes(a) || a.includes(b)) ? 0.15 : 0
+  return Math.min(1, jaccard + containsBonus)
+}
+
+function findMatchingMeal(text) {
+  // Questions and commands always go to Claude
+  if (QUERY_RE.test(text) || text.includes('?')) return null
+
+  const meals = state.mealsCache || []
+  let best = null, bestScore = 0
+  for (const m of meals) {
+    const score = mealSimilarity(text, m.name)
+    if (score > bestScore) { bestScore = score; best = m }
+  }
+  return bestScore >= 0.65 ? best : null
+}
+
 function updateAutocomplete(query) {
   const list  = document.getElementById('f-desc-ac')
   const meals = state.mealsCache || []
@@ -484,11 +557,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   state.currentUser = session?.user ?? null
 
   await initApp()
+  updateSigninOverlay()
 
   // Re-render on any auth change (sign in, sign out, token refresh)
   supabase.auth.onAuthStateChange((event, session) => {
     state.currentUser = session?.user ?? null
     state.dbCache     = null
+    updateSigninOverlay()
     renderActive()
   })
 })
