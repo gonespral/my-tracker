@@ -3,6 +3,7 @@ import { db } from '../db.js'
 import { dateStr, fmtDateShort, fmt, round, sumFood } from '../utils.js'
 import { calTrendHTML, macroAvgBarsHTML, sparklineHTML } from '../charts.js'
 import { foodByMeal } from '../renderers.js'
+import { materialIcon } from '../icons.js'
 
 
 function renderWeightSection(data) {
@@ -27,7 +28,7 @@ function renderWeightSection(data) {
           <div class="weight-entry-kg">${w.kg.toFixed(1)}<span style="font-size:12px;font-weight:400;color:var(--tx3)"> kg</span></div>
         </div>
         <div class="entry-menu-wrap">
-          <button class="entry-menu-btn" data-action="toggle-menu">⋮</button>
+          <button class="entry-menu-btn" data-action="toggle-menu">${materialIcon('more_vert', 16)}</button>
           <div class="entry-menu">
             <button data-action="edit-weight" data-date="${w.date}">Edit</button>
             <button class="danger" data-action="delete-weight" data-date="${w.date}">Delete</button>

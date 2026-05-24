@@ -5,12 +5,13 @@ import { fmt, round, cap } from '../utils.js'
 import { openSheet, showToast, closeMenus, closeSheets } from '../ui.js'
 import { connectStrava, disconnectStrava, syncStrava, updateStravaSettingsSection } from '../strava.js'
 import { connectGoogleHealth, disconnectGoogleHealth, syncGoogleHealth, updateGoogleHealthSettingsSection } from '../google-health.js'
+import { materialIcon } from '../icons.js'
 
-const FOOD_PRESET_SVG = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3zm0 0v7"/></svg>`
-const WORK_PRESET_SVG = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4v16M18 4v16M2 9h4M18 9h4M2 15h4M18 15h4M6 9h12M6 15h12"/></svg>`
-const STRAVA_S_SVG    = `<svg width="16" height="16" viewBox="0 0 24 24" fill="#FC4C02" style="vertical-align:-2px;flex-shrink:0"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0 0 18.428h4.172"/></svg>`
-const GOOGLE_HEALTH_SVG = `<svg width="16" height="16" viewBox="0 0 24 24" style="vertical-align:-2px;flex-shrink:0"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z" fill="#4285F4"/></svg>`
-const CHEVRON = `<svg class="accordion-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`
+const STRAVA_ICON = materialIcon('directions_bike', 16)
+const GOOGLE_HEALTH_ICON = materialIcon('monitor_heart', 16)
+const FOOD_PRESET_ICON = materialIcon('restaurant', 15)
+const WORK_PRESET_ICON = materialIcon('fitness_center', 15)
+const CHEVRON = materialIcon('expand_more', 16, { className: 'accordion-chevron' })
 
 function section(key, title, body, defaultOpen = false) {
   return `
@@ -34,11 +35,11 @@ export async function renderSettings() {
     panel.innerHTML = `
       <div class="tab-inner">
         <div class="signin-prompt" style="margin:40px 0">
-          <div class="signin-icon">🚴</div>
+          <div class="signin-icon">${materialIcon('fitness_center', 28)}</div>
           <div class="signin-title">MyTracker</div>
           <div class="signin-sub">Sign in to access your data</div>
           <button class="github-signin-btn" data-action="signin">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58v-2.23c-3.34.73-4.03-1.42-4.03-1.42-.55-1.39-1.34-1.76-1.34-1.76-1.09-.74.08-.73.08-.73 1.2.08 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.49 1 .11-.78.42-1.31.76-1.61-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.14-.3-.54-1.52.12-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 3-.4c1.02 0 2.05.14 3 .4 2.28-1.55 3.29-1.23 3.29-1.23.66 1.66.24 2.88.12 3.18.77.84 1.24 1.91 1.24 3.22 0 4.61-2.81 5.63-5.48 5.92.43.37.82 1.1.82 2.22v3.29c0 .32.21.69.82.57C20.57 21.8 24 17.3 24 12c0-6.63-5.37-12-12-12z"/></svg>
+            <span class="material-symbols-outlined" style="font-size:20px;vertical-align:-4px">login</span>
             Sign in with GitHub
           </button>
         </div>
@@ -58,14 +59,14 @@ export async function renderSettings() {
 
   const mealItems = meals.map(m => `
     <div class="meal-preset-item">
-      <div class="meal-preset-icon">${FOOD_PRESET_SVG}</div>
+      <div class="meal-preset-icon">${FOOD_PRESET_ICON}</div>
       <div class="meal-preset-body">
         <div class="meal-preset-name">${m.name}</div>
         <div class="meal-preset-meta">P ${fmt(m.protein||0)}g · C ${fmt(m.carbs||0)}g · F ${fmt(m.fat||0)}g${m.meal ? ' · '+cap(m.meal) : ''}</div>
       </div>
       <div class="meal-preset-cal">${round(m.calories)}<span style="font-size:10px;font-weight:400;color:var(--tx3)"> kcal</span></div>
       <div class="entry-menu-wrap">
-        <button class="entry-menu-btn" data-action="toggle-menu">⋮</button>
+        <button class="entry-menu-btn" data-action="toggle-menu">${materialIcon('more_vert', 16)}</button>
         <div class="entry-menu">
           <button data-action="edit-preset" data-id="${m.id}">Edit</button>
           <button class="danger" data-action="delete-preset" data-id="${m.id}">Delete</button>
@@ -75,13 +76,13 @@ export async function renderSettings() {
 
   const wpItems = wps.map(w => `
     <div class="meal-preset-item">
-      <div class="meal-preset-icon">${WORK_PRESET_SVG}</div>
+      <div class="meal-preset-icon">${WORK_PRESET_ICON}</div>
       <div class="meal-preset-body">
         <div class="meal-preset-name">${w.name}</div>
         <div class="meal-preset-meta">${INTENSITY_ICON[w.intensity]||INTENSITY_ICON.medium} ${cap(w.intensity||'medium')}${w.calories_burned ? ' · '+w.calories_burned+' kcal burned' : ''}</div>
       </div>
       <div class="entry-menu-wrap">
-        <button class="entry-menu-btn" data-action="toggle-menu">⋮</button>
+        <button class="entry-menu-btn" data-action="toggle-menu">${materialIcon('more_vert', 16)}</button>
         <div class="entry-menu">
           <button data-action="edit-workout-preset" data-id="${w.id}">Edit</button>
           <button class="danger" data-action="delete-workout-preset" data-id="${w.id}">Delete</button>
@@ -140,7 +141,7 @@ export async function renderSettings() {
       <button class="btn-primary" id="settings-save-apikey-btn" style="margin-top:0">Save Key</button>
     `)}
 
-    ${section('strava', `<span style="display:flex;align-items:center;gap:7px">${STRAVA_S_SVG} Strava</span>`, `
+    ${section('strava', `<span style="display:flex;align-items:center;gap:7px">${STRAVA_ICON} Strava</span>`, `
       <div id="strava-disconnected-ui">
         <p class="setup-note">
           Connect your <a href="https://www.strava.com/settings/api" target="_blank">Strava API app</a>.
@@ -155,7 +156,7 @@ export async function renderSettings() {
           <input class="form-input" id="strava-csecret-input" type="password" placeholder="abc123…" autocomplete="off" />
         </div>
         <button class="btn-strava" id="connect-strava-btn">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0 0 18.428h4.172"/></svg>
+          ${STRAVA_ICON}
           Connect Strava
         </button>
       </div>
@@ -166,14 +167,14 @@ export async function renderSettings() {
         </div>
         <p id="strava-last-sync-label" class="setup-note" style="margin-bottom:10px">Last synced: never</p>
         <button class="btn-strava" id="force-sync-btn">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg>
+          ${materialIcon('sync', 14, { style: 'vertical-align:-2px;flex-shrink:0;color:white' })}
           Force Sync Now
         </button>
         <button id="remove-strava-btn" class="link-btn" style="margin-top:12px;color:var(--danger);display:block">Remove all synced activities</button>
       </div>
     `)}
 
-    ${section('google', `<span style="display:flex;align-items:center;gap:7px">${GOOGLE_HEALTH_SVG} Google Health</span>`, `
+    ${section('google', `<span style="display:flex;align-items:center;gap:7px">${GOOGLE_HEALTH_ICON} Google Health</span>`, `
       <div id="gh-disconnected-ui">
         <p class="setup-note">
           Sync activities via the <a href="https://console.cloud.google.com/apis/api/health.googleapis.com/" target="_blank">Google Health API Console</a>.
@@ -189,7 +190,7 @@ export async function renderSettings() {
           <input class="form-input" id="gh-csecret-input" type="password" placeholder="GOCSPX-…" autocomplete="off" />
         </div>
         <button class="btn-google-health" id="connect-gh-btn">
-          <svg width="15" height="15" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="white"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="white"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="white"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="white"/></svg>
+          ${GOOGLE_HEALTH_ICON}
           Connect with Google
         </button>
       </div>
@@ -200,7 +201,7 @@ export async function renderSettings() {
         </div>
         <p id="gh-last-sync-label" class="setup-note" style="margin-bottom:10px">Last synced: never</p>
         <button class="btn-google-health" id="gh-force-sync-btn">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg>
+          ${materialIcon('sync', 14, { style: 'vertical-align:-2px;flex-shrink:0;color:white' })}
           Force Sync Now
         </button>
         <button id="remove-gh-btn" class="link-btn" style="margin-top:12px;color:var(--danger);display:block">Remove all Google Health-synced activities</button>
