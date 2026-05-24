@@ -68,14 +68,24 @@ export const workoutItem = (e, date) => {
   }
 
   const isStrava       = e.source === 'strava'
-  const isGoogleHealth = e.source === 'google-health'
+  const isGoogleHealth = e.source === 'google-health' || e.source === 'fitbit'
   const isImported     = isStrava || isGoogleHealth
   const isDuplicate    = e.isDuplicate === true
+  const conflictBadge  = e.conflictGroupId
+    ? (isDuplicate
+      ? `<span class="tag tag-duplicate">Inactive duplicate</span>`
+      : `<span class="tag tag-counting">Counting</span>`)
+    : ''
+  const conflictAction = isDuplicate && e.conflictGroupId
+    ? `<button class="conflict-swap-btn" data-action="activate-workout-conflict" data-group="${e.conflictGroupId}" data-source="${e.source}">Count this activity</button>`
+    : ''
   const stravaBadge    = isStrava
     ? `<a class="tag tag-strava" href="https://www.strava.com/activities/${e.external_id}" target="_blank" rel="noopener" style="text-decoration:none">Strava ↗</a>`
     : ''
-  const googleHealthBadge = isGoogleHealth ? `<span class="tag tag-google-health">Google Health</span>` : ''
-  const dupBadge = isDuplicate ? `<span class="tag tag-duplicate">Duplicate</span>` : ''
+  const googleHealthBadge = e.source === 'fitbit'
+    ? `<span class="tag tag-google-health">Fitbit</span>`
+    : (e.source === 'google-health' ? `<span class="tag tag-google-health">Google Health</span>` : '')
+  const dupBadge = isDuplicate && !e.conflictGroupId ? `<span class="tag tag-duplicate">Duplicate</span>` : ''
 
   return `
     <div class="log-item${isDuplicate ? ' log-item-duplicate' : ''}">
@@ -84,6 +94,7 @@ export const workoutItem = (e, date) => {
         <div class="log-desc">${e.description || '—'}</div>
         <div class="log-tags">
           <span class="tag intensity-${e.intensity}">${intensityIcon} ${cap(e.intensity)}</span>
+          ${conflictBadge}
           ${e.calories_burned ? `<span class="tag">${ICON_FLAME} ${e.calories_burned} kcal</span>` : ''}
           ${e.duration_min ? `<span class="tag">${ICON_CLOCK} ${e.duration_min} min</span>` : (e.duration ? `<span class="tag">${ICON_CLOCK} ${e.duration}</span>` : '')}
           ${e.distance_km  ? `<span class="tag">${ICON_PIN} ${e.distance_km} km</span>`  : distanceTag}
@@ -92,6 +103,7 @@ export const workoutItem = (e, date) => {
           ${googleHealthBadge}
           ${dupBadge}
         </div>
+        ${conflictAction ? `<div class="conflict-actions">${conflictAction}</div>` : ''}
       </div>
       ${!isImported ? `
       <div class="entry-menu-wrap">

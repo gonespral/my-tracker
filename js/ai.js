@@ -2,7 +2,7 @@ import { TARGETS } from './config.js'
 import { state } from './state.js'
 import { db } from './db.js'
 import { dateStr, nowTime, fmtDate, fmtDateShort, fmt, round, sumFood } from './utils.js'
-import { openSheet, showToast } from './ui.js'
+import { openSheet, showToast, syncBackdrop } from './ui.js'
 
 export const CLAUDE_TOOLS = [
   {
@@ -143,7 +143,7 @@ export async function buildClaudeSystem() {
   const workouts = data.workouts[today] || []
   const totals   = sumFood(food)
   const weights  = data.weights || []
-  const training  = workouts.length > 0
+  const training  = workouts.some(w => !w.isDuplicate)
   const calTarget = training ? TARGETS.calories.training : TARGETS.calories.rest
   const remaining = calTarget - totals.calories
 
@@ -276,48 +276,79 @@ const THINKING_VERBS = [
 ]
 export const thinkingVerb = () => THINKING_VERBS[Math.floor(Math.random() * THINKING_VERBS.length)]
 
+const CHAT_COLLAPSED_HEIGHT = '18px'
+const CHAT_PEEK_HEIGHT = '75px'
+
+function getChatPanelState(panel = document.getElementById('chat-panel')) {
+  if (!panel) return 'collapsed'
+  if (panel.classList.contains('expanded')) return 'expanded'
+  if (panel.classList.contains('peek')) return 'peek'
+  return 'collapsed'
+}
+
+function syncChatPanelLayout(stateName) {
+  document.documentElement.style.setProperty('--chat-peek-h', stateName === 'collapsed' ? CHAT_COLLAPSED_HEIGHT : CHAT_PEEK_HEIGHT)
+  syncBackdrop()
+}
+
+export function setChatPanelState(nextState) {
+  const panel = document.getElementById('chat-panel')
+  if (!panel) return
+  panel.classList.remove('dragging')
+  panel.style.height = ''
+  panel.classList.remove('collapsed', 'peek', 'expanded')
+  panel.classList.add(nextState)
+
+  const inp = document.getElementById('main-input')
+  if (inp) inp.placeholder = nextState === 'expanded' ? 'Reply to Claude…' : 'Type something…'
+
+  syncChatPanelLayout(nextState)
+
+  if (nextState === 'expanded') {
+    setTimeout(() => document.getElementById('chat-messages')?.scrollTo(0, 999999), 50)
+  }
+}
+
 export function renderChat() {
   const el = document.getElementById('chat-messages')
   if (!el) return
   el.innerHTML = state.chatDisplay.map(m =>
-    `<div class="chat-bubble ${m.role}${m.thinking?' thinking':''}}">${m.text}</div>`).join('')
+    `<div class="chat-bubble ${m.role}${m.thinking ? ' thinking' : ''}">${m.text}</div>`).join('')
   el.scrollTop = el.scrollHeight
 
   const last = [...state.chatDisplay].reverse().find(m => m.role === 'assistant')
   if (last) {
     const panel = document.getElementById('chat-panel')
     const peekText = document.getElementById('chat-peek-text')
-    peekText.textContent = last.text
-    peekText.classList.toggle('thinking', !!last.thinking)
-    if (!panel.classList.contains('expanded')) {
+    if (peekText) {
+      peekText.textContent = last.text
+      peekText.classList.toggle('thinking', !!last.thinking)
+    }
+    if (panel && !panel.classList.contains('expanded') && !panel.classList.contains('collapsed')) {
       panel.classList.add('peek')
-      document.documentElement.style.setProperty('--chat-peek-h', '75px')
+      syncChatPanelLayout('peek')
     }
   }
 }
 
 export function expandChatPanel() {
-  const panel = document.getElementById('chat-panel')
-  panel.classList.add('expanded')
-  panel.classList.remove('peek')
-  const inp = document.getElementById('main-input')
-  if (inp) inp.placeholder = 'Reply to Claude…'
-  setTimeout(() => document.getElementById('chat-messages')?.scrollTo(0, 999999), 50)
+  setChatPanelState('expanded')
 }
 
 export function collapseChatPanel() {
-  const panel = document.getElementById('chat-panel')
-  if (!panel.classList.contains('peek') && !panel.classList.contains('expanded')) return
-  panel.classList.remove('expanded')
-  panel.classList.add('peek')
-  const inp = document.getElementById('main-input')
-  if (inp) inp.placeholder = 'Type something…'
+  setChatPanelState('peek')
+}
+
+export function hideChatPanel() {
+  setChatPanelState('collapsed')
 }
 
 export function toggleChatPanel() {
   const panel = document.getElementById('chat-panel')
+  if (!panel) return
   if (panel.classList.contains('expanded')) collapseChatPanel()
   else if (panel.classList.contains('peek')) expandChatPanel()
+  else collapseChatPanel()
 }
 
 export function clearChat() {
@@ -327,11 +358,7 @@ export function clearChat() {
   if (el) el.innerHTML = ''
   const peekText = document.getElementById('chat-peek-text')
   if (peekText) peekText.textContent = ''
-  const panel = document.getElementById('chat-panel')
-  panel.classList.remove('peek', 'expanded')
-  document.documentElement.style.setProperty('--chat-peek-h', '0px')
-  const inp = document.getElementById('main-input')
-  if (inp) inp.placeholder = 'Type something…'
+  setChatPanelState('collapsed')
 }
 
 export async function sendChatMessage(text, renderActiveFn) {
@@ -378,6 +405,8 @@ export async function sendChatMessage(text, renderActiveFn) {
 export function openChat(initialText, renderActiveFn) {
   const key = localStorage.getItem('tracker-anthropic-key') || ''
   if (!key) { openSheet('apikey-sheet'); return }
-  if (initialText) sendChatMessage(initialText, renderActiveFn)
-  // stays minimized — user taps peek strip to expand
+  if (initialText) {
+    setChatPanelState('peek')
+    sendChatMessage(initialText, renderActiveFn)
+  }
 }

@@ -23,7 +23,7 @@ export async function renderToday() {
   const food     = data.food[today]     || []
   const workouts = data.workouts[today] || []
   const totals      = sumFood(food)
-  const training    = workouts.length > 0
+  const training    = workouts.some(w => !w.isDuplicate)
   const calTarget   = training ? TARGETS.calories.training : TARGETS.calories.rest
   const burnedToday = workouts.filter(w => !w.isDuplicate).reduce((sum, w) => sum + (w.calories_burned || 0), 0)
 

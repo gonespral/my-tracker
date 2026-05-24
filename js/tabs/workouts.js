@@ -1,7 +1,7 @@
 import { state } from '../state.js'
 import { db } from '../db.js'
 import { dateStr } from '../utils.js'
-import { streakHTML, monthHeatmapHTML, activityStatsHTML, activityTypeBreakdownHTML } from '../charts.js'
+import { calTrendHTML, streakHTML, monthHeatmapHTML, activityStatsHTML, activityTypeBreakdownHTML } from '../charts.js'
 import { workoutItem } from '../renderers.js'
 
 
@@ -48,6 +48,7 @@ export async function renderWorkouts(monthOffset) {
   panel.innerHTML = `
     <div class="panel-inner">
       <div class="panel-left">
+        <div class="chart-card">${calTrendHTML(data, 30, { title: 'Calorie burn', primary: 'burned' })}</div>
         <div class="chart-card">${monthHeatmapHTML(data, monthOffset)}</div>
         <div class="chart-card">${activityTypeBreakdownHTML(data, year, month)}</div>
         <div class="section-divider"></div>

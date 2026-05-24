@@ -10,6 +10,60 @@ export const TARGETS = {
   fat:      65,
 }
 
+export const CALORIE_SEX = {
+  female: { label: 'Female', offset: -161 },
+  male:   { label: 'Male', offset: 5 },
+  other:  { label: 'Other / prefer not to say', offset: 0 },
+}
+
+export const CALORIE_ACTIVITY_LEVELS = {
+  sedentary:   { label: 'Sedentary',   factor: 1.2,   detail: 'Little to no movement' },
+  light:       { label: 'Light',       factor: 1.375, detail: 'Light daily movement' },
+  moderate:    { label: 'Moderate',    factor: 1.55,  detail: 'Typical day with regular movement' },
+  active:      { label: 'Active',      factor: 1.725, detail: 'High movement or frequent training' },
+  very_active: { label: 'Very active', factor: 1.9,   detail: 'Very active job or training volume' },
+}
+
+export const CALORIE_PROFILE_DEFAULTS = {
+  sex: 'other',
+  age: '',
+  height_cm: '',
+  weight_kg: '',
+  activity_level: 'moderate',
+}
+
+export function computeCalorieTargets(profile, fallbackWeightKg = null) {
+  const age = Number(profile?.age)
+  const heightCm = Number(profile?.height_cm)
+  const weightKg = Number(profile?.weight_kg || fallbackWeightKg)
+  if (!age || !heightCm || !weightKg) return null
+
+  const sexKey = CALORIE_SEX[profile?.sex] ? profile.sex : 'other'
+  const activityKey = CALORIE_ACTIVITY_LEVELS[profile?.activity_level] ? profile.activity_level : 'moderate'
+  const bmr = 10 * weightKg + 6.25 * heightCm - 5 * age + CALORIE_SEX[sexKey].offset
+  const rest = Math.round(bmr * CALORIE_ACTIVITY_LEVELS[activityKey].factor)
+
+  return {
+    sex: sexKey,
+    activity_level: activityKey,
+    age,
+    height_cm: heightCm,
+    weight_kg: weightKg,
+    bmr: Math.round(bmr),
+    rest,
+    training: rest + 200,
+  }
+}
+
+export function hydrateCalorieTargets(profile, fallbackWeightKg = null) {
+  const targets = computeCalorieTargets(profile, fallbackWeightKg)
+  if (!targets) return null
+
+  TARGETS.calories.rest = targets.rest
+  TARGETS.calories.training = targets.training
+  return targets
+}
+
 export const MEAL_ORDER = ['breakfast', 'lunch', 'snack', 'dinner']
 
 export const MEAL_ICON = {

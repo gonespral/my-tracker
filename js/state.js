@@ -4,6 +4,7 @@ export const state = {
   dbCache:      null,
   mealsCache:   null,
   workoutPresetsCache: null,
+  workoutConflictGroups: null,
   activeTab:    'today',
 
   // Pending edits
