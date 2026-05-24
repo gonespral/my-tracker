@@ -346,6 +346,7 @@ export async function pushActivityToStrava(entry) {
   if (entry.calories_burned) meta.push(`Calories: ${entry.calories_burned} kcal`)
   if (entry.heart_rate_avg) meta.push(`Avg HR: ${entry.heart_rate_avg} bpm`)
   const descLines = []
+  if (entry.description) descLines.push(entry.description)
   if (meta.length) descLines.push(meta.join(' · '))
   descLines.push('Logged via MyTracker · https://github.com/gonespral/my-tracker')
 
