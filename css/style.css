@@ -2389,6 +2389,13 @@ body {
   opacity: .85;
 }
 
+/* ── Mobile: remove input-bar top corners when it spans full width ─────── */
+@media (max-width: 767px) {
+  .input-bar {
+    border-radius: 0;
+  }
+}
+
 /* ── Desktop overrides ≥ 768px ────────────────────────────────────────── */
 @media (min-width: 768px) {
   #app {
