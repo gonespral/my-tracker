@@ -121,7 +121,7 @@ export function weekChartHTML(data) {
         font-size="9" fill="${labelFill}" font-weight="${d.isToday ? '700' : '400'}">${d.label}</text>
       ${d.cals > 0
         ? `<text x="${(x+bW/2).toFixed(1)}" y="${(y-4).toFixed(1)}" text-anchor="middle"
-            font-size="8" fill="${fill}" font-weight="600">${round(d.cals/1000*10)/10}k</text>`
+            font-size="8" fill="${fill}" font-weight="600">${Math.round(d.cals)}</text>`
         : ''}`
   }).join('')
 
@@ -132,7 +132,7 @@ export function weekChartHTML(data) {
       <span class="chart-sub">avg ${wkAvg.toLocaleString()} kcal/day</span>
     </div>
     <svg viewBox="0 0 ${W} ${H}" class="week-svg">
-      <text x="${PL-4}" y="${(restTargetY+3).toFixed(1)}" text-anchor="end" font-size="8" fill="var(--tx3)">${(TARGETS.calories.rest/1000).toFixed(1)}k</text>
+      <text x="${PL-4}" y="${(restTargetY+3).toFixed(1)}" text-anchor="end" font-size="8" fill="var(--tx3)">${Math.round(TARGETS.calories.rest)}</text>
       <text x="${PL-4}" y="${(PT+cH+3).toFixed(1)}" text-anchor="end" font-size="8" fill="var(--tx3)">0</text>
       <line x1="${PL}" y1="${restTargetY.toFixed(1)}" x2="${(W-PR).toFixed(1)}" y2="${restTargetY.toFixed(1)}"
         stroke="var(--border)" stroke-width="1" stroke-dasharray="4 3"/>
@@ -244,7 +244,7 @@ function buildCalorieTrendHTML(days, { title, primaryLabel, secondaryLabel, prim
           <stop offset="100%" stop-color="${secondaryColor}" stop-opacity=".01"/>
         </linearGradient>
       </defs>
-      <text x="${PL-4}" y="${(restY+3).toFixed(1)}" text-anchor="end" font-size="8" fill="var(--tx3)">${(TARGETS.calories.rest/1000).toFixed(1)}k</text>
+      <text x="${PL-4}" y="${(restY+3).toFixed(1)}" text-anchor="end" font-size="8" fill="var(--tx3)">${Math.round(TARGETS.calories.rest)}</text>
       <text x="${PL-4}" y="${(PT+cH+3).toFixed(1)}" text-anchor="end" font-size="8" fill="var(--tx3)">0</text>
       <line x1="${PL}" y1="${(PT+cH).toFixed(1)}" x2="${(W-PR).toFixed(1)}" y2="${(PT+cH).toFixed(1)}"
         stroke="var(--border)" stroke-width="1" stroke-opacity=".6"/>
@@ -300,7 +300,7 @@ export function macroBarsHTML(totals, label = "Today's macros") {
     { label: 'Fat',     val: totals.fat,      target: TARGETS.fat,      unit: 'g', color: '#f59e0b' },
   ]
   const rows = bars.map(b => {
-    const pct   = Math.min((b.val / b.target) * 100, 100).toFixed(1)
+    const pct   = Math.min((b.val / b.target) * 100, 100).toFixed(2)
     const over  = b.val > b.target
     const color = over ? 'var(--danger)' : b.color
     return `
@@ -408,7 +408,7 @@ export function sparklineHTML(weights) {
     <div class="sparkline-card">
       <div class="chart-header">
         <span class="chart-title">Weight trend</span>
-        <span class="chart-sub">${ordered.length} entries · ${minV.toFixed(1)}–${maxV.toFixed(1)} kg</span>
+        <span class="chart-sub">${ordered.length} entries · ${minV.toFixed(2)}–${maxV.toFixed(2)} kg</span>
       </div>
       <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">
         <defs>
@@ -535,7 +535,7 @@ export function workoutFreqHTML(data, weeks = 8) {
   }).join('')
 
   const totalW = buckets.reduce((s,b)=>s+b.count,0)
-  const avgW   = (totalW / weeks).toFixed(1)
+  const avgW   = (totalW / weeks).toFixed(2)
 
   return `
     <div class="chart-header">
@@ -569,7 +569,7 @@ export function activityStatsHTML(data, nDays = 30) {
     { label: 'Cal burned (excl. BMR)',  value: totalCal ? round(totalCal) : '—', unit: totalCal ? ' kcal' : '' },
   ]
   if (durCount > 0)  stats.push({ label: 'Avg duration',   value: Math.round(totalDur / durCount),   unit: ' min' })
-  if (distCount > 0) stats.push({ label: 'Total distance',  value: totalDist.toFixed(1),              unit: ' km' })
+  if (distCount > 0) stats.push({ label: 'Total distance',  value: totalDist.toFixed(2),              unit: ' km' })
   if (hrCount > 0)   stats.push({ label: 'Avg heart rate',  value: Math.round(totalHR / hrCount),     unit: ' bpm' })
   if (!durCount && !distCount && !hrCount && sessions > 0)
     stats.push({ label: 'Avg cal/session', value: totalCal ? round(totalCal / sessions) : '—', unit: totalCal ? ' kcal' : '' })
