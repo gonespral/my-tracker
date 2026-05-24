@@ -312,18 +312,10 @@ export function connectStrava() {
 
 export const stravaAutoPushEnabled = () => localStorage.getItem('strava-auto-push') === 'true'
 
-const ACTIVITY_TYPE_TO_STRAVA = {
-  run: 'Run', walk: 'Walk', hike: 'Hike', cycle: 'Ride', ride: 'Ride',
-  swim: 'Swim', yoga: 'Yoga', gym: 'WeightTraining', weights: 'WeightTraining',
-  crossfit: 'CrossFit', rowing: 'Rowing', soccer: 'Soccer',
-  basketball: 'Basketball', tennis: 'Tennis', skiing: 'AlpineSki',
-  'martial arts': 'MartialArts', martialarts: 'MartialArts', boxing: 'Boxing',
-  kickboxing: 'Kickboxing', wrestling: 'Wrestling',
-}
 
 function buildWorkoutJSON(entry) {
   const startUTCISO = entry.time || (entry.date ? entry.date + 'T00:00:00Z' : new Date().toISOString())
-  const elapsedSecs = entry.duration_min ? Math.round(entry.duration_min * 60) : 0
+  const elapsedSecs = Math.max(entry.duration_min ? Math.round(entry.duration_min * 60) : 0, 1)
   const utcOffset   = -new Date().getTimezoneOffset() * 60
 
   const payload = {
@@ -332,7 +324,7 @@ function buildWorkoutJSON(entry) {
     utc_offset: utcOffset,
     elapsed_time: elapsedSecs,
     creator: { name: 'MyTracker' },
-    sets: [{ exercise_type: 'WORKOUT', duration: Math.max(elapsedSecs, 1) }],
+    sets: [{ exercise_type: 'WORKOUT', duration: elapsedSecs }],
   }
 
   if (entry.calories_burned) payload.total_calories = Math.round(entry.calories_burned)
