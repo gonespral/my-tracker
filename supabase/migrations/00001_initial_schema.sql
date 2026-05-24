@@ -69,7 +69,6 @@ CREATE TABLE public.workout_presets (
 CREATE TABLE public.user_settings (
     user_id        UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
     cal_rest       NUMERIC CHECK (cal_rest > 0),
-    cal_training   NUMERIC CHECK (cal_training > 0),
     protein_g      NUMERIC CHECK (protein_g >= 0),
     carbs_g        NUMERIC CHECK (carbs_g >= 0),
     fat_g          NUMERIC CHECK (fat_g >= 0),
