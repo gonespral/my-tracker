@@ -3,5 +3,8 @@
   "private": true,
   "scripts": {
     "dev": "npx serve . -p 3000"
+  },
+  "devDependencies": {
+    "sharp": "^0.34.5"
   }
 }
