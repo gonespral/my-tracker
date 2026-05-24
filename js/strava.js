@@ -317,6 +317,8 @@ const ACTIVITY_TYPE_TO_STRAVA = {
   swim: 'Swim', yoga: 'Yoga', gym: 'WeightTraining', weights: 'WeightTraining',
   crossfit: 'CrossFit', rowing: 'Rowing', soccer: 'Soccer',
   basketball: 'Basketball', tennis: 'Tennis', skiing: 'AlpineSki',
+  'martial arts': 'MartialArts', martialarts: 'MartialArts', boxing: 'Boxing',
+  kickboxing: 'Kickboxing', wrestling: 'Wrestling',
 }
 
 export async function pushActivityToStrava(entry) {
