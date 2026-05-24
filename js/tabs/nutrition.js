@@ -88,8 +88,7 @@ export async function renderNutrition() {
   panel.innerHTML = `
     <div class="panel-inner">
       <div class="panel-left">
-        <div class="section-label" style="margin-top:4px">Calories (30 days)</div>
-        <div class="chart-card">${calTrendHTML(data, 30)}</div>
+        <div class="chart-card">${calTrendHTML(data, 30, { title: 'Caloric input', primary: 'input' })}</div>
         <div class="section-label">Macros (30-day avg)</div>
         <div class="chart-card">${macroAvgBarsHTML(data, 30)}</div>
         <div class="section-label" style="margin-top:8px">Weight</div>

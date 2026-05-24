@@ -4,8 +4,10 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>MyTracker</title>
-  <link rel="icon" type="image/svg+xml" href="logo.svg" />
-  <link rel="apple-touch-icon" href="logo.svg" />
+  <link rel="icon" href="brand/icons/favicon.svg" />
+  <link rel="icon" media="(prefers-color-scheme: dark)" href="brand/icons/favicon-dark.svg" />
+  <link rel="apple-touch-icon" href="brand/icons/apple-touch-icon.png" />
+  <link rel="apple-touch-icon" media="(prefers-color-scheme: dark)" href="brand/icons/apple-touch-icon-dark.png" />
   <link rel="manifest" href="manifest.json" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-title" content="MyTracker" />
@@ -34,7 +36,11 @@
   <!-- Top bar: title + actions + tabs -->
   <header class="top-bar">
     <div class="top-bar-inner">
-      <span class="top-bar-title">MyTracker</span>
+      <span class="top-bar-title">
+        <img src="brand/svg/logo-mono-light.svg" alt="MyTracker" class="app-icon app-icon-light">
+        <img src="brand/svg/logo-mono-dark.svg" alt="MyTracker" class="app-icon app-icon-dark">
+        MyTracker
+      </span>
       <div class="top-bar-actions">
         <button id="theme-toggle" class="icon-btn" title="Toggle dark mode" aria-label="Toggle dark mode">
           <span class="material-symbols-outlined icon-sun" style="font-size:18px">light_mode</span>
@@ -84,7 +90,7 @@
   </main>
 
   <!-- Unified chat panel (peek strip + expanded chat) -->
-  <div id="chat-panel">
+  <div id="chat-panel" class="collapsed">
     <div class="chat-panel-handle-row" id="chat-panel-handle">
       <div class="chat-panel-handle"></div>
     </div>

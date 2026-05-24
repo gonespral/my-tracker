@@ -176,7 +176,7 @@ function mapDataPoint(dp) {
     source:          'google-health',
     external_id:     pointId,
     date,
-    time:            nowTime(),
+    time:            startTime || nowTime(),
   }
 }
 

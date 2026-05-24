@@ -3,6 +3,199 @@ import { state } from './state.js'
 
 export const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 
+const CONFLICT_PREFERENCE_KEY = 'tracker-workout-conflict-preference'
+const CONFLICT_OVERRIDES_KEY = 'tracker-workout-conflict-overrides'
+const CONFLICT_INTEGRATIONS = new Set(['strava', 'google-health', 'fitbit'])
+
+function readConflictOverrides() {
+  try {
+    return JSON.parse(localStorage.getItem(CONFLICT_OVERRIDES_KEY) || '{}') || {}
+  } catch {
+    return {}
+  }
+}
+
+function writeConflictOverrides(overrides) {
+  localStorage.setItem(CONFLICT_OVERRIDES_KEY, JSON.stringify(overrides))
+}
+
+function parseWorkoutStart(date, time) {
+  if (!date || !time || typeof time !== 'string') return null
+
+  const isoMatch = time.trim().match(/^(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2})/)
+  if (isoMatch) {
+    const [, year, month, day, hours, minutes] = isoMatch
+    return new Date(Number(year), Number(month) - 1, Number(day), Number(hours), Number(minutes), 0, 0).getTime()
+  }
+
+  const match = time.trim().match(/^(\d{1,2}):(\d{2})\s*([ap]m)$/i)
+  if (!match) return null
+
+  let hours = Number(match[1]) % 12
+  if (match[3].toLowerCase() === 'pm') hours += 12
+  const minutes = Number(match[2])
+  const [year, month, day] = date.split('-').map(Number)
+  return new Date(year, month - 1, day, hours, minutes, 0, 0).getTime()
+}
+
+function normalizeWorkoutType(workout) {
+  const type = (workout.activity_type || workout.sport_type || workout.description || '').toString().toLowerCase()
+  if (/(ride|bike|cycling|biking|mountainbike)/.test(type)) return 'cycle'
+  if (/(run|jog|sprint|5k|10k|marathon|tempo)/.test(type)) return 'run'
+  if (/(walk|hike|trail)/.test(type)) return 'walk'
+  if (/(swim|pool|lap)/.test(type)) return 'swim'
+  if (/(row|rowing|kayak|canoe)/.test(type)) return 'row'
+  if (/(yoga|pilates|stretch)/.test(type)) return 'yoga'
+  if (/(crossfit|hiit|tabata|circuit|cardio)/.test(type)) return 'hiit'
+  if (/(tennis|padel|squash|badminton|racket|racquet)/.test(type)) return 'tennis'
+  if (/(climb|boulder|rock)/.test(type)) return 'climb'
+  if (/(football|soccer|basketball|rugby|volley|hockey|ball)/.test(type)) return 'ball'
+  if (/(box|boxing|kickbox|muay|mma|judo|karate|wrestling|martial|combat)/.test(type)) return 'box'
+  return workout.activity_type || workout.sport_type || 'lift'
+}
+
+function getWorkoutWindow(date, workout) {
+  const durationMin = Number(workout.duration_min) || 0
+  const startMs = parseWorkoutStart(date, workout.time)
+  if (!startMs || durationMin <= 0) return null
+  return { startMs, endMs: startMs + (durationMin * 60_000), durationMin }
+}
+
+function pairLooksLikeConflict(date, left, right) {
+  const leftWindow = getWorkoutWindow(date, left)
+  const rightWindow = getWorkoutWindow(date, right)
+  const leftType = normalizeWorkoutType(left)
+  const rightType = normalizeWorkoutType(right)
+  const sameType = leftType === rightType
+
+  if (leftWindow && rightWindow) {
+    const overlapMs = Math.min(leftWindow.endMs, rightWindow.endMs) - Math.max(leftWindow.startMs, rightWindow.startMs)
+    const shortestMs = Math.min(leftWindow.durationMin, rightWindow.durationMin) * 60_000
+    const startGapMs = Math.abs(leftWindow.startMs - rightWindow.startMs)
+    const durationGap = Math.abs(leftWindow.durationMin - rightWindow.durationMin)
+    const durationAvg = (leftWindow.durationMin + rightWindow.durationMin) / 2
+
+    if (overlapMs > 0 && shortestMs > 0 && overlapMs / shortestMs >= 0.5) return true
+    if (overlapMs > 20 * 60_000 && sameType) return true
+    if (startGapMs <= 45 * 60_000 && durationGap <= Math.max(10, Math.round(durationAvg * 0.35)) && sameType) return true
+  }
+
+  const leftDuration = Number(left.duration_min) || 0
+  const rightDuration = Number(right.duration_min) || 0
+  if (!leftDuration || !rightDuration) return false
+
+  const diff = Math.abs(leftDuration - rightDuration)
+  const avg = (leftDuration + rightDuration) / 2
+  return sameType && (diff <= 10 || (avg > 0 && diff / avg <= 0.35))
+}
+
+function chooseConflictWinner(workouts, preferredSource) {
+  const preferred = workouts.filter(w => w.source === preferredSource)
+  const pool = preferred.length ? preferred : workouts
+
+  return [...pool].sort((a, b) => {
+    const aDur = Number(a.duration_min) || 0
+    const bDur = Number(b.duration_min) || 0
+    if (bDur !== aDur) return bDur - aDur
+
+    const aStart = parseWorkoutStart(a.date, a.time) || 0
+    const bStart = parseWorkoutStart(b.date, b.time) || 0
+    if (aStart !== bStart) return aStart - bStart
+
+    return String(a.external_id || a.id || '').localeCompare(String(b.external_id || b.id || ''))
+  })[0]
+}
+
+function resolveWorkoutConflicts(workoutsByDate) {
+  const overrides = readConflictOverrides()
+  const defaultPreference = getWorkoutConflictPreference()
+  const conflictGroups = {}
+
+  for (const [date, workouts] of Object.entries(workoutsByDate)) {
+    const eligible = workouts
+      .map((workout, index) => ({ workout, index }))
+      .filter(({ workout }) => CONFLICT_INTEGRATIONS.has(workout.source) && Number(workout.duration_min) > 0)
+
+    if (eligible.length < 2) continue
+
+    const parent = eligible.map((_, index) => index)
+    const find = (index) => parent[index] === index ? index : (parent[index] = find(parent[index]))
+    const union = (left, right) => {
+      const rootLeft = find(left)
+      const rootRight = find(right)
+      if (rootLeft !== rootRight) parent[rootRight] = rootLeft
+    }
+
+    for (let i = 0; i < eligible.length; i++) {
+      for (let j = i + 1; j < eligible.length; j++) {
+        const left = eligible[i].workout
+        const right = eligible[j].workout
+        if (left.source === right.source) continue
+        if (pairLooksLikeConflict(date, left, right)) union(i, j)
+      }
+    }
+
+    const components = new Map()
+    eligible.forEach((entry, index) => {
+      const root = find(index)
+      if (!components.has(root)) components.set(root, [])
+      components.get(root).push(entry.workout)
+    })
+
+    for (const component of components.values()) {
+      const sources = [...new Set(component.map(w => w.source))]
+      if (sources.length < 2) continue
+
+      const groupId = `${date}|${component
+        .map(w => `${w.source}:${w.external_id || w.id || w.time || w.description || ''}`)
+        .sort()
+        .join('|')}`
+      const preferredSource = overrides[groupId] || defaultPreference
+      const active = chooseConflictWinner(component, preferredSource)
+
+      conflictGroups[groupId] = {
+        date,
+        sources,
+        preferredSource,
+        activeSource: active.source,
+        activeId: active.id,
+      }
+
+      for (const workout of component) {
+        workout.conflictGroupId = groupId
+        workout.conflictPreferredSource = preferredSource
+        workout.conflictActiveSource = active.source
+        workout.conflictSources = sources
+        workout.isDuplicate = workout.id !== active.id
+      }
+    }
+  }
+
+  state.workoutConflictGroups = conflictGroups
+}
+
+export function getWorkoutConflictPreference() {
+  const pref = localStorage.getItem(CONFLICT_PREFERENCE_KEY)
+  return pref === 'google-health' ? 'google-health' : 'strava'
+}
+
+export function setWorkoutConflictPreference(source) {
+  localStorage.setItem(CONFLICT_PREFERENCE_KEY, source === 'google-health' ? 'google-health' : 'strava')
+}
+
+export function setWorkoutConflictOverride(groupId, source) {
+  const overrides = readConflictOverrides()
+  overrides[groupId] = source === 'google-health' ? 'google-health' : 'strava'
+  writeConflictOverrides(overrides)
+}
+
+export function clearWorkoutConflictOverride(groupId) {
+  const overrides = readConflictOverrides()
+  if (!overrides[groupId]) return
+  delete overrides[groupId]
+  writeConflictOverrides(overrides)
+}
+
 function markDuplicates(workoutsByDate) {
   for (const workouts of Object.values(workoutsByDate)) {
     const strava = workouts.filter(w => w.source === 'strava' && w.duration_min)
@@ -22,7 +215,10 @@ function markDuplicates(workoutsByDate) {
 export const db = {
   async load() {
     // No user → return empty immediately (no DB call, no error)
-    if (!state.currentUser) return { food: {}, workouts: {}, weights: [] }
+    if (!state.currentUser) {
+      state.workoutConflictGroups = {}
+      return { food: {}, workouts: {}, weights: [] }
+    }
 
     // Safari backgrounds freeze the auto-refresh timer; when the tab comes back
     // the token may be expired. Check and refresh before querying so we get a
@@ -61,7 +257,7 @@ export const db = {
       const { user_id, created_at, date, ...entry } = r
       workouts[date] = [...(workouts[date] || []), entry]
     }
-    markDuplicates(workouts)
+    resolveWorkoutConflicts(workouts)
     const weights = (weightRows || []).map(({ id, user_id, created_at, ...r }) => r)
 
     state.dbCache = { food, workouts, weights }
@@ -222,14 +418,20 @@ export const db = {
   },
 
   async saveSettings(s) {
+    const current = await this.loadSettings().catch(() => null)
     const { error } = await supabase.from('user_settings').upsert({
-      user_id:      state.currentUser.id,
-      cal_rest:     s.cal_rest,
-      cal_training: s.cal_training,
-      protein_g:    s.protein_g,
-      carbs_g:      s.carbs_g,
-      fat_g:        s.fat_g,
-      updated_at:   new Date().toISOString(),
+      user_id:         state.currentUser.id,
+      cal_rest:        s.cal_rest ?? current?.cal_rest ?? null,
+      cal_training:    s.cal_training ?? current?.cal_training ?? null,
+      protein_g:       s.protein_g ?? current?.protein_g ?? null,
+      carbs_g:         s.carbs_g ?? current?.carbs_g ?? null,
+      fat_g:           s.fat_g ?? current?.fat_g ?? null,
+      age_years:       s.age_years ?? current?.age_years ?? null,
+      sex:             s.sex ?? current?.sex ?? null,
+      height_cm:       s.height_cm ?? current?.height_cm ?? null,
+      weight_kg:       s.weight_kg ?? current?.weight_kg ?? null,
+      activity_level:  s.activity_level ?? current?.activity_level ?? null,
+      updated_at:      new Date().toISOString(),
     }, { onConflict: 'user_id' })
     if (error) throw error
   },

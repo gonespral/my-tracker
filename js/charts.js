@@ -92,7 +92,7 @@ export function weekChartHTML(data) {
     days.push({
       ds, isToday: ds === today,
       cals: sumFood(food).calories,
-      target: workouts.length ? TARGETS.calories.training : TARGETS.calories.rest,
+      target: workouts.some(w => !w.isDuplicate) ? TARGETS.calories.training : TARGETS.calories.rest,
       label: d.toLocaleDateString('en-US', { weekday: 'short' }),
     })
   }
@@ -140,72 +140,114 @@ export function weekChartHTML(data) {
     </svg>`
 }
 
-export function calTrendHTML(data, nDays = 30) {
-  const W = 320, H = 100, PL = 30, PR = 8, PT = 10, PB = 20
+function buildCalorieTrendHTML(days, { title, primaryLabel, secondaryLabel, primaryColor, secondaryColor }) {
+  const W = 320, H = 108, PL = 30, PR = 8, PT = 10, PB = 24
   const cW = W - PL - PR, cH = H - PT - PB
-  const today = dateStr()
-
-  const days = []
-  for (let i = nDays - 1; i >= 0; i--) {
-    const d = new Date(); d.setDate(d.getDate() - i)
-    const ds = dateStr(d)
-    days.push({ ds, cals: sumFood(data.food[ds] || []).calories, d, isToday: ds === today })
+  const dataMax = Math.max(...days.map(d => Math.max(d.primary, d.secondary)), 0)
+  const maxCal = Math.max(Math.max(dataMax, TARGETS.calories.rest) * 1.1, 100)
+  const tY = (v) => {
+    const clamped = Math.max(0, Math.min(v, maxCal))
+    return PT + (1 - clamped / maxCal) * cH
   }
-
-  const maxCal = Math.max(...days.map(d => d.cals), TARGETS.calories.training * 1.1, 100)
-  const tY = (v) => PT + (1 - v / maxCal) * cH
   const xStep = cW / (days.length - 1)
 
   const pts = days.map((day, i) => ({
-    x: PL + i * xStep, y: day.cals > 0 ? tY(day.cals) : null, date: day.d,
+    x: PL + i * xStep,
+    primaryY: tY(day.primary || 0),
+    secondaryY: tY(day.secondary || 0),
+    date: day.d,
+    isToday: day.isToday,
   }))
 
-  let paths = [], seg = ''
+  let primaryPaths = [], primarySeg = ''
+  let secondaryPaths = [], secondarySeg = ''
   pts.forEach(p => {
-    if (p.y !== null) { seg += (seg ? ' L' : 'M') + `${p.x.toFixed(1)},${p.y.toFixed(1)}` }
-    else if (seg)     { paths.push(seg); seg = '' }
+    if (p.primaryY !== null) { primarySeg += (primarySeg ? ' L' : 'M') + `${p.x.toFixed(1)},${p.primaryY.toFixed(1)}` }
+    else if (primarySeg)     { primaryPaths.push(primarySeg); primarySeg = '' }
+    if (p.secondaryY !== null) { secondarySeg += (secondarySeg ? ' L' : 'M') + `${p.x.toFixed(1)},${p.secondaryY.toFixed(1)}` }
+    else if (secondarySeg)     { secondaryPaths.push(secondarySeg); secondarySeg = '' }
   })
-  if (seg) paths.push(seg)
+  if (primarySeg) primaryPaths.push(primarySeg)
+  if (secondarySeg) secondaryPaths.push(secondarySeg)
 
-  const filled = pts.filter(p => p.y !== null)
+  const filled = pts.filter(p => p.primaryY !== null)
   const areaPath = filled.length >= 2
-    ? filled.map((p,i) => (i?'L':'M')+`${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ')
+    ? filled.map((p,i) => (i?'L':'M')+`${p.x.toFixed(1)},${p.primaryY.toFixed(1)}`).join(' ')
       + ` L${filled[filled.length-1].x.toFixed(1)},${(PT+cH).toFixed(1)}`
       + ` L${filled[0].x.toFixed(1)},${(PT+cH).toFixed(1)} Z`
     : ''
 
   const restY = tY(TARGETS.calories.rest)
-  const activeDays = days.filter(d => d.cals > 0)
-  const avg = activeDays.length ? round(activeDays.reduce((s,d)=>s+d.cals,0)/activeDays.length) : 0
+  const activeDays = days.filter(d => d.primary > 0)
+  const avg = activeDays.length ? round(activeDays.reduce((s,d)=>s+d.primary,0)/activeDays.length) : 0
   const todayPt = pts[pts.length - 1]
+  const secondaryAvg = days.filter(d => d.secondary > 0).length
+    ? round(days.filter(d => d.secondary > 0).reduce((s,d) => s + d.secondary, 0) / days.filter(d => d.secondary > 0).length)
+    : 0
 
   const ticks = pts.filter(p => p.date.getDate() === 1 || p.date.getDate() === 15)
   const tickLabels = ticks.map(p =>
-    `<text x="${p.x.toFixed(1)}" y="${H}" text-anchor="middle" font-size="8" fill="var(--tx3)">
+    `<text x="${p.x.toFixed(1)}" y="${(H - 8).toFixed(1)}" text-anchor="middle" dominant-baseline="hanging" font-size="8" fill="var(--tx3)">
       ${p.date.toLocaleDateString('en-US',{month:'short',day:'numeric'})}
     </text>`).join('')
 
   return `
     <div class="chart-header">
-      <span class="chart-title">${nDays}-day calories</span>
-      <span class="chart-sub">avg ${avg.toLocaleString()} kcal/day</span>
+      <span class="chart-title">${title}</span>
+      <span class="chart-sub">${primaryLabel}: ${avg.toLocaleString()} kcal/day${secondaryAvg ? ` · ${secondaryLabel}: ${secondaryAvg.toLocaleString()} kcal/day` : ''}</span>
     </div>
     <svg viewBox="0 0 ${W} ${H}" class="week-svg">
       <defs>
-        <linearGradient id="cal-grad" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0%" stop-color="var(--accent)" stop-opacity=".18"/>
-          <stop offset="100%" stop-color="var(--accent)" stop-opacity=".01"/>
+        <linearGradient id="cal-grad-primary" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stop-color="${primaryColor}" stop-opacity=".18"/>
+          <stop offset="100%" stop-color="${primaryColor}" stop-opacity=".01"/>
+        </linearGradient>
+        <linearGradient id="cal-grad-secondary" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stop-color="${secondaryColor}" stop-opacity=".10"/>
+          <stop offset="100%" stop-color="${secondaryColor}" stop-opacity=".01"/>
         </linearGradient>
       </defs>
       <text x="${PL-4}" y="${(restY+3).toFixed(1)}" text-anchor="end" font-size="8" fill="var(--tx3)">${(TARGETS.calories.rest/1000).toFixed(1)}k</text>
+      <text x="${PL-4}" y="${(PT+cH+3).toFixed(1)}" text-anchor="end" font-size="8" fill="var(--tx3)">0</text>
+      <line x1="${PL}" y1="${(PT+cH).toFixed(1)}" x2="${(W-PR).toFixed(1)}" y2="${(PT+cH).toFixed(1)}"
+        stroke="var(--border)" stroke-width="1" stroke-opacity=".6"/>
       <line x1="${PL}" y1="${restY.toFixed(1)}" x2="${(W-PR).toFixed(1)}" y2="${restY.toFixed(1)}"
         stroke="var(--border)" stroke-width="1" stroke-dasharray="4 3"/>
-      ${areaPath ? `<path d="${areaPath}" fill="url(#cal-grad)"/>` : ''}
-      ${paths.map(p => `<path d="${p}" fill="none" stroke="var(--accent)" stroke-width="1.8"
+      ${filled.length >= 2 ? `<path d="${areaPath}" fill="url(#cal-grad-primary)"/>` : ''}
+      ${secondaryPaths.map(p => `<path d="${p}" fill="none" stroke="${secondaryColor}" stroke-width="1.6" stroke-opacity=".55"
         stroke-linecap="round" stroke-linejoin="round"/>`).join('')}
-      ${todayPt.y !== null ? `<circle cx="${todayPt.x.toFixed(1)}" cy="${todayPt.y.toFixed(1)}" r="3" fill="var(--accent)"/>` : ''}
+      ${primaryPaths.map(p => `<path d="${p}" fill="none" stroke="${primaryColor}" stroke-width="1.8"
+        stroke-linecap="round" stroke-linejoin="round"/>`).join('')}
+      ${todayPt.primaryY !== null ? `<circle cx="${todayPt.x.toFixed(1)}" cy="${todayPt.primaryY.toFixed(1)}" r="3" fill="${primaryColor}"/>` : ''}
+      ${todayPt.secondaryY !== null ? `<circle cx="${todayPt.x.toFixed(1)}" cy="${todayPt.secondaryY.toFixed(1)}" r="2.5" fill="${secondaryColor}" fill-opacity=".45"/>` : ''}
       ${tickLabels}
     </svg>`
+}
+
+export function calTrendHTML(data, nDays = 30, options = {}) {
+  const today = dateStr()
+  const days = []
+  for (let i = nDays - 1; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i)
+    const ds = dateStr(d)
+    const burned = (data.workouts[ds] || []).filter(w => !w.isDuplicate).reduce((sum, w) => sum + (w.calories_burned || 0), 0)
+    days.push({
+      ds,
+      primary: options.primary === 'burned' ? burned : sumFood(data.food[ds] || []).calories,
+      secondary: options.primary === 'burned' ? sumFood(data.food[ds] || []).calories : burned,
+      d,
+      isToday: ds === today,
+    })
+  }
+
+  const isBurnedPrimary = options.primary === 'burned'
+  return buildCalorieTrendHTML(days, {
+    title: options.title || (isBurnedPrimary ? 'Calorie burn' : 'Caloric input'),
+    primaryLabel: isBurnedPrimary ? 'burned' : 'input',
+    secondaryLabel: isBurnedPrimary ? 'input' : 'burned',
+    primaryColor: isBurnedPrimary ? '#f97316' : 'var(--accent)',
+    secondaryColor: isBurnedPrimary ? 'var(--accent)' : '#f97316',
+  })
 }
 
 export function macroBarsHTML(totals, label = "Today's macros") {
@@ -357,7 +399,7 @@ export function monthHeatmapHTML(data, monthOffset = 0) {
   for (let day = 1; day <= daysInMonth; day++) {
     const ds = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
     const dayWorkouts = data.workouts[ds] || []
-    const hasWorkout = dayWorkouts.length > 0
+    const hasWorkout = dayWorkouts.some(w => !w.isDuplicate)
     const isToday = ds === today
     const isFuture = ds > today
     let cls = 'hm-cell'
@@ -375,7 +417,7 @@ export function monthHeatmapHTML(data, monthOffset = 0) {
 
   const workoutDays = Object.keys(data.workouts || {}).filter(ds => {
     const [y, m] = ds.split('-').map(Number)
-    return y === year && m === month + 1 && (data.workouts[ds] || []).length > 0
+    return y === year && m === month + 1 && (data.workouts[ds] || []).some(w => !w.isDuplicate)
   }).length
 
   const prevOffset = monthOffset - 1

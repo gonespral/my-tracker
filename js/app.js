@@ -1,10 +1,10 @@
 import { state } from './state.js'
-import { supabase, db } from './db.js'
-import { TARGETS } from './config.js'
+import { supabase, db, setWorkoutConflictOverride } from './db.js'
+import { TARGETS, hydrateCalorieTargets } from './config.js'
 import { dateStr, nowTime } from './utils.js'
-import { showToast, openSheet, closeSheets, toggleEntryMenu, closeMenus } from './ui.js'
+import { showToast, openSheet, closeSheets, toggleEntryMenu, closeMenus, bindSnapDrag } from './ui.js'
 import { startListening, stopListening } from './speech.js'
-import { openChat, clearChat, expandChatPanel, collapseChatPanel, toggleChatPanel, sendChatMessage, renderChat } from './ai.js'
+import { openChat, clearChat, expandChatPanel, collapseChatPanel, hideChatPanel, toggleChatPanel, sendChatMessage, renderChat, setChatPanelState } from './ai.js'
 import { renderToday, openFoodSheet, openFoodSheetWithPreset, openWorkoutSheet, editFood, editWorkout, saveToMeals } from './tabs/today.js'
 import { renderNutrition } from './tabs/nutrition.js'
 import { renderWorkouts } from './tabs/workouts.js'
@@ -89,6 +89,16 @@ document.addEventListener('click', async (e) => {
       catch (err) { showToast('❌ ' + err.message) }
       break
 
+    case 'activate-workout-conflict':
+      closeMenus()
+      try {
+        setWorkoutConflictOverride(actionEl.dataset.group, actionEl.dataset.source)
+        db.bust()
+        await renderActive()
+        showToast('✅ Selected activity will count')
+      } catch (err) { showToast('❌ ' + err.message) }
+      break
+
     case 'open-workout-sheet':
       openWorkoutSheet(date || null)
       break
@@ -163,6 +173,11 @@ document.addEventListener('click', async (e) => {
   }
 })
 
+document.addEventListener('workout-conflict-pref-changed', async () => {
+  db.bust()
+  await renderActive()
+})
+
 // Close entry menus on outside click
 document.addEventListener('click', e => {
   if (!e.target.closest('.entry-menu-wrap'))
@@ -183,13 +198,21 @@ async function initApp() {
 
   // Load user's saved targets before any rendering
   try {
-    const s = await db.loadSettings()
+    const [s, data] = await Promise.all([db.loadSettings(), db.load()])
     if (s) {
       TARGETS.calories.rest     = s.cal_rest
       TARGETS.calories.training = s.cal_training
       TARGETS.protein           = s.protein_g
       TARGETS.carbs             = s.carbs_g
       TARGETS.fat               = s.fat_g
+      const profile = {
+        age: s.age_years ?? '',
+        sex: s.sex ?? 'other',
+        height_cm: s.height_cm ?? '',
+        weight_kg: s.weight_kg ?? '',
+        activity_level: s.activity_level ?? 'moderate',
+      }
+      hydrateCalorieTargets(profile, data?.weights?.[0]?.kg ?? null)
     }
   } catch (e) { console.warn('Settings load failed:', e.message) }
 
@@ -255,6 +278,124 @@ async function initApp() {
   document.getElementById('chat-clear-btn').addEventListener('click', clearChat)
   document.getElementById('chat-collapse-btn').addEventListener('click', collapseChatPanel)
 
+  const chatPanel = document.getElementById('chat-panel')
+  const chatHandleHeight = 18
+  const chatPeekHeight = 75
+  const chatExpandedHeight = () => Math.round(window.innerHeight * 0.65)
+  const chatState = () => {
+    if (chatPanel.classList.contains('expanded')) return 'expanded'
+    if (chatPanel.classList.contains('peek')) return 'peek'
+    return 'collapsed'
+  }
+
+  const chatDragHandles = [
+    document.getElementById('chat-panel-handle'),
+    document.getElementById('chat-peek-body'),
+    document.querySelector('#chat-panel-body .chat-header'),
+  ].filter(Boolean)
+
+  chatDragHandles.forEach(handleEl => {
+    if (handleEl.dataset.chatDragBound === 'true') return
+    handleEl.dataset.chatDragBound = 'true'
+
+    let pointerId = null
+    let startY = 0
+    let startHeight = 0
+    let dragging = false
+    let suppressClick = false
+
+    const clearDrag = () => {
+      chatPanel.classList.remove('dragging')
+      chatPanel.style.height = ''
+      chatPanel.style.transition = ''
+    }
+
+    const snapChat = height => {
+      const expanded = chatExpandedHeight()
+      const states = [
+        { name: 'collapsed', height: chatHandleHeight },
+        { name: 'peek', height: chatPeekHeight },
+        { name: 'expanded', height: expanded },
+      ]
+      let best = states[0]
+      let bestDelta = Math.abs(height - best.height)
+      for (const state of states.slice(1)) {
+        const delta = Math.abs(height - state.height)
+        if (delta < bestDelta) {
+          best = state
+          bestDelta = delta
+        }
+      }
+      setChatPanelState(best.name)
+    }
+
+    handleEl.style.touchAction = 'none'
+    handleEl.style.userSelect = 'none'
+    handleEl.style.cursor = 'grab'
+
+    handleEl.addEventListener('pointerdown', e => {
+      if (e.button !== 0) return
+      pointerId = e.pointerId
+      startY = e.clientY
+      startHeight = chatPanel.getBoundingClientRect().height
+      dragging = false
+      handleEl.setPointerCapture(pointerId)
+      chatPanel.classList.add('dragging')
+      chatPanel.style.transition = 'none'
+    })
+
+    handleEl.addEventListener('pointermove', e => {
+      if (e.pointerId !== pointerId) return
+      const delta = e.clientY - startY
+      if (!dragging && Math.abs(delta) < 4) return
+      dragging = true
+      e.preventDefault()
+      const minHeight = chatHandleHeight
+      const maxHeight = chatExpandedHeight()
+      const nextHeight = Math.max(minHeight, Math.min(maxHeight, startHeight - delta))
+      chatPanel.style.height = nextHeight + 'px'
+    })
+
+    handleEl.addEventListener('pointerup', e => {
+      if (e.pointerId !== pointerId) return
+      const currentHeight = chatPanel.getBoundingClientRect().height
+      clearDrag()
+      if (dragging) {
+        snapChat(currentHeight)
+        suppressClick = true
+        setTimeout(() => { suppressClick = false }, 0)
+      }
+      pointerId = null
+      dragging = false
+    })
+
+    handleEl.addEventListener('pointercancel', e => {
+      if (e.pointerId !== pointerId) return
+      clearDrag()
+      pointerId = null
+      dragging = false
+    })
+
+    handleEl.addEventListener('click', e => {
+      if (!suppressClick) return
+      e.preventDefault()
+      e.stopImmediatePropagation()
+    }, true)
+  })
+
+  document.querySelectorAll('.sheet').forEach(sheet => {
+    const handle = sheet.querySelector('.sheet-handle')
+    if (!handle) return
+    bindSnapDrag(handle, {
+      targetEl: sheet,
+      states: ['open', 'closed'],
+      getState: () => sheet.classList.contains('open') ? 'open' : 'closed',
+      setState: nextState => {
+        if (nextState === 'closed') closeSheets()
+      },
+    })
+  })
+
   // Sync --bar-h CSS var so chat panel positions above input bar
   const inputBarEl = document.querySelector('.input-bar')
   const syncBarHeight = () =>
@@ -270,7 +411,8 @@ async function initApp() {
   // ── Backdrop closes sheets and collapses chat ──
   document.getElementById('backdrop').addEventListener('click', () => {
     closeSheets()
-    collapseChatPanel()
+    if (chatPanel.classList.contains('expanded')) collapseChatPanel()
+    else if (chatPanel.classList.contains('peek')) hideChatPanel()
   })
 
   // ── Mic ──

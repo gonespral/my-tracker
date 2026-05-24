@@ -1,6 +1,14 @@
-import { INTENSITY_ICON, TARGETS } from '../config.js'
+import {
+  INTENSITY_ICON,
+  TARGETS,
+  CALORIE_ACTIVITY_LEVELS,
+  CALORIE_PROFILE_DEFAULTS,
+  CALORIE_SEX,
+  computeCalorieTargets,
+  hydrateCalorieTargets,
+} from '../config.js'
 import { state } from '../state.js'
-import { supabase, db } from '../db.js'
+import { supabase, db, getWorkoutConflictPreference, setWorkoutConflictPreference } from '../db.js'
 import { fmt, round, cap } from '../utils.js'
 import { openSheet, showToast, closeMenus, closeSheets } from '../ui.js'
 import { connectStrava, disconnectStrava, syncStrava, updateStravaSettingsSection } from '../strava.js'
@@ -9,6 +17,7 @@ import { materialIcon } from '../icons.js'
 
 const STRAVA_ICON = materialIcon('directions_bike', 16)
 const GOOGLE_HEALTH_ICON = materialIcon('monitor_heart', 16)
+const CLAUDE_ICON = `<span class="claude-logo" aria-hidden="true">AI</span>`
 const FOOD_PRESET_ICON = materialIcon('restaurant', 15)
 const WORK_PRESET_ICON = materialIcon('fitness_center', 15)
 const CHEVRON = materialIcon('expand_more', 16, { className: 'accordion-chevron' })
@@ -26,6 +35,38 @@ function section(key, title, body, defaultOpen = false) {
         </div>
       </div>
     </div>`
+}
+
+function formatCalorieProfileSummary(targets, latestWeightKg) {
+  if (!targets) {
+    return 'Add age, sex, height, weight, and activity level to estimate your baseline calorie burn.'
+  }
+
+  const sexLabel = CALORIE_SEX[targets.sex]?.label || 'Other'
+  const activity = CALORIE_ACTIVITY_LEVELS[targets.activity_level]?.label || 'Moderate'
+  const weightLabel = Number.isFinite(targets.weight_kg)
+    ? `${targets.weight_kg.toFixed(targets.weight_kg % 1 ? 1 : 0)} kg`
+    : 'n/a'
+  const usedLatest = latestWeightKg != null && targets.weight_kg === latestWeightKg
+
+  return `
+    <strong>${targets.rest.toLocaleString()} kcal/day</strong> estimated maintenance, with <strong>${targets.training.toLocaleString()} kcal/day</strong> on training days.<br>
+    BMR: ${targets.bmr.toLocaleString()} kcal · ${sexLabel} · ${targets.age} years · ${targets.height_cm} cm · ${weightLabel} · ${activity}${usedLatest ? ` · using latest logged weight (${latestWeightKg.toFixed(1)} kg)` : ''}.
+  `
+}
+
+function setCalorieProfileSummary(targets, latestWeightKg) {
+  const summary = document.getElementById('settings-profile-summary')
+  if (!summary) return
+  summary.innerHTML = formatCalorieProfileSummary(targets, latestWeightKg)
+}
+
+function updateProfileTargetInputs(targets) {
+  if (!targets) return
+  const restInput = document.getElementById('t-cal-rest')
+  const trainingInput = document.getElementById('t-cal-training')
+  if (restInput) restInput.value = targets.rest
+  if (trainingInput) trainingInput.value = targets.training
 }
 
 export async function renderSettings() {
@@ -47,15 +88,39 @@ export async function renderSettings() {
     return
   }
 
-  let meals, wps
+  let meals, wps, data, settingsRow
   try {
-    ;[meals, wps] = await Promise.all([db.loadMeals(), db.loadWorkoutPresets()])
+    ;[data, meals, wps] = await Promise.all([
+      state.dbCache ? Promise.resolve(state.dbCache) : db.load(),
+      db.loadMeals(),
+      db.loadWorkoutPresets(),
+    ])
+    settingsRow = await db.loadSettings()
     state.mealsCache          = meals
     state.workoutPresetsCache = wps
   } catch (e) {
     panel.innerHTML = `<div class="empty" style="margin-top:40px">Failed to load: ${e.message}</div>`
     return
   }
+
+  const latestWeightKg = data?.weights?.[0]?.kg || null
+  const calorieProfile = {
+    age: settingsRow?.age_years ?? '',
+    sex: settingsRow?.sex ?? CALORIE_PROFILE_DEFAULTS.sex,
+    height_cm: settingsRow?.height_cm ?? '',
+    weight_kg: settingsRow?.weight_kg ?? '',
+    activity_level: settingsRow?.activity_level ?? CALORIE_PROFILE_DEFAULTS.activity_level,
+  }
+  const profileHasValues = calorieProfile.age || calorieProfile.height_cm || calorieProfile.weight_kg
+  const estimatedProfile = profileHasValues
+    ? hydrateCalorieTargets(calorieProfile, latestWeightKg)
+    : null
+
+  const profileAge = calorieProfile.age || ''
+  const profileSex = CALORIE_SEX[calorieProfile.sex] ? calorieProfile.sex : CALORIE_PROFILE_DEFAULTS.sex
+  const profileHeight = calorieProfile.height_cm || ''
+  const profileWeight = calorieProfile.weight_kg || (latestWeightKg ?? '')
+  const profileActivity = CALORIE_ACTIVITY_LEVELS[calorieProfile.activity_level] ? calorieProfile.activity_level : CALORIE_PROFILE_DEFAULTS.activity_level
 
   const mealItems = meals.map(m => `
     <div class="meal-preset-item">
@@ -131,7 +196,18 @@ export async function renderSettings() {
       <button class="btn-primary" id="settings-save-targets-btn" style="margin-top:4px">Save Targets</button>
     `)}
 
-    ${section('claude', 'Claude AI', `
+    ${section('conflicts', 'Activity Conflicts', `
+      <p class="setup-note">When Strava and Google Health overlap, only the selected source counts toward metrics. You can swap any inactive duplicate from its card.</p>
+      <div class="form-field">
+        <label class="form-label" for="conflict-preference">Default source</label>
+        <select class="form-input" id="conflict-preference">
+          <option value="strava">Strava</option>
+          <option value="google-health">Google Health</option>
+        </select>
+      </div>
+    `)}
+
+    ${section('claude', `<span class="settings-provider-title">${CLAUDE_ICON} Claude AI</span>`, `
       <p class="setup-note">Your API key is stored locally and never sent anywhere except Anthropic's API.</p>
       <div class="form-field">
         <label class="form-label" for="settings-apikey-input">Anthropic API Key</label>
@@ -210,10 +286,54 @@ export async function renderSettings() {
 
     ${section('account', 'Account', `
       <p class="setup-note">${state.currentUser.email || state.currentUser.user_metadata?.user_name || 'GitHub user'}</p>
+      <p class="setup-note">Body metrics sync through your account. API keys below stay on this browser only.</p>
+      <div class="settings-profile-summary" id="settings-profile-summary">
+        ${formatCalorieProfileSummary(estimatedProfile, latestWeightKg)}
+      </div>
+      <div class="profile-grid">
+        <div class="form-field">
+          <label class="form-label" for="profile-age">Age (years)</label>
+          <input class="form-input" id="profile-age" type="number" inputmode="numeric" min="13" max="120" value="${profileAge}">
+        </div>
+        <div class="form-field">
+          <label class="form-label" for="profile-sex">Sex</label>
+          <select class="form-input" id="profile-sex">
+            <option value="female" ${profileSex === 'female' ? 'selected' : ''}>Female</option>
+            <option value="male" ${profileSex === 'male' ? 'selected' : ''}>Male</option>
+            <option value="other" ${profileSex === 'other' ? 'selected' : ''}>Other / prefer not to say</option>
+          </select>
+        </div>
+        <div class="form-field">
+          <label class="form-label" for="profile-height-cm">Height (cm)</label>
+          <input class="form-input" id="profile-height-cm" type="number" inputmode="numeric" min="100" max="250" value="${profileHeight}">
+        </div>
+        <div class="form-field">
+          <label class="form-label" for="profile-weight-kg">Weight (kg)</label>
+          <input class="form-input" id="profile-weight-kg" type="number" inputmode="decimal" min="25" max="300" step="0.1" value="${profileWeight}">
+        </div>
+        <div class="form-field">
+          <label class="form-label" for="profile-activity-level">Daily movement</label>
+          <select class="form-input" id="profile-activity-level">
+            <option value="sedentary" ${profileActivity === 'sedentary' ? 'selected' : ''}>Sedentary</option>
+            <option value="light" ${profileActivity === 'light' ? 'selected' : ''}>Light</option>
+            <option value="moderate" ${profileActivity === 'moderate' ? 'selected' : ''}>Moderate</option>
+            <option value="active" ${profileActivity === 'active' ? 'selected' : ''}>Active</option>
+            <option value="very_active" ${profileActivity === 'very_active' ? 'selected' : ''}>Very active</option>
+          </select>
+        </div>
+      </div>
+      <p class="settings-profile-note">This estimate includes everyday movement, so it behaves more like Fitbit's total calorie burn than workout-only calories.</p>
+      <button class="btn-primary" id="settings-save-profile-btn" style="margin-top:4px">Save Metrics</button>
       <button id="settings-signout-btn" style="width:100%;padding:13px;border:1px solid var(--border);border-radius:12px;background:none;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--danger);cursor:pointer;font-weight:500;">Sign out</button>
     `)}
 
   </div>`
+
+  const conflictPreference = document.getElementById('conflict-preference')
+  if (conflictPreference) conflictPreference.value = getWorkoutConflictPreference()
+
+  setCalorieProfileSummary(estimatedProfile, latestWeightKg)
+  updateProfileTargetInputs(estimatedProfile)
 
   // Populate Strava + Google Health section state
   updateStravaSettingsSection()
@@ -231,9 +351,61 @@ export async function renderSettings() {
     TARGETS.carbs             = carbs
     TARGETS.fat               = fat
     try {
-      await db.saveSettings({ cal_rest: calRest, cal_training: calTraining, protein_g: protein, carbs_g: carbs, fat_g: fat })
+      await db.saveSettings({
+        cal_rest: calRest,
+        cal_training: calTraining,
+        protein_g: protein,
+        carbs_g: carbs,
+        fat_g: fat,
+      })
       showToast('✅ Targets saved')
     } catch (e) { showToast('❌ ' + e.message) }
+  })
+
+  document.getElementById('settings-save-profile-btn')?.addEventListener('click', async () => {
+    const profile = {
+      age_years: document.getElementById('profile-age').value,
+      sex: document.getElementById('profile-sex').value,
+      height_cm: document.getElementById('profile-height-cm').value,
+      weight_kg: document.getElementById('profile-weight-kg').value,
+      activity_level: document.getElementById('profile-activity-level').value,
+    }
+
+    const resolvedWeight = profile.weight_kg || latestWeightKg || ''
+    const estimated = computeCalorieTargets({
+      age: profile.age_years,
+      sex: profile.sex,
+      height_cm: profile.height_cm,
+      weight_kg: resolvedWeight,
+      activity_level: profile.activity_level,
+    }, latestWeightKg)
+    if (!estimated) {
+      showToast('❌ Enter age, height, and weight to calculate metrics')
+      return
+    }
+
+    TARGETS.calories.rest     = estimated.rest
+    TARGETS.calories.training = estimated.training
+    updateProfileTargetInputs(estimated)
+    setCalorieProfileSummary(estimated, latestWeightKg)
+
+    try {
+      await db.saveSettings({
+        cal_rest: estimated.rest,
+        cal_training: estimated.training,
+        protein_g: TARGETS.protein,
+        carbs_g: TARGETS.carbs,
+        fat_g: TARGETS.fat,
+        age_years: profile.age_years,
+        sex: profile.sex,
+        height_cm: profile.height_cm,
+        weight_kg: resolvedWeight,
+        activity_level: profile.activity_level,
+      })
+      showToast('✅ Metrics saved')
+    } catch (e) {
+      showToast('❌ ' + e.message)
+    }
   })
 
   document.getElementById('settings-save-apikey-btn').addEventListener('click', () => {
@@ -243,6 +415,13 @@ export async function renderSettings() {
     localStorage.setItem('tracker-anthropic-key', key)
     inp.value = '••••••••'
     showToast('✅ API key saved')
+  })
+
+  conflictPreference?.addEventListener('change', async (event) => {
+    setWorkoutConflictPreference(event.target.value)
+    db.bust()
+    document.dispatchEvent(new Event('workout-conflict-pref-changed'))
+    showToast('✅ Default activity source updated')
   })
 
   document.getElementById('connect-strava-btn').addEventListener('click', connectStrava)

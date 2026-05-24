@@ -135,7 +135,7 @@ function mapActivity(act) {
     duration_min:    secs ? Math.round(secs / 60) : null,
     source:          'strava',
     external_id:     String(act.id),
-    time:            nowTime(),
+    time:            act.start_date_local || nowTime(),
   }
 }
 
