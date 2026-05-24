@@ -2,7 +2,7 @@
   "name": "MyTracker",
   "short_name": "MyTracker",
   "icons": [
-    { "src": "cyclist.svg", "sizes": "any", "type": "image/svg+xml" }
+    { "src": "logo.svg", "sizes": "any", "type": "image/svg+xml" }
   ],
   "start_url": ".",
   "display": "standalone",
