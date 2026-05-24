@@ -312,13 +312,14 @@ export function connectStrava() {
 
 export const stravaAutoPushEnabled = () => localStorage.getItem('strava-auto-push') === 'true'
 
+// Only sport_type values accepted by Strava's API — combat sports and others
+// not in Strava's enum fall through to the 'Workout' default below.
 const ACTIVITY_TYPE_TO_STRAVA = {
   run: 'Run', walk: 'Walk', hike: 'Hike', cycle: 'Ride', ride: 'Ride',
   swim: 'Swim', yoga: 'Yoga', gym: 'WeightTraining', weights: 'WeightTraining',
-  crossfit: 'CrossFit', rowing: 'Rowing', soccer: 'Soccer',
-  basketball: 'Basketball', tennis: 'Tennis', skiing: 'AlpineSki',
-  'martial arts': 'MartialArts', martialarts: 'MartialArts', boxing: 'Boxing',
-  kickboxing: 'Kickboxing', wrestling: 'Wrestling',
+  crossfit: 'Crossfit', rowing: 'Rowing', soccer: 'Soccer',
+  tennis: 'Tennis', skiing: 'AlpineSki', golf: 'Golf',
+  pilates: 'Pilates', surfing: 'Surfing', snowboard: 'Snowboard',
 }
 
 export async function pushActivityToStrava(entry) {
