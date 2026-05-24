@@ -1,11 +1,25 @@
 # <picture><source media="(prefers-color-scheme: dark)" srcset="brand/svg/logo-mono-light.svg"><source media="(prefers-color-scheme: light)" srcset="brand/svg/logo-mono-dark.svg"><img alt="MyTracker" src="brand/svg/logo-mono-dark.svg" width="36" align="top"></picture> MyTracker
 
-> [!WARNING]
-> This project is heavily vibecoded. It exists because every fitness tracker I tried either lacked the one feature I actually needed, buried useful functionality behind a subscription, or couldn't integrate properly with services like Strava and Google Fit without some janky middleware. So I built my own, host it myself, and only add features I personally want. Expect rough edges, unconventional patterns, and code that works because it works.
+
+![MyTracker Screenshot](brand/shots/481_1x_shots_so.png)
 
 ---
 
 MyTracker is a self-hosted health and fitness tracking dashboard built with vanilla HTML, CSS, and JavaScript. It uses Supabase as its backend and integrates a client-side Claude assistant for natural-language food, workout, and weight logging. No frameworks, no build step, no subscriptions, no server-side middleware.
+
+Try out the demo at [gonespral.github.io/my-tracker](https://gonespral.github.io/my-tracker/?demo=1)!
+
+## Features
+
+- **Activity & Workout Tracking:** Log workouts manually, save frequently used workouts as presets, or auto-sync your activities.
+- **Nutrition & Calorie Management:** Detailed daily food tracking with macro breakdowns. 
+- **AI-Powered Natural Language Logging:** Chat directly with the integrated Claude AI assistant to log complex meals or workouts in plain English.
+- **External Integrations & Duplicate Activity Detection:** Native support for importing activities from **Strava** and **Google Health**. 
+- **Fully Responsive Offline-Capable PWA:** Beautiful, mobile-first design with a dark mode toggle and smooth micro-animations. Operates seamlessly as an installable PWA.
+- **Privacy-First & Self-Hosted:** Own your own data. The backend is powered by your own Supabase instance with Row-Level Security.
+
+> [!note]
+> This project is heavily vibecoded. It exists because every fitness tracker I tried either lacked the one feature I actually needed, buried useful functionality behind a subscription, or couldn't integrate properly with services like Strava and Google Fit without some janky middleware. So I built my own, host it myself, and only add features I personally want. Expect rough edges, unconventional patterns, and code that works because it works.
 
 ## Architecture
 
