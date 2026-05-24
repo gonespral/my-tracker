@@ -137,6 +137,18 @@ body {
   letter-spacing: -0.2px;
 }
 
+.github-repo-link {
+  color: var(--tx3);
+  margin-left: 2px;
+  display: flex;
+  align-items: center;
+  transition: color 0.15s;
+}
+
+.github-repo-link:hover {
+  color: var(--tx);
+}
+
 .app-icon {
   width: 28px;
   height: 28px;

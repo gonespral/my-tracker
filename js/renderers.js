@@ -64,7 +64,7 @@ export const workoutItem = (e, date) => {
   let distanceTag = ''
   if (e.distance) {
     const km = e.distance / 1000
-    distanceTag = `<span class="tag">${ICON_PIN} ${km >= 1 ? km.toFixed(1) + ' km' : Math.round(e.distance) + ' m'}</span>`
+    distanceTag = `<span class="tag">${ICON_PIN} ${km >= 1 ? km.toFixed(2) + ' km' : (e.distance || 0).toFixed(2) + ' m'}</span>`
   }
 
   const isStrava       = e.source === 'strava'

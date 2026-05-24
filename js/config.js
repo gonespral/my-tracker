@@ -117,6 +117,6 @@ export function detectActivityType(desc) {
   if (/climb|boulder/.test(d)) return 'climb'
   if (/\brow|rowing|kayak|canoe/.test(d)) return 'row'
   if (/football|soccer|basketball|rugby|volley|hockey/.test(d)) return 'ball'
-  if (/box|boxing|kickbox|muay|mma|jiu.?jitsu|bjj|karate|judo|wrestling|martial|combat|sparring|grappl/.test(d)) return 'box'
+  if (/box|boxing|kickbox|muay|mma|karate|judo|wrestling|martial|combat|sparring|jiu.?jitsu|bjj|grappl/.test(d)) return 'box'
   return 'lift'
 }

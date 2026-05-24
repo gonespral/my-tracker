@@ -45,13 +45,13 @@ function formatCalorieProfileSummary(targets, latestWeightKg) {
   const sexLabel = CALORIE_SEX[targets.sex]?.label || 'Other'
   const activity = CALORIE_ACTIVITY_LEVELS[targets.activity_level]?.label || 'Moderate'
   const weightLabel = Number.isFinite(targets.weight_kg)
-    ? `${targets.weight_kg.toFixed(targets.weight_kg % 1 ? 1 : 0)} kg`
+    ? `${targets.weight_kg.toFixed(targets.weight_kg % 1 ? 2 : 0)} kg`
     : 'n/a'
   const usedLatest = latestWeightKg != null && targets.weight_kg === latestWeightKg
 
   return `
     <strong>${targets.rest.toLocaleString()} kcal/day</strong> estimated base maintenance.<br>
-    BMR: ${targets.bmr.toLocaleString()} kcal · ${sexLabel} · ${targets.age} years · ${targets.height_cm} cm · ${weightLabel} · ${activity}${usedLatest ? ` · using latest logged weight (${latestWeightKg.toFixed(1)} kg)` : ''}.
+    BMR: ${targets.bmr.toLocaleString()} kcal · ${sexLabel} · ${targets.age} years · ${targets.height_cm} cm · ${weightLabel} · ${activity}${usedLatest ? ` · using latest logged weight (${latestWeightKg.toFixed(2)} kg)` : ''}.
   `
 }
 
@@ -340,8 +340,14 @@ export async function renderSettings() {
       </div>
       <p class="settings-profile-note">This estimate includes everyday movement, so it behaves more like Fitbit's total calorie burn than workout-only calories.</p>
       <button class="btn-primary" id="settings-save-profile-btn" style="margin-top:4px">Save Metrics</button>
-      <button id="settings-signout-btn" style="width:100%;padding:13px;border:1px solid var(--border);border-radius:12px;background:none;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--danger);cursor:pointer;font-weight:500;">Sign out</button>
+      <button id="settings-signout-btn" style="margin-top:20px;width:100%;padding:13px;border:1px solid var(--border);border-radius:12px;background:none;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--danger);cursor:pointer;font-weight:500;">Sign out</button>
     `)}
+
+    <div style="text-align:center; margin-top:32px; margin-bottom:16px; font-size:12px; color:var(--tx3); line-height:1.6">
+      Made by <strong>Gonçalo Nespral</strong><br>
+      <a href="https://github.com/gonespral/health-tracker" target="_blank" style="color:var(--tx2); text-decoration:none">GitHub Repo</a> &nbsp;·&nbsp; 
+      <a href="https://gonespral.github.io" target="_blank" style="color:var(--tx2); text-decoration:none">gonespral.github.io</a>
+    </div>
 
   </div>`
 

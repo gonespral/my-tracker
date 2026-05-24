@@ -517,3 +517,164 @@ export const db = {
     if (error) throw error
   },
 }
+
+// ── Demo Mode ───────────────────────────────────────────────────
+
+const urlParams = new URLSearchParams(window.location.search);
+if (urlParams.get('demo')) {
+  localStorage.setItem('tracker-demo', '1');
+  window.history.replaceState({}, '', window.location.pathname);
+}
+
+export const isDemo = localStorage.getItem('tracker-demo') === '1';
+
+if (isDemo) {
+  state.currentUser = { id: 'demo', email: 'demo@example.com', user_metadata: { user_name: 'Demo User' } };
+
+  const mockDb = {
+    food: {},
+    workouts: {},
+    weights: [],
+    settings: {
+      cal_rest: 2100, protein_g: 140, carbs_g: 220, fat_g: 70,
+      age_years: 28, sex: 'female', height_cm: 168, weight_kg: 72.5, activity_level: 'active'
+    },
+    meals: [
+      { id: 'm1', name: 'Protein Shake', calories: 150, protein: 25, carbs: 5, fat: 2, meal: 'snack' },
+      { id: 'm2', name: 'Oatmeal & Berries', calories: 350, protein: 12, carbs: 60, fat: 6, meal: 'breakfast' },
+      { id: 'm3', name: 'Chicken Salad', calories: 450, protein: 40, carbs: 20, fat: 15, meal: 'lunch' }
+    ],
+    workoutPresets: [
+      { id: 'wp1', name: 'Yoga Routine', intensity: 'low', calories_burned: 150 },
+      { id: 'wp2', name: '5k Run', intensity: 'high', calories_burned: 350 }
+    ]
+  };
+
+  // Generate 45 days of historical data
+  const now = new Date();
+  let currentWeight = 75.0;
+
+  for (let i = 45; i >= 0; i--) {
+    const d = new Date(now.getTime() - i * 86400000);
+    const dateStr = d.toISOString().split('T')[0];
+
+    // Weight trending down slightly
+    if (i % 3 === 0) {
+      currentWeight -= (Math.random() * 0.3);
+      mockDb.weights.push({ id: `wt-${i}`, date: dateStr, kg: parseFloat(currentWeight.toFixed(2)) });
+    }
+
+    // Always log food for consistent calorie tracking
+    const breakfasts = ['Oatmeal & Berries', 'Avocado Toast', 'Greek Yogurt', 'Protein Pancakes', 'Scrambled Eggs'];
+    const lunches = ['Chicken Salad', 'Turkey Wrap', 'Tuna Sandwich', 'Quinoa Bowl', 'Leftover Pasta'];
+    const dinners = ['Salmon & Rice', 'Steak & Veggies', 'Chicken Curry', 'Tacos', 'Pasta Bolognese'];
+    const snacks = ['Protein Shake', 'Apple & Peanut Butter', 'Handful of Almonds', 'Protein Bar', 'Rice Cakes'];
+    const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+    
+    mockDb.food[dateStr] = [
+      { id: `f1-${i}`, date: dateStr, description: pick(breakfasts), calories: 300 + Math.random() * 150, protein: 15 + Math.random() * 10, carbs: 40 + Math.random() * 20, fat: 10 + Math.random() * 5, meal: 'breakfast' },
+      { id: `f2-${i}`, date: dateStr, description: pick(lunches), calories: 500 + Math.random() * 200, protein: 30 + Math.random() * 20, carbs: 50 + Math.random() * 30, fat: 15 + Math.random() * 10, meal: 'lunch' },
+      { id: `f3-${i}`, date: dateStr, description: pick(dinners), calories: 600 + Math.random() * 300, protein: 40 + Math.random() * 25, carbs: 60 + Math.random() * 40, fat: 20 + Math.random() * 15, meal: 'dinner' }
+    ];
+    // Random snacks
+    if (Math.random() > 0.5) {
+      mockDb.food[dateStr].push({ id: `f4-${i}`, date: dateStr, description: pick(snacks), calories: 150 + Math.random() * 100, protein: 5 + Math.random() * 15, carbs: 15 + Math.random() * 20, fat: 5 + Math.random() * 5, meal: 'snack' });
+    }
+
+    // 60% chance of working out
+    if (Math.random() > 0.4) {
+      const sports = [
+        { type: 'run', desc: 'Evening Run', int: 'high' },
+        { type: 'lift', desc: 'Gym Session', int: 'medium' },
+        { type: 'cycle', desc: 'Morning Cycle', int: 'medium' },
+        { type: 'swim', desc: 'Swim Laps', int: 'high' },
+        { type: 'box', desc: 'BJJ Class', int: 'high' },
+        { type: 'walk', desc: 'Afternoon Walk', int: 'low' }
+      ]
+      const sport = sports[Math.floor(Math.random() * sports.length)]
+      const isStrava = ['run', 'cycle', 'swim'].includes(sport.type)
+      const source = isStrava ? 'strava' : (sport.type === 'walk' ? 'google-health' : 'manual')
+      
+      const duration = 30 + Math.floor(Math.random() * 45)
+      const distance = sport.type === 'run' ? parseFloat((3 + Math.random() * 5).toFixed(2)) 
+                     : sport.type === 'cycle' ? parseFloat((10 + Math.random() * 15).toFixed(2)) 
+                     : sport.type === 'walk' ? parseFloat((2 + Math.random() * 3).toFixed(2)) : null
+      const cals = 200 + Math.floor(Math.random() * 300)
+
+      mockDb.workouts[dateStr] = [{
+        id: `w-${i}`,
+        date: dateStr,
+        description: sport.desc,
+        activity_type: sport.type,
+        intensity: sport.int,
+        duration_min: duration,
+        distance_km: distance,
+        calories_burned: cals,
+        source
+      }];
+      
+      // 30% chance to generate a duplicate from Google Health to demonstrate conflict resolution
+      if (isStrava && Math.random() > 0.7) {
+        mockDb.workouts[dateStr].push({
+          id: `w-${i}-dup`,
+          date: dateStr,
+          description: sport.desc,
+          activity_type: sport.type,
+          intensity: sport.int,
+          duration_min: duration + Math.floor(Math.random() * 4 - 2), // slight time diff
+          distance_km: distance ? parseFloat((distance + Math.random() * 0.4 - 0.2).toFixed(2)) : null,
+          calories_burned: cals + Math.floor(Math.random() * 20 - 10), // slight cal diff
+          source: 'google-health'
+        });
+      }
+    }
+  }
+
+  mockDb.weights.reverse(); // Newest first
+
+  db.load = async () => {
+    resolveWorkoutConflicts(mockDb.workouts);
+    state.dbCache = { food: mockDb.food, workouts: mockDb.workouts, weights: mockDb.weights };
+    return state.dbCache;
+  };
+
+  db.loadSettings = async () => mockDb.settings;
+  db.saveSettings = async (s) => { Object.assign(mockDb.settings, s); };
+
+  db.loadMeals = async () => mockDb.meals;
+  db.addMeal = async (m) => mockDb.meals.push({ id: Math.random().toString(), ...m });
+  db.updateMeal = async (id, m) => { const x = mockDb.meals.find(x => x.id === id); if (x) Object.assign(x, m); };
+  db.deleteMeal = async (id) => { mockDb.meals = mockDb.meals.filter(x => x.id !== id); };
+
+  db.loadWorkoutPresets = async () => mockDb.workoutPresets;
+  db.addWorkoutPreset = async (p) => mockDb.workoutPresets.push({ id: Math.random().toString(), ...p });
+  db.updateWorkoutPreset = async (id, p) => { const x = mockDb.workoutPresets.find(x => x.id === id); if (x) Object.assign(x, p); };
+  db.deleteWorkoutPreset = async (id) => { mockDb.workoutPresets = mockDb.workoutPresets.filter(x => x.id !== id); };
+
+  db.addFood = async (date, entry) => { if (!mockDb.food[date]) mockDb.food[date] = []; mockDb.food[date].push({ id: Math.random().toString(), date, ...entry }); db.bust(); };
+  db.updateFood = async (id, entry) => { Object.values(mockDb.food).forEach(arr => { const x = arr.find(x => x.id === id); if (x) Object.assign(x, entry); }); db.bust(); };
+  db.deleteFood = async (id) => { Object.keys(mockDb.food).forEach(k => mockDb.food[k] = mockDb.food[k].filter(x => x.id !== id)); db.bust(); };
+
+  db.addWorkout = async (date, entry) => { if (!mockDb.workouts[date]) mockDb.workouts[date] = []; mockDb.workouts[date].push({ id: Math.random().toString(), date, ...entry }); db.bust(); };
+  db.updateWorkout = async (id, entry) => { Object.values(mockDb.workouts).forEach(arr => { const x = arr.find(x => x.id === id); if (x) Object.assign(x, entry); }); db.bust(); };
+  db.deleteWorkout = async (id) => { Object.keys(mockDb.workouts).forEach(k => mockDb.workouts[k] = mockDb.workouts[k].filter(x => x.id !== id)); db.bust(); };
+
+  db.upsertWeight = async (entry) => {
+    mockDb.weights = mockDb.weights.filter(x => x.date !== entry.date);
+    mockDb.weights.push({ id: Math.random().toString(), ...entry });
+    mockDb.weights.sort((a, b) => b.date.localeCompare(a.date));
+    db.bust();
+  };
+  db.deleteWeight = async (date) => { mockDb.weights = mockDb.weights.filter(x => x.date !== date); db.bust(); };
+
+  db.getIntegration = async (provider) => provider === 'strava' ? { access_token: 'demo' } : null;
+  db.upsertIntegration = async () => { };
+  db.deleteIntegration = async () => { };
+  db.getStravaIds = async () => [];
+  db.getGoogleHealthIds = async () => [];
+
+  // Override auth to bypass real login
+  supabase.auth.getSession = async () => ({ data: { session: { user: state.currentUser } } });
+  supabase.auth.onAuthStateChange = () => { };
+  supabase.auth.signOut = async () => { localStorage.removeItem('tracker-demo'); window.location.reload(); };
+}

@@ -18,14 +18,14 @@ function renderWeightSection(data) {
     let dHtml = ''
     if (delta !== null) {
       const cls = delta > 0.01 ? 'up' : delta < -0.01 ? 'down' : 'same'
-      dHtml = `<span class="delta ${cls}">${delta > 0 ? '+' : ''}${delta.toFixed(1)} kg</span>`
+      dHtml = `<span class="delta ${cls}">${delta > 0 ? '+' : ''}${delta.toFixed(2)} kg</span>`
     }
     return `
       <div class="weight-entry">
         <div class="weight-entry-date">${fmtDateShort(w.date)}</div>
         <div class="weight-entry-right">
           ${dHtml}
-          <div class="weight-entry-kg">${w.kg.toFixed(1)}<span style="font-size:12px;font-weight:400;color:var(--tx3)"> kg</span></div>
+          <div class="weight-entry-kg">${w.kg.toFixed(2)}<span style="font-size:12px;font-weight:400;color:var(--tx3)"> kg</span></div>
         </div>
         <div class="entry-menu-wrap">
           <button class="entry-menu-btn" data-action="toggle-menu">${materialIcon('more_vert', 16)}</button>
