@@ -441,6 +441,72 @@ export function monthNavHTML(monthOffset = 0) {
     </div>`
 }
 
+function clamp(n, min, max) {
+  return Math.min(max, Math.max(min, n))
+}
+
+function parseCssColor(value) {
+  const color = String(value || '').trim()
+  if (!color) return null
+
+  const hex = color.match(/^#([0-9a-f]{3,8})$/i)
+  if (hex) {
+    const raw = hex[1]
+    const expand = (str) => str.length === 1 ? str + str : str
+    if (raw.length === 3 || raw.length === 4) {
+      return {
+        r: parseInt(expand(raw[0]), 16),
+        g: parseInt(expand(raw[1]), 16),
+        b: parseInt(expand(raw[2]), 16),
+      }
+    }
+    if (raw.length === 6 || raw.length === 8) {
+      return {
+        r: parseInt(raw.slice(0, 2), 16),
+        g: parseInt(raw.slice(2, 4), 16),
+        b: parseInt(raw.slice(4, 6), 16),
+      }
+    }
+  }
+
+  const rgb = color.match(/^rgba?\(([^)]+)\)$/i)
+  if (rgb) {
+    const parts = rgb[1].split(',').map(part => part.trim())
+    if (parts.length >= 3) {
+      return {
+        r: Number(parts[0]),
+        g: Number(parts[1]),
+        b: Number(parts[2]),
+      }
+    }
+  }
+
+  return null
+}
+
+function mixRgbColors(base, accent, ratio) {
+  const t = clamp(ratio, 0, 1)
+  const r = Math.round(base.r + (accent.r - base.r) * t)
+  const g = Math.round(base.g + (accent.g - base.g) * t)
+  const b = Math.round(base.b + (accent.b - base.b) * t)
+  return `rgb(${r} ${g} ${b})`
+}
+
+function nutritionHeatmapStyle(diff, target) {
+  const rootStyles = typeof document !== 'undefined' ? getComputedStyle(document.documentElement) : null
+  const accent = parseCssColor(rootStyles?.getPropertyValue('--accent')) || { r: 29, g: 122, b: 58 }
+  const track = parseCssColor(rootStyles?.getPropertyValue('--track')) || { r: 233, g: 236, b: 242 }
+
+  const absDiff = Math.abs(diff)
+  const onTargetWindow = Math.max(50, target * 0.3)
+  const scale = Math.max(target * 0.8, 400)
+  const closeness = absDiff <= onTargetWindow ? 1 : clamp(1 - ((absDiff - onTargetWindow) / scale), 0.12, 1)
+  const background = mixRgbColors(track, accent, closeness)
+  const color = closeness > 0.7 ? '#fff' : 'var(--tx)'
+
+  return { background, color, closeness, onTargetWindow }
+}
+
 export function monthHeatmapHTML(data, monthOffset = 0, type = 'workouts') {
   const now = new Date()
   now.setDate(1)
@@ -482,14 +548,16 @@ export function monthHeatmapHTML(data, monthOffset = 0, type = 'workouts') {
         const netActive = calculateNetActiveCalories(data.workouts[ds], TARGETS.calories.bmr)
         const tdee = TARGETS.calories.rest + netActive
         const diff = input - tdee
-        
-        let bg = 'var(--track)', color = 'var(--tx)'
-        if (diff > 100) { bg = 'var(--danger)'; color = '#fff' }
-        else if (diff < -100) { bg = 'var(--accent)'; color = '#fff' }
+
+        const { background, color, onTargetWindow } = nutritionHeatmapStyle(diff, tdee)
+        const absDiff = Math.abs(diff)
+        const arrow = absDiff <= onTargetWindow ? '✓' : diff > 0 ? '↑' : '↓'
+        const diffLabel = absDiff <= onTargetWindow
+          ? `On target (${Math.round(input)} / ${Math.round(tdee)} kcal)`
+          : `${Math.round(absDiff)} kcal ${diff > 0 ? 'surplus' : 'deficit'} (${Math.round(input)} / ${Math.round(tdee)} kcal)`
         
         cls += ' hm-has'
-        const diffText = diff > 0 ? `+${Math.round(diff)}` : Math.round(diff)
-        cells.push(`<div class="${cls}" data-action="goto-activity-date" data-date="${ds}" style="cursor:pointer;background:${bg};color:${color}" title="${diffText} kcal">${day}</div>`)
+        cells.push(`<div class="${cls} hm-nutrition" data-action="goto-activity-date" data-date="${ds}" style="cursor:pointer;background:${background};color:${color}" title="${diffLabel}"><span class="hm-day">${day}</span><span class="hm-arrow">${arrow}</span></div>`)
       } else {
         cells.push(`<div class="${cls}">${isFuture ? '' : day}</div>`)
       }

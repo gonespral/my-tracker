@@ -1,17 +1,17 @@
 import { state } from '../state.js'
 import { db } from '../db.js'
-import { dateStr, fmtDateShort, fmt, round, sumFood } from '../utils.js'
-import { calTrendHTML, macroAvgBarsHTML, sparklineHTML, monthNavHTML, monthHeatmapHTML } from '../charts.js'
+import { TARGETS } from '../config.js'
+import { dateStr, fmtDateShort, fmt, round, sumFood, calculateNetActiveCalories } from '../utils.js'
+import { monthNavHTML, monthHeatmapHTML, sparklineHTML } from '../charts.js'
 import { foodByMeal } from '../renderers.js'
 import { materialIcon } from '../icons.js'
-
 
 function renderWeightSection(data) {
   const weights = [...(data.weights || [])].sort((a, b) => b.date.localeCompare(a.date))
   if (!weights.length) {
     return `<button class="log-add-btn" data-action="log-weight">+ Log today's weight</button>`
   }
-  const latest = weights[0]
+
   const entries = weights.slice(0, 10).map((w, i) => {
     const prev = weights[i + 1]
     const delta = prev ? w.kg - prev.kg : null
@@ -46,9 +46,9 @@ function renderWeightSection(data) {
 
 export async function renderNutrition(monthOffset) {
   const panel = document.getElementById('panel-nutrition')
-  if (monthOffset === undefined) monthOffset = state.heatmapMonthOffset || 0
-
   if (!state.currentUser) { panel.innerHTML = ''; return }
+
+  if (monthOffset === undefined) monthOffset = state.heatmapMonthOffset || 0
 
   const data = await db.load()
   const today = dateStr()
@@ -58,36 +58,39 @@ export async function renderNutrition(monthOffset) {
   ref.setMonth(ref.getMonth() + monthOffset)
   const year = ref.getFullYear()
   const month = ref.getMonth()
+  const monthLabel = ref.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
   const daysInMonth = new Date(year, month + 1, 0).getDate()
 
-  const feedDays = []
-  for (let day = daysInMonth; day >= 1; day--) {
+  const monthDays = []
+  for (let day = 1; day <= daysInMonth; day++) {
     const d = new Date(year, month, day)
     const ds = dateStr(d)
     const food = data.food[ds] || []
-    const isToday = ds === today
-    if (isToday || food.length > 0) feedDays.push({ ds, food, isToday, d })
+    const workouts = data.workouts[ds] || []
+    const input = sumFood(food).calories
+    const burned = calculateNetActiveCalories(workouts, TARGETS.calories.bmr)
+    const baseTarget = TARGETS.calories.rest
+    const target = baseTarget + burned
+    const diff = input - target
+    monthDays.push({ ds, d, food, input, burned, baseTarget, target, diff, isToday: ds === today })
   }
 
+  const loggedDays = monthDays.filter(day => day.food.length > 0).length
+  const onTrackDays = monthDays.filter(day => Math.abs(day.diff) <= Math.max(50, day.target * 0.3)).length
+
+  const feedDays = monthDays.filter(day => day.food.length > 0).reverse()
   const feedHTML = feedDays.map(({ ds, food, isToday, d }) => {
     const label = isToday
       ? 'Today'
       : d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })
     const totals = sumFood(food)
-    const macroSummary = food.length
-      ? `<span class="nutrition-day-macro">${round(totals.calories)} kcal · P${fmt(totals.protein)}g · C${fmt(totals.carbs)}g · F${fmt(totals.fat)}g</span>`
-      : ''
+    const macroSummary = `<span class="nutrition-day-macro">${round(totals.calories)} kcal · P${fmt(totals.protein)}g · C${fmt(totals.carbs)}g · F${fmt(totals.fat)}g</span>`
     return `
       <div class="workout-day-group">
         <div class="workout-day-hd${isToday ? ' today-hd' : ''}">${label} ${macroSummary}</div>
-        ${food.length ? foodByMeal(food, ds) : ''}
+        ${foodByMeal(food, ds)}
       </div>`
   }).join('')
-
-  const foodDays = Object.keys(data.food || {}).filter(ds => {
-    const [y, m] = ds.split('-').map(Number)
-    return y === year && m === month + 1 && data.food[ds].length > 0
-  }).length
 
   panel.innerHTML = `
     <div class="panel-inner">
@@ -95,24 +98,18 @@ export async function renderNutrition(monthOffset) {
         ${monthNavHTML(monthOffset)}
         <div class="chart-card">
           <div class="chart-header">
-            <span class="chart-title">Nutrition</span>
-            <span class="chart-sub">${foodDays} days logged</span>
+            <span class="chart-title">Nutrition calendar</span>
+            <span class="chart-sub">${loggedDays} logged days · ${onTrackDays} days within 30% of target</span>
           </div>
           ${monthHeatmapHTML(data, monthOffset, 'nutrition')}
         </div>
-        <div class="section-divider"></div>
-        <div class="section-label">Last 30 days</div>
-
-        <div class="chart-card">${macroAvgBarsHTML(data, 30)}</div>
-        <div class="chart-card" style="margin-top:12px">${calTrendHTML(data, 30, { title: 'Caloric input', primary: 'input' })}</div>
-        
         <div class="section-divider"></div>
         <div class="section-label">Weight</div>
         ${renderWeightSection(data)}
       </div>
       <div class="panel-right">
         <button class="log-add-btn" style="margin-bottom:16px" data-action="open-food-sheet">+ Log food</button>
-        ${feedHTML || '<div class="empty">No food logged yet.</div>'}
+        ${feedHTML || '<div class="empty">No food logged this month.</div>'}
       </div>
     </div>`
 }

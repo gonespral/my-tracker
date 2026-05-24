@@ -160,7 +160,7 @@ export async function renderSettings() {
     ${section('meals', 'Saved Meals', `
       <button class="meals-add-btn" data-action="add-meal-preset">+ Add meal preset</button>
       ${meals.length ? mealItems : '<div class="empty">No saved meals yet.</div>'}
-    `, true)}
+    `)}
 
     ${section('activities', 'Saved Activities', `
       <button class="meals-add-btn" data-action="add-workout-preset">+ Add activity preset</button>

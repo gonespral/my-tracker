@@ -376,6 +376,43 @@ body {
   color: #92400e;
 }
 
+.badge.danger {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.month-avg-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.month-avg-item {
+  background: linear-gradient(180deg, var(--card), var(--bg));
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 12px 14px;
+  min-height: 62px;
+}
+
+.month-avg-value {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--tx);
+  line-height: 1.1;
+}
+
+.month-avg-label {
+  margin-top: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--tx3);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
 /* ── Macro rings ───────────────────────────────────────────── */
 .macro-rings {
   display: grid;
@@ -769,6 +806,23 @@ body {
   font-weight: 500;
 }
 
+.hm-cell.hm-nutrition {
+  flex-direction: column;
+  gap: 1px;
+  font-weight: 600;
+}
+
+.hm-day {
+  font-size: 11px;
+  line-height: 1;
+}
+
+.hm-arrow {
+  font-size: 9px;
+  line-height: 1;
+  font-weight: 700;
+}
+
 .hm-cell.hm-has {
   background: var(--accent);
   color: #fff;
@@ -1151,7 +1205,7 @@ body {
   background: var(--card);
   border: 1.5px solid var(--border);
   border-bottom: none;
-  box-shadow: var(--nav-shadow);
+  box-shadow: none;
   border-radius: 18px 18px 0 0;
   overflow: hidden;
   display: none;
@@ -1173,6 +1227,11 @@ body {
 #chat-panel.peek {
   display: block;
   height: 75px;
+  box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="dark"] #chat-panel.peek {
+  box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.32);
 }
 
 #chat-panel.expanded {
@@ -1218,11 +1277,10 @@ body {
 }
 
 .chat-peek-label {
-  font-size: 10px;
+  font-family: 'Space Grotesk', sans-serif;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  color: var(--accent);
+  font-size: 13px;
+  color: var(--tx);
   margin-bottom: 3px;
 }
 
@@ -1256,7 +1314,7 @@ body {
 /* ── Input bar ────────────────────────────────────────────── */
 .input-bar {
   position: relative;
-  z-index: 390;
+  z-index: 430;
   flex-shrink: 0;
   display: flex;
   align-items: flex-end;
@@ -1264,7 +1322,8 @@ body {
   padding: 10px 14px;
   padding-bottom: calc(10px + var(--safe-bot));
   border-top: 1px solid var(--border);
-  box-shadow: var(--nav-shadow);
+  border-radius: 16px 16px 0 0;
+  box-shadow: none;
   background: var(--bg);
 }
 
@@ -1334,7 +1393,7 @@ body {
   opacity: 0;
   pointer-events: none;
   transition: opacity .25s, background-color .25s, backdrop-filter .25s;
-  z-index: 400;
+  z-index: 440;
 }
 
 .backdrop.visible {
@@ -1346,6 +1405,7 @@ body {
   background: rgba(0, 0, 0, .4);
   backdrop-filter: blur(2px);
   -webkit-backdrop-filter: blur(2px);
+  z-index: 400;
 }
 
 .sheet {
@@ -1848,7 +1908,7 @@ body {
 .chat-messages {
   flex: 1;
   overflow-y: auto;
-  padding: 4px 0 12px;
+  padding: 4px 0 22px;
   display: flex;
   flex-direction: column;
   gap: 10px;
