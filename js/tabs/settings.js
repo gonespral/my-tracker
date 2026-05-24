@@ -17,7 +17,7 @@ import { materialIcon } from '../icons.js'
 
 const STRAVA_ICON = materialIcon('directions_bike', 16)
 const GOOGLE_HEALTH_ICON = materialIcon('monitor_heart', 16)
-const CLAUDE_ICON = `<span class="claude-logo" aria-hidden="true">AI</span>`
+const CLAUDE_ICON = materialIcon('smart_toy', 16)
 const FOOD_PRESET_ICON = materialIcon('restaurant', 15)
 const WORK_PRESET_ICON = materialIcon('fitness_center', 15)
 const CHEVRON = materialIcon('expand_more', 16, { className: 'accordion-chevron' })
@@ -50,7 +50,7 @@ function formatCalorieProfileSummary(targets, latestWeightKg) {
   const usedLatest = latestWeightKg != null && targets.weight_kg === latestWeightKg
 
   return `
-    <strong>${targets.rest.toLocaleString()} kcal/day</strong> estimated maintenance, with <strong>${targets.training.toLocaleString()} kcal/day</strong> on training days.<br>
+    <strong>${targets.rest.toLocaleString()} kcal/day</strong> estimated base maintenance.<br>
     BMR: ${targets.bmr.toLocaleString()} kcal · ${sexLabel} · ${targets.age} years · ${targets.height_cm} cm · ${weightLabel} · ${activity}${usedLatest ? ` · using latest logged weight (${latestWeightKg.toFixed(1)} kg)` : ''}.
   `
 }
@@ -64,9 +64,7 @@ function setCalorieProfileSummary(targets, latestWeightKg) {
 function updateProfileTargetInputs(targets) {
   if (!targets) return
   const restInput = document.getElementById('t-cal-rest')
-  const trainingInput = document.getElementById('t-cal-training')
   if (restInput) restInput.value = targets.rest
-  if (trainingInput) trainingInput.value = targets.training
 }
 
 export async function renderSettings() {
@@ -96,7 +94,7 @@ export async function renderSettings() {
       db.loadWorkoutPresets(),
     ])
     settingsRow = await db.loadSettings()
-    state.mealsCache          = meals
+    state.mealsCache = meals
     state.workoutPresetsCache = wps
   } catch (e) {
     panel.innerHTML = `<div class="empty" style="margin-top:40px">Failed to load: ${e.message}</div>`
@@ -127,7 +125,7 @@ export async function renderSettings() {
       <div class="meal-preset-icon">${FOOD_PRESET_ICON}</div>
       <div class="meal-preset-body">
         <div class="meal-preset-name">${m.name}</div>
-        <div class="meal-preset-meta">P ${fmt(m.protein||0)}g · C ${fmt(m.carbs||0)}g · F ${fmt(m.fat||0)}g${m.meal ? ' · '+cap(m.meal) : ''}</div>
+        <div class="meal-preset-meta">P ${fmt(m.protein || 0)}g · C ${fmt(m.carbs || 0)}g · F ${fmt(m.fat || 0)}g${m.meal ? ' · ' + cap(m.meal) : ''}</div>
       </div>
       <div class="meal-preset-cal">${round(m.calories)}<span style="font-size:10px;font-weight:400;color:var(--tx3)"> kcal</span></div>
       <div class="entry-menu-wrap">
@@ -144,7 +142,7 @@ export async function renderSettings() {
       <div class="meal-preset-icon">${WORK_PRESET_ICON}</div>
       <div class="meal-preset-body">
         <div class="meal-preset-name">${w.name}</div>
-        <div class="meal-preset-meta">${INTENSITY_ICON[w.intensity]||INTENSITY_ICON.medium} ${cap(w.intensity||'medium')}${w.calories_burned ? ' · '+w.calories_burned+' kcal burned' : ''}</div>
+        <div class="meal-preset-meta">${INTENSITY_ICON[w.intensity] || INTENSITY_ICON.medium} ${cap(w.intensity || 'medium')}${w.calories_burned ? ' · ' + w.calories_burned + ' kcal burned' : ''}</div>
       </div>
       <div class="entry-menu-wrap">
         <button class="entry-menu-btn" data-action="toggle-menu">${materialIcon('more_vert', 16)}</button>
@@ -173,12 +171,8 @@ export async function renderSettings() {
       <p class="setup-note">Changes apply immediately and sync across sessions.</p>
       <div class="targets-grid">
         <div class="form-field">
-          <label class="form-label" for="t-cal-rest">Rest day (kcal)</label>
+          <label class="form-label" for="t-cal-rest">Daily base target (kcal)</label>
           <input class="form-input" id="t-cal-rest" type="number" inputmode="numeric" value="${TARGETS.calories.rest}">
-        </div>
-        <div class="form-field">
-          <label class="form-label" for="t-cal-training">Training day (kcal)</label>
-          <input class="form-input" id="t-cal-training" type="number" inputmode="numeric" value="${TARGETS.calories.training}">
         </div>
         <div class="form-field">
           <label class="form-label" for="t-protein">Protein (g)</label>
@@ -220,16 +214,27 @@ export async function renderSettings() {
     ${section('strava', `<span style="display:flex;align-items:center;gap:7px">${STRAVA_ICON} Strava</span>`, `
       <div id="strava-disconnected-ui">
         <p class="setup-note">
-          Connect your <a href="https://www.strava.com/settings/api" target="_blank">Strava API app</a>.
-          Credentials are stored locally on this device only.
+          Connect your Strava account to automatically sync activities.
         </p>
-        <div class="form-field">
-          <label class="form-label" for="strava-cid-input">Client ID</label>
-          <input class="form-input" id="strava-cid-input" type="text" placeholder="e.g. 12345" autocomplete="off" />
+        <div style="margin-bottom:16px">
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--tx2);cursor:pointer">
+            <input type="checkbox" id="strava-custom-cb" onchange="document.getElementById('strava-custom-fields').style.display = this.checked ? 'block' : 'none'">
+            Use custom API credentials (self-hosted)
+          </label>
         </div>
-        <div class="form-field">
-          <label class="form-label" for="strava-csecret-input">Client Secret</label>
-          <input class="form-input" id="strava-csecret-input" type="password" placeholder="abc123…" autocomplete="off" />
+        <div id="strava-custom-fields" style="display:none;margin-bottom:16px;padding:12px;background:var(--track);border-radius:8px">
+          <p class="setup-note" style="margin-top:0">
+            Connect your <a href="https://www.strava.com/settings/api" target="_blank">Strava API app</a>.
+            Credentials are stored locally on this device only.
+          </p>
+          <div class="form-field">
+            <label class="form-label" for="strava-cid-input">Client ID</label>
+            <input class="form-input" id="strava-cid-input" type="text" placeholder="e.g. 12345" autocomplete="off" />
+          </div>
+          <div class="form-field" style="margin-bottom:0">
+            <label class="form-label" for="strava-csecret-input">Client Secret</label>
+            <input class="form-input" id="strava-csecret-input" type="password" placeholder="abc123…" autocomplete="off" />
+          </div>
         </div>
         <button class="btn-strava" id="connect-strava-btn">
           ${STRAVA_ICON}
@@ -253,17 +258,28 @@ export async function renderSettings() {
     ${section('google', `<span style="display:flex;align-items:center;gap:7px">${GOOGLE_HEALTH_ICON} Google Health</span>`, `
       <div id="gh-disconnected-ui">
         <p class="setup-note">
-          Sync activities via the <a href="https://console.cloud.google.com/apis/api/health.googleapis.com/" target="_blank">Google Health API Console</a>.
-          Create a Google Cloud project, enable the Google Health API, then create an OAuth 2.0 credential (Web application type) with redirect URI:
-          <code style="font-size:11px;background:var(--track);padding:1px 4px;border-radius:4px;word-break:break-all;display:inline-block;max-width:100%">${location.origin + location.pathname}</code>
+          Connect your Google Health account to sync activities.
         </p>
-        <div class="form-field">
-          <label class="form-label" for="gh-cid-input">Client ID</label>
-          <input class="form-input" id="gh-cid-input" type="text" placeholder="123….apps.googleusercontent.com" autocomplete="off" />
+        <div style="margin-bottom:16px">
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--tx2);cursor:pointer">
+            <input type="checkbox" id="gh-custom-cb" onchange="document.getElementById('gh-custom-fields').style.display = this.checked ? 'block' : 'none'">
+            Use custom API credentials (self-hosted)
+          </label>
         </div>
-        <div class="form-field">
-          <label class="form-label" for="gh-csecret-input">Client Secret</label>
-          <input class="form-input" id="gh-csecret-input" type="password" placeholder="GOCSPX-…" autocomplete="off" />
+        <div id="gh-custom-fields" style="display:none;margin-bottom:16px;padding:12px;background:var(--track);border-radius:8px">
+          <p class="setup-note" style="margin-top:0">
+            Sync activities via the <a href="https://console.cloud.google.com/apis/api/health.googleapis.com/" target="_blank">Google Health API Console</a>.
+            Create an OAuth 2.0 credential with redirect URI:
+            <code style="font-size:11px;background:var(--bg);padding:1px 4px;border-radius:4px;word-break:break-all;display:inline-block;max-width:100%">${location.origin + location.pathname}</code>
+          </p>
+          <div class="form-field">
+            <label class="form-label" for="gh-cid-input">Client ID</label>
+            <input class="form-input" id="gh-cid-input" type="text" placeholder="123….apps.googleusercontent.com" autocomplete="off" />
+          </div>
+          <div class="form-field" style="margin-bottom:0">
+            <label class="form-label" for="gh-csecret-input">Client Secret</label>
+            <input class="form-input" id="gh-csecret-input" type="password" placeholder="GOCSPX-…" autocomplete="off" />
+          </div>
         </div>
         <button class="btn-google-health" id="connect-gh-btn">
           ${GOOGLE_HEALTH_ICON}
@@ -340,20 +356,17 @@ export async function renderSettings() {
   updateGoogleHealthSettingsSection()
 
   document.getElementById('settings-save-targets-btn').addEventListener('click', async () => {
-    const calRest     = parseInt(document.getElementById('t-cal-rest').value)     || TARGETS.calories.rest
-    const calTraining = parseInt(document.getElementById('t-cal-training').value) || TARGETS.calories.training
-    const protein     = parseInt(document.getElementById('t-protein').value)      || TARGETS.protein
-    const carbs       = parseInt(document.getElementById('t-carbs').value)        || TARGETS.carbs
-    const fat         = parseInt(document.getElementById('t-fat').value)          || TARGETS.fat
-    TARGETS.calories.rest     = calRest
-    TARGETS.calories.training = calTraining
-    TARGETS.protein           = protein
-    TARGETS.carbs             = carbs
-    TARGETS.fat               = fat
+    const calRest = parseInt(document.getElementById('t-cal-rest').value) || TARGETS.calories.rest
+    const protein = parseInt(document.getElementById('t-protein').value) || TARGETS.protein
+    const carbs = parseInt(document.getElementById('t-carbs').value) || TARGETS.carbs
+    const fat = parseInt(document.getElementById('t-fat').value) || TARGETS.fat
+    TARGETS.calories.rest = calRest
+    TARGETS.protein = protein
+    TARGETS.carbs = carbs
+    TARGETS.fat = fat
     try {
       await db.saveSettings({
         cal_rest: calRest,
-        cal_training: calTraining,
         protein_g: protein,
         carbs_g: carbs,
         fat_g: fat,
@@ -384,15 +397,14 @@ export async function renderSettings() {
       return
     }
 
-    TARGETS.calories.rest     = estimated.rest
-    TARGETS.calories.training = estimated.training
+    TARGETS.calories.rest = estimated.rest
+    TARGETS.calories.bmr = estimated.bmr
     updateProfileTargetInputs(estimated)
     setCalorieProfileSummary(estimated, latestWeightKg)
 
     try {
       await db.saveSettings({
         cal_rest: estimated.rest,
-        cal_training: estimated.training,
         protein_g: TARGETS.protein,
         carbs_g: TARGETS.carbs,
         fat_g: TARGETS.fat,
@@ -472,10 +484,10 @@ export function openPresetSheet(id) {
   const m = id ? (state.mealsCache || []).find(x => x.id === id) : null
   document.getElementById('meal-preset-title').textContent = m ? 'Edit Meal' : 'New Meal'
   document.getElementById('mp-name').value = m?.name || ''
-  document.getElementById('mp-cal').value  = m?.calories || ''
-  document.getElementById('mp-pro').value  = m?.protein  || ''
-  document.getElementById('mp-car').value  = m?.carbs    || ''
-  document.getElementById('mp-fat').value  = m?.fat      || ''
+  document.getElementById('mp-cal').value = m?.calories || ''
+  document.getElementById('mp-pro').value = m?.protein || ''
+  document.getElementById('mp-car').value = m?.carbs || ''
+  document.getElementById('mp-fat').value = m?.fat || ''
   document.querySelectorAll('#mp-meal-btns .meal-btn').forEach(b =>
     b.classList.toggle('active', b.dataset.meal === (m?.meal || 'snack')))
   document.getElementById('save-preset-btn').textContent = m ? 'Update Meal' : 'Save Meal'
