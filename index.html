@@ -39,12 +39,17 @@
 
     <!-- Top bar: title + actions + tabs -->
     <header class="top-bar">
-      <div class="top-bar-inner" style="position:relative;">
-        <div id="demo-mode-tag" title="Go to Settings and click 'Sign Out' to disable demo mode" style="display:none; position:absolute; left:50%; transform:translateX(-50%); font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; background:var(--warn-soft); color:#92400e; padding:4px 12px; border-radius:999px; cursor:help;">Demo Mode</div>
+      <div class="top-bar-inner">
         <span class="top-bar-title">
           <img src="brand/svg/logo-mono-light.svg" alt="MyTracker" class="app-icon app-icon-light">
           <img src="brand/svg/logo-mono-dark.svg" alt="MyTracker" class="app-icon app-icon-dark">
           MyTracker
+          <div id="demo-mode-tag" onclick="alert('To disable Demo Mode, open Settings (gear icon) and tap Sign Out.')" style="display:none; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; background:var(--warn-soft); color:#92400e; padding:3px 8px; border-radius:999px; cursor:pointer; margin-left:4px;">Demo</div>
+          <script>
+            if (localStorage.getItem('tracker-demo') === '1' || window.location.search.includes('demo=')) {
+              document.getElementById('demo-mode-tag').style.display = 'block';
+            }
+          </script>
           <a href="https://github.com/gonespral/health-tracker" target="_blank" class="github-repo-link"
             aria-label="GitHub Repository">
             <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
