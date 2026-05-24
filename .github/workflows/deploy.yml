@@ -22,6 +22,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Generate env.js from secrets
+        run: 
+          cat <<EOF > js/env.js
+          export const SUPABASE_URL = "${{ secrets.SUPABASE_URL }}"
+          export const SUPABASE_ANON_KEY = "${{ secrets.SUPABASE_ANON_KEY }}"
+          export const STRAVA_CLIENT_ID = "${{ secrets.STRAVA_CLIENT_ID }}"
+          export const GOOGLE_HEALTH_CLIENT_ID = "${{ secrets.GOOGLE_HEALTH_CLIENT_ID }}"
+          EOF
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

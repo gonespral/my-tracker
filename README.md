@@ -1,4 +1,4 @@
-# MyTracker
+# <picture><source media="(prefers-color-scheme: dark)" srcset="brand/svg/logo-mono-light.svg"><source media="(prefers-color-scheme: light)" srcset="brand/svg/logo-mono-dark.svg"><img alt="MyTracker" src="brand/svg/logo-mono-dark.svg" width="36" align="top"></picture> MyTracker
 
 > [!WARNING]
 > This project is heavily vibecoded. It exists because every fitness tracker I tried either lacked the one feature I actually needed, buried useful functionality behind a subscription, or couldn't integrate properly with services like Strava and Google Fit without some janky middleware. So I built my own, host it myself, and only add features I personally want. Expect rough edges, unconventional patterns, and code that works because it works.
@@ -47,11 +47,7 @@ The app serves at `http://localhost:3000`. There is no build step — all files 
 
 1. Create a new Supabase project.
 2. Open the SQL Editor in the Supabase dashboard and run each file in `supabase/migrations/` in order (starting with `00001_initial_schema.sql`). This creates all tables, RLS policies, and indexes.
-3. Update `js/config.js` with your project URL and anon key:
-   ```javascript
-   export const SUPABASE_URL      = "https://your-project.supabase.co"
-   export const SUPABASE_ANON_KEY = "your-anon-key"
-   ```
+3. Copy `js/env.example.js` to `js/env.js` and fill in your Supabase details (and any OAuth Client IDs you wish to provide by default). `js/env.js` is git-ignored to keep your keys safe.
 4. Enable **GitHub** as an authentication provider under Authentication > Providers in the Supabase dashboard.
 5. Add your local and production URLs as redirect URIs.
 
@@ -72,6 +68,16 @@ Enter client credentials in the settings sheet within the app.
 ## Deployment
 
 Pushes to `main` trigger a GitHub Actions workflow (`.github/workflows/deploy.yml`) that publishes the static files to GitHub Pages.
+
+**Important for deployment:** Because this is a static site without a build step, the deployment workflow expects your environment variables to be set as **GitHub Actions Secrets**. 
+
+Go to your repository settings > **Secrets and variables** > **Actions** and add the following repository secrets:
+- `SUPABASE_URL`
+- `SUPABASE_ANON_KEY`
+- `STRAVA_CLIENT_ID`
+- `GOOGLE_HEALTH_CLIENT_ID`
+
+The deployment action will automatically inject these into a generated `js/env.js` file before publishing to GitHub Pages, keeping your codebase completely free of hardcoded keys!
 
 ## License
 
