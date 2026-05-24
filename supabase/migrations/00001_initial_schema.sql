@@ -27,9 +27,7 @@ CREATE TABLE public.workout_entries (
     calories_burned NUMERIC CHECK (calories_burned >= 0),
     duration_min    NUMERIC CHECK (duration_min >= 0),
     distance_km     NUMERIC CHECK (distance_km >= 0),
-    distance        NUMERIC,
     heart_rate_avg  NUMERIC CHECK (heart_rate_avg >= 0),
-    duration        TEXT,
     time            TEXT,
     source          TEXT DEFAULT 'manual',
     external_id     TEXT,
@@ -80,14 +78,28 @@ CREATE TABLE public.user_settings (
     updated_at     TIMESTAMPTZ DEFAULT now()
 );
 
+CREATE TABLE public.user_integrations (
+    user_id        UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+    provider       TEXT NOT NULL CHECK (provider IN ('strava', 'google-health')),
+    access_token   TEXT NOT NULL,
+    refresh_token  TEXT NOT NULL,
+    expires_at     BIGINT,
+    display_name   TEXT,
+    last_sync      BIGINT,
+    metadata       JSONB DEFAULT '{}',
+    updated_at     TIMESTAMPTZ DEFAULT now(),
+    PRIMARY KEY (user_id, provider)
+);
+
 -- ── Row-Level Security ───────────────────────────────────────────────────
 
-ALTER TABLE public.food_entries    ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.workout_entries ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.weight_entries  ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.meal_presets    ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.workout_presets ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.user_settings   ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.food_entries      ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.workout_entries   ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.weight_entries    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.meal_presets      ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.workout_presets   ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_settings     ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_integrations ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Users manage own food entries"
     ON public.food_entries FOR ALL TO authenticated
@@ -113,8 +125,41 @@ CREATE POLICY "Users manage own settings"
     ON public.user_settings FOR ALL TO authenticated
     USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
+CREATE POLICY "Users manage own integrations"
+    ON public.user_integrations FOR ALL TO authenticated
+    USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
 -- ── Indexes ──────────────────────────────────────────────────────────────
 
 CREATE INDEX idx_food_entries_user_date    ON public.food_entries (user_id, date);
 CREATE INDEX idx_workout_entries_user_date ON public.workout_entries (user_id, date);
 CREATE INDEX idx_weight_entries_user_date  ON public.weight_entries (user_id, date);
+
+-- ── Registration Whitelist ───────────────────────────────────────────────
+
+CREATE TABLE public.allowed_emails (
+    email TEXT PRIMARY KEY,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- IMPORTANT: Uncomment the line below and change to your actual GitHub email 
+-- BEFORE running this migration, or you will lock yourself out!
+-- INSERT INTO public.allowed_emails (email) VALUES ('your_actual_email@example.com');
+
+ALTER TABLE public.allowed_emails ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow read access for all authenticated users" ON public.allowed_emails FOR SELECT TO authenticated USING (true);
+
+CREATE OR REPLACE FUNCTION public.check_whitelist()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM public.allowed_emails WHERE email = NEW.email) THEN
+        RAISE EXCEPTION 'Signup disabled: Email % is not on the whitelist.', NEW.email;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS enforce_whitelist ON auth.users;
+CREATE TRIGGER enforce_whitelist
+BEFORE INSERT ON auth.users
+FOR EACH ROW EXECUTE FUNCTION public.check_whitelist();
