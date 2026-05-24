@@ -5,7 +5,8 @@ export const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON
 
 const CONFLICT_PREFERENCE_KEY = 'tracker-workout-conflict-preference'
 const CONFLICT_OVERRIDES_KEY = 'tracker-workout-conflict-overrides'
-const CONFLICT_INTEGRATIONS = new Set(['strava', 'google-health', 'fitbit'])
+const CONFLICT_DISMISSALS_KEY = 'tracker-workout-conflict-dismissals'
+const CONFLICT_INTEGRATIONS = new Set(['strava', 'google-health', 'fitbit', 'manual'])
 
 function readConflictOverrides() {
   try {
@@ -19,13 +20,24 @@ function writeConflictOverrides(overrides) {
   localStorage.setItem(CONFLICT_OVERRIDES_KEY, JSON.stringify(overrides))
 }
 
-function parseWorkoutStart(date, time) {
-  if (!date || !time || typeof time !== 'string') return null
+function readConflictDismissals() {
+  try {
+    return JSON.parse(localStorage.getItem(CONFLICT_DISMISSALS_KEY) || '{}') || {}
+  } catch {
+    return {}
+  }
+}
 
-  const isoMatch = time.trim().match(/^(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2})/)
-  if (isoMatch) {
-    const [, year, month, day, hours, minutes] = isoMatch
-    return new Date(Number(year), Number(month) - 1, Number(day), Number(hours), Number(minutes), 0, 0).getTime()
+function writeConflictDismissals(dismissals) {
+  localStorage.setItem(CONFLICT_DISMISSALS_KEY, JSON.stringify(dismissals))
+}
+
+export function parseWorkoutStart(date, time) {
+  if (!time) return null
+
+  const d = new Date(time)
+  if (!isNaN(d.getTime()) && time.includes('T')) {
+    return d.getTime()
   }
 
   const match = time.trim().match(/^(\d{1,2}):(\d{2})\s*([ap]m)$/i)
@@ -78,6 +90,9 @@ function pairLooksLikeConflict(date, left, right) {
     if (overlapMs > 0 && shortestMs > 0 && overlapMs / shortestMs >= 0.5) return true
     if (overlapMs > 20 * 60_000 && sameType) return true
     if (startGapMs <= 45 * 60_000 && durationGap <= Math.max(10, Math.round(durationAvg * 0.35)) && sameType) return true
+
+    // If both have specific times and didn't meet overlap criteria, they are not a conflict
+    return false
   }
 
   const leftDuration = Number(left.duration_min) || 0
@@ -90,7 +105,7 @@ function pairLooksLikeConflict(date, left, right) {
 }
 
 function chooseConflictWinner(workouts, preferredSource) {
-  const preferred = workouts.filter(w => w.source === preferredSource)
+  const preferred = workouts.filter(w => (w.source || 'manual') === preferredSource)
   const pool = preferred.length ? preferred : workouts
 
   return [...pool].sort((a, b) => {
@@ -108,13 +123,17 @@ function chooseConflictWinner(workouts, preferredSource) {
 
 function resolveWorkoutConflicts(workoutsByDate) {
   const overrides = readConflictOverrides()
+  const dismissals = readConflictDismissals()
   const defaultPreference = getWorkoutConflictPreference()
   const conflictGroups = {}
 
   for (const [date, workouts] of Object.entries(workoutsByDate)) {
     const eligible = workouts
       .map((workout, index) => ({ workout, index }))
-      .filter(({ workout }) => CONFLICT_INTEGRATIONS.has(workout.source) && Number(workout.duration_min) > 0)
+      .filter(({ workout }) => {
+        const src = workout.source || 'manual'
+        return CONFLICT_INTEGRATIONS.has(src) && Number(workout.duration_min) > 0
+      })
 
     if (eligible.length < 2) continue
 
@@ -130,7 +149,11 @@ function resolveWorkoutConflicts(workoutsByDate) {
       for (let j = i + 1; j < eligible.length; j++) {
         const left = eligible[i].workout
         const right = eligible[j].workout
-        if (left.source === right.source) continue
+        // Same source entries from integrations can't conflict with each other,
+        // but manual entries can conflict with anything including other manual ones
+        const leftSrc = left.source || 'manual'
+        const rightSrc = right.source || 'manual'
+        if (leftSrc === rightSrc && leftSrc !== 'manual') continue
         if (pairLooksLikeConflict(date, left, right)) union(i, j)
       }
     }
@@ -143,13 +166,22 @@ function resolveWorkoutConflicts(workoutsByDate) {
     })
 
     for (const component of components.values()) {
-      const sources = [...new Set(component.map(w => w.source))]
-      if (sources.length < 2) continue
+      if (component.length < 2) continue
 
       const groupId = `${date}|${component
-        .map(w => `${w.source}:${w.external_id || w.id || w.time || w.description || ''}`)
+        .map(w => `${w.source || 'manual'}:${w.external_id || w.id || w.time || w.description || ''}`)
         .sort()
         .join('|')}`
+
+      // Skip dismissed groups but mark them so UI can allow re-flagging
+      if (dismissals[groupId]) {
+        for (const workout of component) {
+          workout.dismissedConflictGroupId = groupId
+        }
+        continue
+      }
+
+      const sources = [...new Set(component.map(w => w.source || 'manual'))]
       const preferredSource = overrides[groupId] || defaultPreference
       const active = chooseConflictWinner(component, preferredSource)
 
@@ -157,14 +189,14 @@ function resolveWorkoutConflicts(workoutsByDate) {
         date,
         sources,
         preferredSource,
-        activeSource: active.source,
+        activeSource: active.source || 'manual',
         activeId: active.id,
       }
 
       for (const workout of component) {
         workout.conflictGroupId = groupId
         workout.conflictPreferredSource = preferredSource
-        workout.conflictActiveSource = active.source
+        workout.conflictActiveSource = active.source || 'manual'
         workout.conflictSources = sources
         workout.isDuplicate = workout.id !== active.id
       }
@@ -185,7 +217,7 @@ export function setWorkoutConflictPreference(source) {
 
 export function setWorkoutConflictOverride(groupId, source) {
   const overrides = readConflictOverrides()
-  overrides[groupId] = source === 'google-health' ? 'google-health' : 'strava'
+  overrides[groupId] = source
   writeConflictOverrides(overrides)
 }
 
@@ -196,6 +228,20 @@ export function clearWorkoutConflictOverride(groupId) {
   writeConflictOverrides(overrides)
 }
 
+export function dismissWorkoutConflict(groupId) {
+  const dismissals = readConflictDismissals()
+  dismissals[groupId] = true
+  writeConflictDismissals(dismissals)
+}
+
+export function reflagWorkoutConflict(groupId) {
+  const dismissals = readConflictDismissals()
+  if (dismissals[groupId]) {
+    delete dismissals[groupId]
+    writeConflictDismissals(dismissals)
+  }
+}
+
 function markDuplicates(workoutsByDate) {
   for (const workouts of Object.values(workoutsByDate)) {
     const strava = workouts.filter(w => w.source === 'strava' && w.duration_min)
@@ -204,7 +250,7 @@ function markDuplicates(workoutsByDate) {
       if (w.source !== 'google-health' || !w.duration_min) continue
       const isDup = strava.some(s => {
         const diff = Math.abs(s.duration_min - w.duration_min)
-        const avg  = (s.duration_min + w.duration_min) / 2
+        const avg = (s.duration_min + w.duration_min) / 2
         return diff / avg < 0.25 || diff <= 5
       })
       if (isDup) w.isDuplicate = true
@@ -235,9 +281,9 @@ export const db = {
     }
 
     const [
-      { data: foodRows,    error: e1 },
+      { data: foodRows, error: e1 },
       { data: workoutRows, error: e2 },
-      { data: weightRows,  error: e3 },
+      { data: weightRows, error: e3 },
     ] = await Promise.all([
       supabase.from('food_entries').select('*'),
       supabase.from('workout_entries').select('*'),
@@ -420,19 +466,54 @@ export const db = {
   async saveSettings(s) {
     const current = await this.loadSettings().catch(() => null)
     const { error } = await supabase.from('user_settings').upsert({
-      user_id:         state.currentUser.id,
-      cal_rest:        s.cal_rest ?? current?.cal_rest ?? null,
-      cal_training:    s.cal_training ?? current?.cal_training ?? null,
-      protein_g:       s.protein_g ?? current?.protein_g ?? null,
-      carbs_g:         s.carbs_g ?? current?.carbs_g ?? null,
-      fat_g:           s.fat_g ?? current?.fat_g ?? null,
-      age_years:       s.age_years ?? current?.age_years ?? null,
-      sex:             s.sex ?? current?.sex ?? null,
-      height_cm:       s.height_cm ?? current?.height_cm ?? null,
-      weight_kg:       s.weight_kg ?? current?.weight_kg ?? null,
-      activity_level:  s.activity_level ?? current?.activity_level ?? null,
-      updated_at:      new Date().toISOString(),
+      user_id: state.currentUser.id,
+      cal_rest: s.cal_rest ?? current?.cal_rest ?? null,
+      cal_training: s.cal_training ?? current?.cal_training ?? null,
+      protein_g: s.protein_g ?? current?.protein_g ?? null,
+      carbs_g: s.carbs_g ?? current?.carbs_g ?? null,
+      fat_g: s.fat_g ?? current?.fat_g ?? null,
+      age_years: s.age_years ?? current?.age_years ?? null,
+      sex: s.sex ?? current?.sex ?? null,
+      height_cm: s.height_cm ?? current?.height_cm ?? null,
+      weight_kg: s.weight_kg ?? current?.weight_kg ?? null,
+      activity_level: s.activity_level ?? current?.activity_level ?? null,
+      updated_at: new Date().toISOString(),
     }, { onConflict: 'user_id' })
+    if (error) throw error
+  },
+
+  async getIntegration(provider) {
+    if (!state.currentUser) return null
+    const { data, error } = await supabase
+      .from('user_integrations')
+      .select('*')
+      .eq('user_id', state.currentUser.id)
+      .eq('provider', provider)
+      .maybeSingle()
+    if (error) throw error
+    return data
+  },
+
+  async upsertIntegration(provider, tokens) {
+    if (!state.currentUser) return
+    const { error } = await supabase
+      .from('user_integrations')
+      .upsert({
+        user_id: state.currentUser.id,
+        provider,
+        ...tokens,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'user_id,provider' })
+    if (error) throw error
+  },
+
+  async deleteIntegration(provider) {
+    if (!state.currentUser) return
+    const { error } = await supabase
+      .from('user_integrations')
+      .delete()
+      .eq('user_id', state.currentUser.id)
+      .eq('provider', provider)
     if (error) throw error
   },
 }

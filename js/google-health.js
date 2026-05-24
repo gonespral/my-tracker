@@ -1,9 +1,28 @@
 import { state } from './state.js'
-import { db } from './db.js'
+import { db, supabase } from './db.js'
 import { dateStr, nowTime } from './utils.js'
 import { showToast } from './ui.js'
+import { GOOGLE_HEALTH_CLIENT_ID as DEFAULT_CLIENT_ID, EDGE_FUNCTION_URL } from './config.js'
 
-// ── Exercise type → sport_type mapping ───────────────────────────────────
+const GH_CUSTOM_FLAG = 'google-health-use-custom'
+const GH_CLIENT_ID = 'google-health-client-id'
+const GH_CLIENT_SECRET = 'google-health-client-secret'
+const GH_ACCESS_TOKEN = 'google-health-access-token'
+const GH_REFRESH_TOKEN = 'google-health-refresh-token'
+const GH_EXPIRES_AT = 'google-health-expires-at'
+const GH_USER_NAME = 'google-health-user-name'
+const GH_LAST_SYNC = 'google-health-last-sync'
+const GH_CONNECTED = 'google-health-connected'
+
+export const googleHealthUsesCustom = () => localStorage.getItem(GH_CUSTOM_FLAG) === 'true'
+export const googleHealthCustomId = () => localStorage.getItem(GH_CLIENT_ID) || ''
+export const googleHealthCustomSecret = () => localStorage.getItem(GH_CLIENT_SECRET) || ''
+export const googleHealthClientId = () => googleHealthUsesCustom() ? googleHealthCustomId() : DEFAULT_CLIENT_ID
+
+export function googleHealthIsConnected() {
+  if (googleHealthUsesCustom()) return !!localStorage.getItem(GH_REFRESH_TOKEN)
+  return localStorage.getItem(GH_CONNECTED) === 'true'
+}
 
 const GOOGLE_SPORT_MAP = {
   WALKING:          'Walk',
@@ -24,7 +43,6 @@ const GOOGLE_SPORT_MAP = {
   CROSS_TRAINING:   'WeightTraining',
 }
 
-// Human-readable fallback labels
 const GOOGLE_TYPE_LABEL = {
   WALKING: 'Walk', RUNNING: 'Run', JOGGING: 'Jog', BIKING: 'Bike ride',
   CYCLING: 'Cycling', MOUNTAIN_BIKING: 'Mountain bike', SWIMMING: 'Swim',
@@ -33,75 +51,129 @@ const GOOGLE_TYPE_LABEL = {
   ELLIPTICAL: 'Elliptical', ROCK_CLIMBING: 'Rock climbing',
 }
 
-// ── Token helpers ──────────────────────────────────────────────────
+export function updateGoogleHealthSettingsSection() {
+  const disconnected = document.getElementById('gh-disconnected-ui')
+  const connected    = document.getElementById('gh-connected-ui')
+  if (!disconnected || !connected) return
 
-export function googleHealthIsConnected() {
-  return !!localStorage.getItem('google-health-refresh-token')
-}
+  const isConnected = googleHealthIsConnected()
+  disconnected.style.display = isConnected ? 'none' : ''
+  connected.style.display    = isConnected ? '' : 'none'
 
-function getCredentials() {
-  return {
-    clientId:     localStorage.getItem('google-health-client-id')     || '',
-    clientSecret: localStorage.getItem('google-health-client-secret') || '',
+  if (isConnected) {
+    const name     = localStorage.getItem(GH_USER_NAME) || 'Connected'
+    const lastSync = parseInt(localStorage.getItem(GH_LAST_SYNC) || '0')
+    const lbl = document.getElementById('gh-user-label')
+    if (lbl) lbl.textContent = name
+    const syncLbl = document.getElementById('gh-last-sync-label')
+    if (syncLbl) syncLbl.textContent = lastSync ? `Last synced: ${new Date(lastSync).toLocaleString()}` : 'Last synced: never'
+  } else {
+    const customCb = document.getElementById('gh-custom-cb')
+    if (customCb) customCb.checked = googleHealthUsesCustom()
+    const customFields = document.getElementById('gh-custom-fields')
+    if (customFields) customFields.style.display = googleHealthUsesCustom() ? 'block' : 'none'
+
+    const cidInput = document.getElementById('gh-cid-input')
+    if (cidInput) cidInput.value = googleHealthCustomId()
+    const csecInput = document.getElementById('gh-csecret-input')
+    if (csecInput) csecInput.value = googleHealthCustomSecret()
   }
 }
-
-function clearTokens() {
-  ['google-health-access-token', 'google-health-refresh-token',
-   'google-health-expires-at', 'google-health-last-sync'].forEach(k => localStorage.removeItem(k))
-}
-
-async function refreshIfNeeded() {
-  const expiresAt = parseInt(localStorage.getItem('google-health-expires-at') || '0')
-  if (Date.now() < expiresAt - 60_000) return
-
-  const { clientId, clientSecret } = getCredentials()
-  const refreshToken = localStorage.getItem('google-health-refresh-token')
-  if (!refreshToken) throw new Error('Google Health not connected')
-
-  const body = new URLSearchParams({
-    grant_type:    'refresh_token',
-    refresh_token: refreshToken,
-    client_id:     clientId,
-    client_secret: clientSecret,
-  })
-  const res = await fetch('https://oauth2.googleapis.com/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: body.toString(),
-  })
-  if (!res.ok) throw new Error('Token refresh failed: ' + res.status)
-  const data = await res.json()
-  localStorage.setItem('google-health-access-token', data.access_token)
-  localStorage.setItem('google-health-expires-at', String(Date.now() + data.expires_in * 1000))
-  // Google only issues a new refresh_token when rotating — keep existing if absent
-  if (data.refresh_token) localStorage.setItem('google-health-refresh-token', data.refresh_token)
-}
-
-// ── OAuth callback ──────────────────────────────────────────────────
 
 export async function handleGoogleHealthCallback() {
   const params = new URLSearchParams(location.search)
   if (params.get('state') !== 'google-health-oauth') return
 
   const code     = params.get('code')
-  const { clientId, clientSecret } = getCredentials()
   const redirect  = location.origin + location.pathname
 
   history.replaceState(null, '', location.pathname + location.hash)
 
-  if (!code || !clientId || !clientSecret) {
-    showToast('❌ Google Health auth failed — check credentials')
-    return
-  }
+  if (!code) return
+
+  showToast('🔄 Connecting Google Health…')
 
   try {
+    if (googleHealthUsesCustom()) {
+      const clientId     = googleHealthCustomId()
+      const clientSecret = googleHealthCustomSecret()
+      if (!clientId || !clientSecret) throw new Error('Missing custom credentials')
+
+      const body = new URLSearchParams({
+        grant_type:   'authorization_code',
+        code,
+        client_id:    clientId,
+        client_secret: clientSecret,
+        redirect_uri: redirect,
+      })
+      const res = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body.toString(),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error_description || err.error || `HTTP ${res.status}`)
+      }
+      const data = await res.json()
+      localStorage.setItem(GH_ACCESS_TOKEN,  data.access_token)
+      if (data.refresh_token) localStorage.setItem(GH_REFRESH_TOKEN, data.refresh_token)
+      localStorage.setItem(GH_EXPIRES_AT,    String(Date.now() + data.expires_in * 1000))
+
+      const uRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+        headers: { Authorization: `Bearer ${data.access_token}` },
+      })
+      let name = 'Google user'
+      if (uRes.ok) {
+        const u = await uRes.json()
+        name = u.name || u.email || name
+      }
+      localStorage.setItem(GH_USER_NAME, name)
+      showToast(`✅ Google Health connected as ${name}`)
+
+    } else {
+      const { data: { session } } = await supabase.auth.getSession()
+      const resp = await fetch(`${EDGE_FUNCTION_URL}/google-health-oauth`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({ action: 'exchange', code, redirectUri: redirect }),
+      })
+
+      if (!resp.ok) {
+        const errData = await resp.json().catch(() => ({}))
+        throw new Error(errData.error || `Exchange failed (${resp.status})`)
+      }
+      const data = await resp.json()
+      if (data.error) throw new Error(data.error)
+
+      localStorage.setItem(GH_CONNECTED, 'true')
+      if (data.displayName) localStorage.setItem(GH_USER_NAME, data.displayName)
+      showToast(`✅ Google Health connected${data.displayName ? ' as ' + data.displayName : ''}`)
+    }
+  } catch (e) {
+    console.error('Google Health OAuth error:', e)
+    showToast('❌ Google Health: ' + e.message)
+  }
+}
+
+async function getValidAccessToken() {
+  if (googleHealthUsesCustom()) {
+    const expiresAt = parseInt(localStorage.getItem(GH_EXPIRES_AT) || '0')
+    if (Date.now() < expiresAt - 60_000) return localStorage.getItem(GH_ACCESS_TOKEN)
+
+    const clientId     = googleHealthCustomId()
+    const clientSecret = googleHealthCustomSecret()
+    const refreshToken = localStorage.getItem(GH_REFRESH_TOKEN)
+    if (!clientId || !clientSecret || !refreshToken) throw new Error('Missing credentials')
+
     const body = new URLSearchParams({
-      grant_type:   'authorization_code',
-      code,
-      client_id:    clientId,
+      grant_type:    'refresh_token',
+      refresh_token: refreshToken,
+      client_id:     clientId,
       client_secret: clientSecret,
-      redirect_uri: redirect,
     })
     const res = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
@@ -109,32 +181,39 @@ export async function handleGoogleHealthCallback() {
       body: body.toString(),
     })
     if (!res.ok) {
-      const err = await res.json().catch(() => ({}))
-      throw new Error(err.error_description || err.error || `HTTP ${res.status}`)
+      if (res.status === 400 || res.status === 401) {
+        disconnectGoogleHealth(true)
+        throw new Error('Session expired')
+      }
+      throw new Error(`Token refresh failed (${res.status})`)
     }
     const data = await res.json()
-    localStorage.setItem('google-health-access-token',  data.access_token)
-    localStorage.setItem('google-health-refresh-token', data.refresh_token)
-    localStorage.setItem('google-health-expires-at',    String(Date.now() + data.expires_in * 1000))
-
-    // Get display name from userinfo
-    const uRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-      headers: { Authorization: `Bearer ${data.access_token}` },
+    localStorage.setItem(GH_ACCESS_TOKEN, data.access_token)
+    localStorage.setItem(GH_EXPIRES_AT, String(Date.now() + data.expires_in * 1000))
+    if (data.refresh_token) localStorage.setItem(GH_REFRESH_TOKEN, data.refresh_token)
+    return data.access_token
+  } else {
+    const { data: { session } } = await supabase.auth.getSession()
+    const resp = await fetch(`${EDGE_FUNCTION_URL}/google-health-oauth`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session?.access_token}`,
+      },
+      body: JSON.stringify({ action: 'refresh' }),
     })
-    if (uRes.ok) {
-      const u = await uRes.json()
-      const name = u.name || u.email || 'Google user'
-      localStorage.setItem('google-health-user-name', name)
-      showToast(`✅ Google Health connected as ${name}`)
-    } else {
-      showToast('✅ Google Health connected')
+    if (!resp.ok) {
+      if (resp.status === 400 || resp.status === 401) {
+        disconnectGoogleHealth(true)
+        throw new Error('Session expired')
+      }
+      throw new Error(`Refresh failed (${resp.status})`)
     }
-  } catch (e) {
-    showToast('❌ Google Health: ' + e.message)
+    const data = await resp.json()
+    if (data.error) throw new Error(data.error)
+    return data.accessToken
   }
 }
-
-// ── Activity mapping ──────────────────────────────────────────────────
 
 function mapDataPoint(dp) {
   const ex       = dp.exercise || {}
@@ -146,24 +225,19 @@ function mapDataPoint(dp) {
   const endTime   = interval.endTime   || ''
   const date      = startTime.slice(0, 10)
 
-  const durationMs = startTime && endTime
-    ? new Date(endTime) - new Date(startTime)
-    : null
+  const durationMs = startTime && endTime ? new Date(endTime) - new Date(startTime) : null
   const durationMin = durationMs ? Math.round(durationMs / 60000) : null
 
   const calories = summary.caloriesKcal || null
 
-  // Distance: prefer meters, then km, then miles → convert to meters
-  let distance = null
-  if (summary.distanceM  != null) distance = Math.round(summary.distanceM)
-  else if (summary.distanceKm != null) distance = Math.round(summary.distanceKm * 1000)
-  else if (summary.distanceMi != null) distance = Math.round(summary.distanceMi * 1609.34)
+  let distanceKm = null
+  if (summary.distanceKm != null) distanceKm = summary.distanceKm
+  else if (summary.distanceM  != null) distanceKm = summary.distanceM / 1000
+  else if (summary.distanceMi != null) distanceKm = summary.distanceMi * 1.60934
+  if (distanceKm != null) distanceKm = parseFloat(distanceKm.toFixed(1))
 
   const intensity = calories > 400 ? 'high' : calories > 150 ? 'medium' : 'low'
-
-  // Extract the unique point ID from the name field
   const pointId = (dp.name || '').split('/').pop() || String(Date.now())
-
   const description = GOOGLE_TYPE_LABEL[type] || (type ? type.replace(/_/g, ' ').toLowerCase() : 'Workout')
 
   return {
@@ -172,7 +246,7 @@ function mapDataPoint(dp) {
     intensity,
     calories_burned: calories ? Math.round(calories) : null,
     duration_min:    durationMin,
-    distance,
+    distance_km:     distanceKm,
     source:          'google-health',
     external_id:     pointId,
     date,
@@ -180,22 +254,18 @@ function mapDataPoint(dp) {
   }
 }
 
-// ── Sync ──────────────────────────────────────────────────────────────────
-
 export async function syncGoogleHealth({ silent = false, onComplete = null } = {}) {
   if (!googleHealthIsConnected()) return
   if (!state.currentUser) return
 
+  let token
   try {
-    await refreshIfNeeded()
+    token = await getValidAccessToken()
   } catch (e) {
-    clearTokens()
-    updateGoogleHealthSettingsSection()
-    showToast('❌ Google Health token expired — please reconnect')
+    if (!silent) showToast('❌ Google Health: ' + e.message)
     return
   }
 
-  const token     = localStorage.getItem('google-health-access-token')
   const afterDate = (() => { const d = new Date(); d.setDate(d.getDate() - 90); return dateStr(d) })()
   const filterStr = `exercise.interval.civil_start_time >= "${afterDate}T00:00:00"`
 
@@ -210,9 +280,8 @@ export async function syncGoogleHealth({ silent = false, onComplete = null } = {
 
       const res = await fetch(url.toString(), { headers: { Authorization: `Bearer ${token}` } })
       if (res.status === 401) {
-        clearTokens()
-        updateGoogleHealthSettingsSection()
-        showToast('❌ Google Health token expired — please reconnect')
+        disconnectGoogleHealth(true)
+        if (!silent) showToast('❌ Google Health session expired')
         return
       }
       if (!res.ok) throw new Error(`Google Health API ${res.status}`)
@@ -240,7 +309,7 @@ export async function syncGoogleHealth({ silent = false, onComplete = null } = {
 
     if (toInsert.length > 0) await db.insertWorkouts(toInsert)
 
-    localStorage.setItem('google-health-last-sync', String(Date.now()))
+    localStorage.setItem(GH_LAST_SYNC, String(Date.now()))
     updateGoogleHealthSettingsSection()
     onComplete?.()
 
@@ -250,16 +319,26 @@ export async function syncGoogleHealth({ silent = false, onComplete = null } = {
   }
 }
 
-// ── Connect / Disconnect ──────────────────────────────────────────────────
-
 export function connectGoogleHealth() {
-  const clientId     = document.getElementById('gh-cid-input')?.value.trim()
-  const clientSecret = document.getElementById('gh-csecret-input')?.value.trim()
-  if (!clientId)     { document.getElementById('gh-cid-input')?.focus();     return }
-  if (!clientSecret) { document.getElementById('gh-csecret-input')?.focus(); return }
+  const isCustom = document.getElementById('gh-custom-cb')?.checked
+  if (isCustom) {
+    const clientId     = document.getElementById('gh-cid-input')?.value.trim()
+    const clientSecret = document.getElementById('gh-csecret-input')?.value.trim()
+    if (!clientId)     { document.getElementById('gh-cid-input')?.focus();     return }
+    if (!clientSecret) { document.getElementById('gh-csecret-input')?.focus(); return }
 
-  localStorage.setItem('google-health-client-id',     clientId)
-  localStorage.setItem('google-health-client-secret', clientSecret)
+    localStorage.setItem(GH_CUSTOM_FLAG, 'true')
+    localStorage.setItem(GH_CLIENT_ID,     clientId)
+    localStorage.setItem(GH_CLIENT_SECRET, clientSecret)
+  } else {
+    localStorage.removeItem(GH_CUSTOM_FLAG)
+  }
+
+  const clientId = googleHealthClientId()
+  if (!clientId) {
+    showToast('❌ Application Client ID is missing. Use custom credentials or configure config.js')
+    return
+  }
 
   const redirect = location.origin + location.pathname
   const url = new URL('https://accounts.google.com/o/oauth2/v2/auth')
@@ -273,30 +352,18 @@ export function connectGoogleHealth() {
   location.href = url.toString()
 }
 
-export function disconnectGoogleHealth() {
-  clearTokens()
-  updateGoogleHealthSettingsSection()
-  showToast('Google Health disconnected')
-}
+export async function disconnectGoogleHealth(silent = false) {
+  localStorage.removeItem(GH_ACCESS_TOKEN)
+  localStorage.removeItem(GH_REFRESH_TOKEN)
+  localStorage.removeItem(GH_EXPIRES_AT)
+  localStorage.removeItem(GH_USER_NAME)
+  localStorage.removeItem(GH_LAST_SYNC)
+  localStorage.removeItem(GH_CONNECTED)
 
-// ── Settings section updater ───────────────────────────────────────────────
-
-export function updateGoogleHealthSettingsSection() {
-  const disconnected = document.getElementById('gh-disconnected-ui')
-  const connected    = document.getElementById('gh-connected-ui')
-  if (!disconnected || !connected) return
-
-  const isConnected = googleHealthIsConnected()
-  disconnected.style.display = isConnected ? 'none' : ''
-  connected.style.display    = isConnected ? '' : 'none'
-
-  if (isConnected) {
-    const name     = localStorage.getItem('google-health-user-name') || 'Connected'
-    const lastSync = parseInt(localStorage.getItem('google-health-last-sync') || '0')
-    document.getElementById('gh-user-label').textContent = name
-    document.getElementById('gh-last-sync-label').textContent =
-      lastSync ? `Last synced: ${new Date(lastSync).toLocaleString()}` : 'Last synced: never'
-    const cidInput = document.getElementById('gh-cid-input')
-    if (cidInput) cidInput.value = getCredentials().clientId
+  if (!googleHealthUsesCustom()) {
+    try { await db.deleteIntegration('google-health') } catch(e) { console.error(e) }
   }
+
+  updateGoogleHealthSettingsSection()
+  if (!silent) showToast('Google Health disconnected')
 }
