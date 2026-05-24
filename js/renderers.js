@@ -1,5 +1,5 @@
 import { MEAL_ORDER, MEAL_ICON, MEAL_LABEL, INTENSITY_ICON, detectActivityType } from './config.js'
-import { fmt, round, cap } from './utils.js'
+import { fmt, round, cap, formatTimeToAMPM } from './utils.js'
 import { typeIcon, SPORT_TYPE_MAP, materialIcon } from './icons.js'
 import { state } from './state.js'
 
@@ -71,48 +71,63 @@ export const workoutItem = (e, date) => {
   const isGoogleHealth = e.source === 'google-health' || e.source === 'fitbit'
   const isImported     = isStrava || isGoogleHealth
   const isDuplicate    = e.isDuplicate === true
-  const conflictBadge  = e.conflictGroupId
-    ? (isDuplicate
-      ? `<span class="tag tag-duplicate">Inactive duplicate</span>`
-      : `<span class="tag tag-counting">Counting</span>`)
-    : ''
-  const conflictAction = isDuplicate && e.conflictGroupId
-    ? `<button class="conflict-swap-btn" data-action="activate-workout-conflict" data-group="${e.conflictGroupId}" data-source="${e.source}">Count this activity</button>`
-    : ''
+  const inConflict     = !!e.conflictGroupId
+  const isDismissed    = !!e.dismissedConflictGroupId
+  const duplicateBadge = isDuplicate ? `<span class="tag tag-duplicate">Duplicate</span>` : ''
   const stravaBadge    = isStrava
     ? `<a class="tag tag-strava" href="https://www.strava.com/activities/${e.external_id}" target="_blank" rel="noopener" style="text-decoration:none">Strava ↗</a>`
     : ''
   const googleHealthBadge = e.source === 'fitbit'
     ? `<span class="tag tag-google-health">Fitbit</span>`
     : (e.source === 'google-health' ? `<span class="tag tag-google-health">Google Health</span>` : '')
-  const dupBadge = isDuplicate && !e.conflictGroupId ? `<span class="tag tag-duplicate">Duplicate</span>` : ''
+
+  // Build three-dot menu items
+  const menuItems = []
+  if (!isImported) {
+    menuItems.push(`<button data-action="edit-workout" data-id="${e.id}" data-date="${date}">Edit</button>`)
+  }
+  if (inConflict && isDuplicate) {
+    menuItems.push(`<button data-action="activate-workout-conflict" data-group="${e.conflictGroupId}" data-source="${e.source || 'manual'}" data-id="${e.id}">Count this instead</button>`)
+  }
+  if (inConflict) {
+    menuItems.push(`<button data-action="unflag-workout-conflict" data-group="${e.conflictGroupId}">Not a duplicate</button>`)
+  }
+  if (isDismissed) {
+    menuItems.push(`<button data-action="reflag-workout-conflict" data-group="${e.dismissedConflictGroupId}">Flag as duplicate</button>`)
+  }
+  if (!isImported) {
+    menuItems.push(`<button class="danger" data-action="delete-workout" data-id="${e.id}">Delete</button>`)
+  }
+
+  const hasMenu = menuItems.length > 0
+  const menuHTML = hasMenu ? `
+      <div class="entry-menu-wrap">
+        <button class="entry-menu-btn" data-action="toggle-menu">${materialIcon('more_vert', 16)}</button>
+        <div class="entry-menu">
+          ${menuItems.join('')}
+        </div>
+      </div>` : ''
 
   return `
     <div class="log-item${isDuplicate ? ' log-item-duplicate' : ''}">
       <div class="log-icon">${logIcon}</div>
       <div class="log-body">
-        <div class="log-desc">${e.description || '—'}</div>
+        <div style="display:flex; justify-content:space-between; align-items:baseline; gap:8px; margin-bottom:2px;">
+          <div class="log-desc">${e.description || '—'}</div>
+          ${e.time ? `<div style="font-size:12px; color:var(--tx3); white-space:nowrap;">${formatTimeToAMPM(e.time)}</div>` : ''}
+        </div>
         <div class="log-tags">
           <span class="tag intensity-${e.intensity}">${intensityIcon} ${cap(e.intensity)}</span>
-          ${conflictBadge}
+          ${duplicateBadge}
           ${e.calories_burned ? `<span class="tag">${ICON_FLAME} ${e.calories_burned} kcal</span>` : ''}
-          ${e.duration_min ? `<span class="tag">${ICON_CLOCK} ${e.duration_min} min</span>` : (e.duration ? `<span class="tag">${ICON_CLOCK} ${e.duration}</span>` : '')}
-          ${e.distance_km  ? `<span class="tag">${ICON_PIN} ${e.distance_km} km</span>`  : distanceTag}
+          ${e.duration_min ? `<span class="tag">${ICON_CLOCK} ${e.duration_min} min</span>` : ''}
+          ${e.distance_km  ? `<span class="tag">${ICON_PIN} ${e.distance_km} km</span>`  : ''}
           ${e.heart_rate_avg ? `<span class="tag">${ICON_HEART} ${e.heart_rate_avg} bpm</span>` : ''}
           ${stravaBadge}
           ${googleHealthBadge}
-          ${dupBadge}
         </div>
-        ${conflictAction ? `<div class="conflict-actions">${conflictAction}</div>` : ''}
       </div>
-      ${!isImported ? `
-      <div class="entry-menu-wrap">
-        <button class="entry-menu-btn" data-action="toggle-menu">${materialIcon('more_vert', 16)}</button>
-        <div class="entry-menu">
-          <button data-action="edit-workout" data-id="${e.id}" data-date="${date}">Edit</button>
-          <button class="danger" data-action="delete-workout" data-id="${e.id}">Delete</button>
-        </div>
-      </div>` : ''}
+      ${menuHTML}
     </div>`
 }
 

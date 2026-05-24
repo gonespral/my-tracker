@@ -1,7 +1,7 @@
 import { state } from '../state.js'
 import { db } from '../db.js'
 import { dateStr } from '../utils.js'
-import { calTrendHTML, streakHTML, monthHeatmapHTML, activityStatsHTML, activityTypeBreakdownHTML } from '../charts.js'
+import { calTrendHTML, streakHTML, monthHeatmapHTML, monthNavHTML, activityStatsHTML, activityTypeBreakdownHTML } from '../charts.js'
 import { workoutItem } from '../renderers.js'
 
 
@@ -11,20 +11,20 @@ export async function renderWorkouts(monthOffset) {
 
   if (!state.currentUser) { panel.innerHTML = ''; return }
 
-  const data  = await db.load()
+  const data = await db.load()
   const today = dateStr()
 
   // Determine the month window from monthOffset
   const ref = new Date()
   ref.setDate(1)
   ref.setMonth(ref.getMonth() + monthOffset)
-  const year  = ref.getFullYear()
+  const year = ref.getFullYear()
   const month = ref.getMonth() // 0-based
   // All days in the selected month that have workouts, plus today if current month
   const daysInMonth = new Date(year, month + 1, 0).getDate()
   const feedDays = []
   for (let day = daysInMonth; day >= 1; day--) {
-    const d  = new Date(year, month, day)
+    const d = new Date(year, month, day)
     const ds = dateStr(d)
     const ws = data.workouts[ds] || []
     const isToday = ds === today
@@ -39,25 +39,36 @@ export async function renderWorkouts(monthOffset) {
       <div class="workout-day-group" data-date="${ds}">
         <div class="workout-day-hd${isToday ? ' today-hd' : ''}">${label}</div>
         ${ws.map(e => workoutItem(e, ds)).join('')}
-        <button class="log-add-btn" data-action="open-workout-sheet" data-date="${ds}">
-          + Add activity${isToday ? '' : ' for this date'}
-        </button>
       </div>`
   }).join('')
+
+  const workoutDays = Object.keys(data.workouts || {}).filter(ds => {
+    const [y, m] = ds.split('-').map(Number)
+    return y === year && m === month + 1 && (data.workouts[ds] || []).some(w => !w.isDuplicate)
+  }).length
 
   panel.innerHTML = `
     <div class="panel-inner">
       <div class="panel-left">
-        <div class="chart-card">${calTrendHTML(data, 30, { title: 'Calorie burn', primary: 'burned' })}</div>
-        <div class="chart-card">${monthHeatmapHTML(data, monthOffset)}</div>
-        <div class="chart-card">${activityTypeBreakdownHTML(data, year, month)}</div>
-        <div class="section-divider"></div>
-        <div class="section-label">Streak</div>
+        ${monthNavHTML(monthOffset)}
+        <div class="chart-card">
+          <div class="chart-header">
+            <span class="chart-title">Activities</span>
+            <span class="chart-sub">${workoutDays} total</span>
+          </div>
+          ${monthHeatmapHTML(data, monthOffset, 'workouts')}
+        </div>
+        <div class="chart-card" style="margin-top:12px">${activityTypeBreakdownHTML(data, year, month)}</div>
         <div class="streak-card">${streakHTML(data)}</div>
+
+        <div class="section-divider"></div>
         <div class="section-label">Last 30 days</div>
+
         <div class="chart-card">${activityStatsHTML(data, 30)}</div>
+        <div class="chart-card" style="margin-top:12px">${calTrendHTML(data, 30, { title: 'Calorie burn', primary: 'burned' })}</div>
       </div>
       <div class="panel-right">
+        <button class="log-add-btn" style="margin-bottom:16px" data-action="open-workout-sheet">+ Log activity</button>
         ${feedHTML || '<div class="empty">No activities this month.</div>'}
       </div>
     </div>`

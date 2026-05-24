@@ -74,7 +74,6 @@
           <div class="stats-section" id="stats-section" style="display:none">
             <div class="chart-card" id="week-chart-card"></div>
             <div class="streak-card" id="streak-card"></div>
-            <div class="chart-card" id="macro-bar-card"></div>
           </div>
         </div>
         <div class="today-right" id="today-logs"></div>
@@ -147,9 +146,15 @@
     <label class="form-label" for="w-desc">Activity</label>
     <input class="form-input" id="w-desc" type="text" placeholder="e.g. Morning run" autocomplete="off" />
   </div>
-  <div class="form-field">
-    <label class="form-label" for="w-date">Date</label>
-    <input class="form-input" id="w-date" type="date" />
+  <div class="form-row-2">
+    <div class="form-field">
+      <label class="form-label" for="w-date">Date</label>
+      <input class="form-input" id="w-date" type="date" />
+    </div>
+    <div class="form-field">
+      <label class="form-label" for="w-time">Time <span style="font-size:11px;color:var(--tx3);font-weight:400">(optional)</span></label>
+      <input class="form-input" id="w-time" type="time" />
+    </div>
   </div>
   <div class="form-field">
     <label class="form-label">Intensity</label>
@@ -252,6 +257,10 @@
 <div class="sheet" id="weight-edit-sheet">
   <div class="sheet-handle"></div>
   <div class="sheet-title" id="weight-sheet-title">Log weight</div>
+  <div class="form-field">
+    <label class="form-label" for="w-edit-date">Date</label>
+    <input id="w-edit-date" type="date" class="form-input" />
+  </div>
   <div class="form-field">
     <label class="form-label" for="w-edit-kg">Weight (kg)</label>
     <input id="w-edit-kg" type="number" class="form-input" inputmode="decimal" step="0.1" placeholder="e.g. 73.5" />
