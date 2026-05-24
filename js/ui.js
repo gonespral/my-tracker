@@ -16,6 +16,7 @@ export function bindSnapDrag(handleEl, {
   getState,
   setState,
   threshold = 56,
+  activationDistance = 6,
 } = {}) {
   if (!handleEl || handleEl.dataset.snapDragBound === 'true') return
   handleEl.dataset.snapDragBound = 'true'
@@ -77,7 +78,7 @@ export function bindSnapDrag(handleEl, {
   handleEl.addEventListener('pointermove', e => {
     if (e.pointerId !== pointerId) return
     const delta = e.clientY - startY
-    if (!dragging && Math.abs(delta) < 6) return
+    if (!dragging && Math.abs(delta) < activationDistance) return
     dragging = true
     e.preventDefault()
     applyDrag(delta)

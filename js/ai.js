@@ -306,9 +306,19 @@ function syncChatPanelLayout(stateName) {
   syncBackdrop()
 }
 
+function hasChatContent() {
+  return state.chatDisplay.length > 0 || state.chatApiMessages.length > 0
+}
+
 export function setChatPanelState(nextState) {
   const panel = document.getElementById('chat-panel')
   if (!panel) return
+
+  // Keep the panel docked in collapsed mode until there is chat content.
+  if (nextState !== 'collapsed' && !hasChatContent()) {
+    nextState = 'collapsed'
+  }
+
   panel.classList.remove('dragging')
   panel.style.height = ''
   panel.classList.remove('collapsed', 'peek', 'expanded')
@@ -421,7 +431,7 @@ export function openChat(initialText, renderActiveFn) {
   const key = localStorage.getItem('tracker-anthropic-key') || ''
   if (!key) { openSheet('apikey-sheet'); return }
   if (initialText) {
-    setChatPanelState('peek')
     sendChatMessage(initialText, renderActiveFn)
+    setChatPanelState('peek')
   }
 }

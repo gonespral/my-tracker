@@ -405,15 +405,24 @@ async function initApp() {
   })
 
   document.querySelectorAll('.sheet').forEach(sheet => {
-    const handle = sheet.querySelector('.sheet-handle')
-    if (!handle) return
-    bindSnapDrag(handle, {
-      targetEl: sheet,
-      states: ['open', 'closed'],
-      getState: () => sheet.classList.contains('open') ? 'open' : 'closed',
-      setState: nextState => {
-        if (nextState === 'closed') closeSheets()
-      },
+    const dragHandles = [
+      sheet.querySelector('.sheet-handle'),
+      sheet.querySelector('.sheet-title'),
+    ].filter(Boolean)
+
+    if (!dragHandles.length) return
+
+    dragHandles.forEach(handleEl => {
+      bindSnapDrag(handleEl, {
+        targetEl: sheet,
+        states: ['open', 'closed'],
+        threshold: 24,
+        activationDistance: 3,
+        getState: () => sheet.classList.contains('open') ? 'open' : 'closed',
+        setState: nextState => {
+          if (nextState === 'closed') closeSheets()
+        },
+      })
     })
   })
 
