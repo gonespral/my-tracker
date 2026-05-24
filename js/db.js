@@ -529,6 +529,11 @@ if (urlParams.get('demo')) {
 export const isDemo = localStorage.getItem('tracker-demo') === '1';
 
 if (isDemo) {
+  setTimeout(() => {
+    const el = document.getElementById('demo-mode-tag');
+    if (el) el.style.display = 'block';
+  }, 0);
+
   state.currentUser = { id: 'demo', email: 'demo@example.com', user_metadata: { user_name: 'Demo User' } };
 
   const mockDb = {
