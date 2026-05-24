@@ -2389,8 +2389,12 @@ body {
   opacity: .85;
 }
 
-/* ── Mobile: remove input-bar top corners when it spans full width ─────── */
-@media (max-width: 767px) {
+/* ── Mobile: remove top corners when panel spans full width ────────────── */
+@media (max-width: 539px) {
+  #chat-panel {
+    border-radius: 0;
+  }
+
   .input-bar {
     border-radius: 0;
   }
