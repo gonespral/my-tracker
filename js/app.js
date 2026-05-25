@@ -4,7 +4,7 @@ import { TARGETS, hydrateCalorieTargets } from './config.js'
 import { dateStr, nowTime } from './utils.js'
 import { showToast, openSheet, closeSheet, closeSheets, toggleEntryMenu, closeMenus, bindSnapDrag } from './ui.js'
 import { startListening, stopListening } from './speech.js'
-import { openChat, clearChat, expandChatPanel, collapseChatPanel, hideChatPanel, toggleChatPanel, sendChatMessage, renderChat, setChatPanelState } from './ai.js'
+import { openChat, clearChat, expandChatPanel, collapseChatPanel, hideChatPanel, toggleChatPanel, sendChatMessage, renderChat, setChatPanelState, isChatLoading, abortChat } from './ai.js'
 import { renderToday, openFoodSheet, openFoodSheetWithPreset, openWorkoutSheet, editFood, editWorkout, saveToMeals } from './tabs/today.js'
 import { renderNutrition } from './tabs/nutrition.js'
 import { renderWorkouts } from './tabs/workouts.js'
@@ -374,7 +374,8 @@ async function initApp() {
     if (chatPanel.classList.contains('expanded')) {
       mainInput.value = ''
       resizeInput()
-      await sendChatMessage(text, renderActive, images)
+      setSendLoading(true)
+      try { await sendChatMessage(text, renderActive, images) } finally { setSendLoading(false) }
       return
     }
 
@@ -382,7 +383,8 @@ async function initApp() {
     if (images.length) {
       mainInput.value = ''
       resizeInput()
-      openChat(text, renderActive, images)
+      setSendLoading(true)
+      try { await openChat(text, renderActive, images) } finally { setSendLoading(false) }
       return
     }
 
@@ -400,10 +402,27 @@ async function initApp() {
 
     mainInput.value = ''
     resizeInput()
-    openChat(text, renderActive)
+    setSendLoading(true)
+    try { await openChat(text, renderActive) } finally { setSendLoading(false) }
   }
 
-  document.getElementById('send-btn').addEventListener('click', handleMainInput)
+  const sendBtn = document.getElementById('send-btn')
+  const sendBtnIcon = sendBtn.querySelector('.material-symbols-outlined')
+
+  function setSendLoading(loading) {
+    if (loading) {
+      sendBtnIcon.textContent = 'stop'
+      mainInput.disabled = true
+    } else {
+      sendBtnIcon.textContent = 'send'
+      mainInput.disabled = false
+    }
+  }
+
+  sendBtn.addEventListener('click', () => {
+    if (isChatLoading()) { abortChat(); setSendLoading(false); return }
+    handleMainInput()
+  })
   mainInput.addEventListener('keydown', e => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleMainInput() }
   })

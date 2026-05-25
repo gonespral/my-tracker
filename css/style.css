@@ -2074,13 +2074,9 @@ body {
   border-color: var(--accent);
 }
 
-.send-btn.thinking {
-  opacity: .5;
-  pointer-events: none;
-}
-
-.send-btn.thinking svg {
-  animation: spin .8s linear infinite;
+.input-field:disabled {
+  opacity: .4;
+  cursor: not-allowed;
 }
 
 @keyframes spin {
