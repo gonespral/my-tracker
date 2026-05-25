@@ -1,9 +1,9 @@
 # <picture><source media="(prefers-color-scheme: dark)" srcset="brand/svg/logo-mono-light.svg"><source media="(prefers-color-scheme: light)" srcset="brand/svg/logo-mono-dark.svg"><img alt="MyTracker" src="brand/svg/logo-mono-dark.svg" width="36" align="top"></picture> MyTracker
 
-<div style="display: flex; align-items: flex-start; gap: 8px; width: 100%;">
-	<img src="brand/shots/510_1x_shots_so.png" alt="MyTracker Screenshot 1" style="display: block; width: 50%; height: auto;">
-	<img src="brand/shots/866_1x_shots_so.png" alt="MyTracker Screenshot 2" style="display: block; width: 50%; height: auto;">
-</div>
+<p align="center">
+	<img src="brand/shots/510_1x_shots_so.png" alt="MyTracker Screenshot 1" width="48%">
+	<img src="brand/shots/866_1x_shots_so.png" alt="MyTracker Screenshot 2" width="48%">
+</p>
 
 Self-hosted health and fitness tracker. Vanilla HTML/CSS/JS, Supabase backend, Claude AI assistant for natural-language logging. No framework, no build step, no subscriptions.
 
