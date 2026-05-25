@@ -5,6 +5,30 @@ import { dateStr, sumFood, calculateNetActiveCalories } from '../utils.js'
 import { calRingHTML, macroRingHTML, weekChartHTML, streakHTML } from '../charts.js'
 import { foodItem, workoutItem } from '../renderers.js'
 import { openSheet, showToast, closeMenus } from '../ui.js'
+import { fetchDailyWisdom } from '../ai.js'
+
+function wisdomHeader() {
+  return `<div class="wisdom-header"><div class="wisdom-title">Claude Wisdom</div><button class="wisdom-reload-btn" data-action="reload-wisdom" aria-label="Regenerate"><span class="material-symbols-outlined" style="font-size:14px">refresh</span></button></div>`
+}
+
+function loadWisdom(wisdomEl) {
+  wisdomEl.innerHTML = `${wisdomHeader()}<div class="wisdom-text wisdom-loading">Loading...</div>`
+  fetchDailyWisdom().then(text => {
+    if (text) {
+      wisdomEl.innerHTML = `${wisdomHeader()}<div class="wisdom-text">${text}</div>`
+      wisdomEl.dataset.loaded = '1'
+    } else {
+      wisdomEl.innerHTML = ''
+    }
+  })
+}
+
+export function reloadWisdom() {
+  if (!state.currentUser) return
+  sessionStorage.removeItem(`tracker-wisdom-${state.currentUser.id}-${dateStr()}`)
+  const wisdomEl = document.getElementById('wisdom-card')
+  if (wisdomEl) { wisdomEl.dataset.loaded = ''; loadWisdom(wisdomEl) }
+}
 
 export async function renderToday() {
   if (!state.currentUser) {
@@ -12,6 +36,7 @@ export async function renderToday() {
     document.getElementById('macro-rings').innerHTML    = ''
     document.getElementById('week-chart-card').innerHTML = ''
     document.getElementById('streak-card').innerHTML    = ''
+    document.getElementById('wisdom-card').innerHTML    = ''
     document.getElementById('today-logs').innerHTML     = ''
     return
   }
@@ -39,6 +64,11 @@ export async function renderToday() {
 
   document.getElementById('week-chart-card').innerHTML  = weekChartHTML(data)
   document.getElementById('streak-card').innerHTML      = streakHTML(data)
+
+  const wisdomEl = document.getElementById('wisdom-card')
+  if (wisdomEl && !wisdomEl.dataset.loaded) {
+    loadWisdom(wisdomEl)
+  }
 
   const orderedFood = food
     .map((entry, index) => ({ entry, index }))
