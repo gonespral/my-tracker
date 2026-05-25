@@ -119,7 +119,11 @@ function pairLooksLikeConflict(date, left, right) {
   return sameType && (diff <= 10 || (avg > 0 && diff / avg <= 0.35))
 }
 
-function chooseConflictWinner(workouts, preferredSource) {
+function chooseConflictWinner(workouts, preferredSource, preferredId) {
+  if (preferredId) {
+    const exact = workouts.find(w => w.id === preferredId || w.external_id === preferredId)
+    if (exact) return exact
+  }
   const preferred = workouts.filter(w => (w.source || 'manual') === preferredSource)
   const pool = preferred.length ? preferred : workouts
 
@@ -197,8 +201,10 @@ function resolveWorkoutConflicts(workoutsByDate) {
       }
 
       const sources = [...new Set(component.map(w => w.source || 'manual'))]
-      const preferredSource = overrides[groupId] || defaultPreference
-      const active = chooseConflictWinner(component, preferredSource)
+      const override = overrides[groupId]
+      const preferredSource = (typeof override === 'object' ? override.source : override) || defaultPreference
+      const preferredId = typeof override === 'object' ? override.id : null
+      const active = chooseConflictWinner(component, preferredSource, preferredId)
 
       conflictGroups[groupId] = {
         date,
@@ -230,9 +236,9 @@ export function setWorkoutConflictPreference(source) {
   localStorage.setItem(CONFLICT_PREFERENCE_KEY, source === 'google-health' ? 'google-health' : 'strava')
 }
 
-export function setWorkoutConflictOverride(groupId, source) {
+export function setWorkoutConflictOverride(groupId, source, id) {
   const overrides = readConflictOverrides()
-  overrides[groupId] = source
+  overrides[groupId] = { source, id: id || null }
   writeConflictOverrides(overrides)
 }
 
