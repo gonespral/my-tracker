@@ -429,19 +429,24 @@ async function initApp() {
   })
 
   document.querySelectorAll('.sheet').forEach(sheet => {
+    const handlePill = sheet.querySelector('.sheet-handle')
     const dragHandles = [
-      sheet.querySelector('.sheet-handle'),
+      handlePill,
       sheet.querySelector('.sheet-title'),
     ].filter(Boolean)
 
     if (!dragHandles.length) return
+
+    if (handlePill) {
+      handlePill.addEventListener('click', () => closeSheets())
+    }
 
     dragHandles.forEach(handleEl => {
       bindSnapDrag(handleEl, {
         targetEl: sheet,
         states: ['open', 'closed'],
         threshold: 24,
-        activationDistance: 3,
+        activationDistance: 2,
         getState: () => sheet.classList.contains('open') ? 'open' : 'closed',
         setState: nextState => {
           if (nextState === 'closed') closeSheets()
