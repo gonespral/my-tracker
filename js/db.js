@@ -306,7 +306,13 @@ export const db = {
     ])
 
     const loadErr = e1 || e2 || e3
-    if (loadErr) throw new Error(`DB load: ${loadErr.message}`)
+    if (loadErr) {
+      if (loadErr.code === '401' || loadErr.code === '403' || /jwt|auth|permission|policy/i.test(loadErr.message)) {
+        await supabase.auth.signOut()
+        return { food: {}, workouts: {}, weights: [] }
+      }
+      throw new Error(`DB load: ${loadErr.message}`)
+    }
 
     const food = {}
     for (const r of foodRows || []) {

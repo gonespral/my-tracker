@@ -1,3 +1,6 @@
+import { state } from './state.js'
+import { isDemo } from './db.js'
+
 const SLIDES = [
   {
     logoSlide: true,
@@ -46,7 +49,9 @@ const SLIDES = [
   },
 ]
 
-const SEEN_KEY = 'tracker-tutorial-seen'
+function getSeenKey() {
+  return state.currentUser ? `tracker-tutorial-seen-${state.currentUser.id}` : 'tracker-tutorial-seen'
+}
 
 let overlayEl = null
 let currentSlide = 0
@@ -89,7 +94,7 @@ function render() {
 }
 
 function dismiss() {
-  localStorage.setItem(SEEN_KEY, '1')
+  localStorage.setItem(getSeenKey(), '1')
   overlayEl.classList.remove('visible')
   setTimeout(() => {
     overlayEl.remove()
@@ -112,6 +117,7 @@ export function showTutorial() {
 }
 
 export function showTutorialIfNew() {
-  if (localStorage.getItem(SEEN_KEY)) return
+  if (!state.currentUser) return
+  if (!isDemo && localStorage.getItem(getSeenKey())) return
   showTutorial()
 }

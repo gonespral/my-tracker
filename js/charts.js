@@ -513,10 +513,10 @@ export function monthNavHTML(monthOffset = 0) {
   const nextOffset = monthOffset + 1
   const canGoNext  = monthOffset < 0
   return `
-    <div class="month-nav-bar">
-      <button type="button" class="month-nav-btn" data-action="heatmap-month" data-offset="${prevOffset}">‹</button>
-      <div class="month-nav-title">${monthName}</div>
-      <button type="button" class="month-nav-btn" data-action="heatmap-month" data-offset="${nextOffset}" ${canGoNext ? '' : 'disabled'}>›</button>
+    <div class="hm-nav-row" style="align-items:center; margin-bottom: 12px;">
+      <button type="button" class="hm-nav-btn" data-action="heatmap-month" data-offset="${prevOffset}">‹</button>
+      <div class="hm-nav-title" style="font-size:14px;font-weight:600">${monthName}</div>
+      <button type="button" class="hm-nav-btn" data-action="heatmap-month" data-offset="${nextOffset}" ${canGoNext ? '' : 'disabled'}>›</button>
     </div>`
 }
 

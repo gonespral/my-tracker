@@ -143,7 +143,7 @@ if (!isImported) {
     <div class="log-item${isDuplicate ? ' log-item-duplicate' : ''}">
       <div class="log-icon">${logIcon}</div>
       <div class="log-body">
-        <div style="display:flex; justify-content:space-between; align-items:baseline; gap:8px; margin-bottom:2px;">
+        <div style="display:flex; align-items:baseline; gap:8px; margin-bottom:2px;">
           <div class="log-desc">${e.description || '—'}</div>
           ${e.time ? `<div style="font-size:12px; color:var(--tx3); white-space:nowrap;">${formatTimeToAMPM(e.time)}</div>` : ''}
         </div>
@@ -151,7 +151,6 @@ if (!isImported) {
           <span class="tag intensity-${e.intensity}">${intensityIcon} ${cap(e.intensity)}</span>
           ${duplicateBadge}
           ${savedBadge}
-          ${e.calories_burned ? `<span class="tag">${ICON_FLAME} ${e.calories_burned} kcal</span>` : ''}
           ${e.duration_min ? `<span class="tag">${ICON_CLOCK} ${e.duration_min} min</span>` : ''}
           ${e.distance_km  ? `<span class="tag">${ICON_PIN} ${e.distance_km} km</span>`  : ''}
           ${e.heart_rate_avg ? `<span class="tag">${ICON_HEART} ${e.heart_rate_avg} bpm</span>` : ''}
@@ -159,6 +158,11 @@ if (!isImported) {
           ${googleHealthBadge}
         </div>
       </div>
+      ${e.calories_burned ? `
+      <div class="log-right">
+        <div class="log-cal">${Math.round(e.calories_burned)}</div>
+        <div class="log-cal-unit">kcal</div>
+      </div>` : ''}
       ${menuHTML}
     </div>`
 }

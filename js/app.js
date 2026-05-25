@@ -1,5 +1,5 @@
 import { state } from './state.js'
-import { supabase, db, setWorkoutConflictOverride } from './db.js'
+import { supabase, db, setWorkoutConflictOverride, isDemo } from './db.js'
 import { TARGETS, hydrateCalorieTargets } from './config.js'
 import { dateStr, nowTime } from './utils.js'
 import { showToast, openSheet, closeSheets, toggleEntryMenu, closeMenus, bindSnapDrag } from './ui.js'
@@ -11,10 +11,18 @@ import { renderWorkouts } from './tabs/workouts.js'
 import { renderSettings, openPresetSheet, deletePreset, openWorkoutPresetSheet, deleteWorkoutPreset } from './tabs/settings.js'
 import { handleStravaCallback, syncStrava, stravaIsConnected, pushActivityToStrava } from './strava.js'
 import { handleGoogleHealthCallback, syncGoogleHealth, googleHealthIsConnected } from './google-health.js'
+import { showTutorialIfNew } from './tutorial.js'
 
 function signIn() {
   supabase.auth.signInWithOAuth({
     provider: 'github',
+    options: { redirectTo: window.location.origin + window.location.pathname },
+  })
+}
+
+function signInGoogle() {
+  supabase.auth.signInWithOAuth({
+    provider: 'google',
     options: { redirectTo: window.location.origin + window.location.pathname },
   })
 }
@@ -27,9 +35,9 @@ function updateSigninOverlay() {
 // ── Tab routing ────────────────────────────────────────────────
 export async function renderActive() {
   try {
-    if (state.activeTab === 'today')     await renderToday()
+    if (state.activeTab === 'today') await renderToday()
     if (state.activeTab === 'nutrition') await renderNutrition()
-    if (state.activeTab === 'workouts')  await renderWorkouts()
+    if (state.activeTab === 'workouts') await renderWorkouts()
   } catch (e) {
     console.error('Render error:', e)
     showToast('❌ ' + e.message)
@@ -50,12 +58,13 @@ document.addEventListener('click', async (e) => {
   if (!actionEl) return
 
   const action = actionEl.dataset.action
-  const id     = actionEl.dataset.id
-  const date   = actionEl.dataset.date
-  const meal   = actionEl.dataset.meal
+  const id = actionEl.dataset.id
+  const date = actionEl.dataset.date
+  const meal = actionEl.dataset.meal
 
   switch (action) {
     case 'signin': signIn(); break
+    case 'signin-google': signInGoogle(); break
 
     case 'toggle-menu':
       toggleEntryMenu(actionEl)
@@ -94,8 +103,13 @@ document.addEventListener('click', async (e) => {
       const entry = Object.values(state.dbCache?.workouts || {}).flat().find(e => e.id === id)
       if (!entry) { showToast('❌ Activity not found'); break }
       if (!entry.time) { showToast('❌ Set a time before pushing to Strava'); break }
+      if (!entry.duration_min) { showToast('❌ Set a duration before pushing to Strava'); break }
       showToast('🔄 Pushing to Strava…')
-      try { await pushActivityToStrava(entry); showToast('✅ Pushed to Strava') }
+      try {
+        await pushActivityToStrava(entry)
+        showToast('✅ Pushed to Strava')
+        syncStrava({ silent: true, onComplete: renderActive }).catch(e => console.warn('Strava sync:', e))
+      }
       catch (err) { showToast('❌ ' + err.message) }
       break
     }
@@ -114,12 +128,6 @@ document.addEventListener('click', async (e) => {
       openWorkoutSheet(date || null)
       break
 
-    case 'heatmap-month': {
-      const offset = parseInt(actionEl.dataset.offset) || 0
-      state.heatmapMonthOffset = offset
-      await renderWorkouts(offset)
-      break
-    }
 
     case 'goto-activity-date': {
       const target = document.querySelector(`.workout-day-group[data-date="${date}"]`)
@@ -181,6 +189,14 @@ document.addEventListener('click', async (e) => {
       if (accordion) accordion.classList.toggle('open')
       break
     }
+    case 'heatmap-month': {
+      const offset = parseInt(actionEl.dataset.offset, 10)
+      if (!isNaN(offset)) {
+        state.heatmapMonthOffset = offset
+        renderActive()
+      }
+      break
+    }
   }
 })
 
@@ -207,15 +223,23 @@ async function initApp() {
   await handleStravaCallback()
   await handleGoogleHealthCallback()
 
+  const demoBtn = document.getElementById('demo-btn')
+  if (isDemo && demoBtn) {
+    demoBtn.style.display = 'inline-flex'
+    demoBtn.addEventListener('click', async () => {
+      await supabase.auth.signOut()
+    })
+  }
+
   // Load user's saved targets before any rendering
   try {
     const [s, data] = await Promise.all([db.loadSettings(), db.load()])
     if (s) {
-      TARGETS.calories.rest     = s.cal_rest
+      TARGETS.calories.rest = s.cal_rest
       TARGETS.calories.training = s.cal_training
-      TARGETS.protein           = s.protein_g
-      TARGETS.carbs             = s.carbs_g
-      TARGETS.fat               = s.fat_g
+      TARGETS.protein = s.protein_g
+      TARGETS.carbs = s.carbs_g
+      TARGETS.fat = s.fat_g
       const profile = {
         age: s.age_years ?? '',
         sex: s.sex ?? 'other',
@@ -238,6 +262,8 @@ async function initApp() {
 
   document.querySelectorAll('.tab').forEach(b =>
     b.addEventListener('click', () => switchTab(b.dataset.tab)))
+
+  showTutorialIfNew()
 
   // ── Main chat input ──
   const mainInput = document.getElementById('main-input')
@@ -263,7 +289,7 @@ async function initApp() {
 
     // Try to match against saved meals before hitting Claude
     if (!state.mealsCache) {
-      try { state.mealsCache = await db.loadMeals() } catch (_) {}
+      try { state.mealsCache = await db.loadMeals() } catch (_) { }
     }
     const match = findMatchingMeal(text)
     if (match) {
@@ -478,22 +504,22 @@ async function initApp() {
   document.getElementById('log-food-btn').addEventListener('click', async () => {
     const desc = document.getElementById('f-desc').value.trim()
     if (!desc) { document.getElementById('f-desc').focus(); return }
-    const meal  = document.querySelector('#food-sheet .meal-btn.active')?.dataset.meal || 'breakfast'
+    const meal = document.querySelector('#food-sheet .meal-btn.active')?.dataset.meal || 'breakfast'
     const entry = {
       description: desc,
       calories: Number(document.getElementById('f-cal').value) || 0,
-      protein:  Number(document.getElementById('f-pro').value) || 0,
-      carbs:    Number(document.getElementById('f-car').value) || 0,
-      fat:      Number(document.getElementById('f-fat').value) || 0,
+      protein: Number(document.getElementById('f-pro').value) || 0,
+      carbs: Number(document.getElementById('f-car').value) || 0,
+      fat: Number(document.getElementById('f-fat').value) || 0,
       meal,
     }
-    const editId  = state.pendingEditFoodId
+    const editId = state.pendingEditFoodId
     const dateVal = document.getElementById('f-date').value || dateStr()
     document.getElementById('f-date').disabled = false
     closeSheets()
     try {
       if (editId) { await db.updateFood(editId, entry); showToast(`✅ Updated ${desc}`) }
-      else        { await db.addFood(dateVal, entry);   showToast(`🍽️ Logged ${desc}`) }
+      else { await db.addFood(dateVal, entry); showToast(`🍽️ Logged ${desc}`) }
       await renderActive()
     } catch (err) { showToast('❌ ' + (err.message || 'Save failed')) }
   })
@@ -511,29 +537,33 @@ async function initApp() {
     if (btn.disabled) return
     const desc = document.getElementById('w-desc').value.trim()
     if (!desc) { document.getElementById('w-desc').focus(); return }
-    const intensity    = document.querySelector('#intensity-btns-main .intensity-btn.active')?.dataset.intensity || 'medium'
+    const intensity = document.querySelector('#intensity-btns-main .intensity-btn.active')?.dataset.intensity || 'medium'
     const activityType = document.getElementById('w-activity-type').value || null
-    const calsBurned   = Number(document.getElementById('w-calories-burned').value) || null
-    const durationMin  = Number(document.getElementById('w-duration-min').value)    || null
-    const distanceKm   = Number(document.getElementById('w-distance-km').value)     || null
-    const heartRate    = Number(document.getElementById('w-heart-rate').value)      || null
-    const dateVal      = document.getElementById('w-date').value || dateStr()
-    const timeVal      = document.getElementById('w-time').value || null
-    const editId       = state.pendingEditWorkoutId
+    const calsBurned = Number(document.getElementById('w-calories-burned').value) || null
+    const durationMin = Number(document.getElementById('w-duration-min').value) || null
+    const distanceKm = Number(document.getElementById('w-distance-km').value) || null
+    const heartRate = Number(document.getElementById('w-heart-rate').value) || null
+    const dateVal = document.getElementById('w-date').value || dateStr()
+    const timeVal = document.getElementById('w-time').value || null
+    const editId = state.pendingEditWorkoutId
     btn.disabled = true
     document.getElementById('w-date').disabled = false
     closeSheets()
     try {
       if (editId) {
-        await db.updateWorkout(editId, { description: desc, intensity, activity_type: activityType,
+        await db.updateWorkout(editId, {
+          description: desc, intensity, activity_type: activityType,
           calories_burned: calsBurned, duration_min: durationMin, distance_km: distanceKm, heart_rate_avg: heartRate,
-          time: timeVal ? `${dateVal}T${timeVal}:00` : null })
+          time: timeVal ? `${dateVal}T${timeVal}:00` : null
+        })
         showToast(`✅ Updated ${desc}`)
       } else {
         const timeIso = timeVal ? `${dateVal}T${timeVal}:00` : nowTime()
-        await db.addWorkout(dateVal, { description: desc, intensity, activity_type: activityType,
+        await db.addWorkout(dateVal, {
+          description: desc, intensity, activity_type: activityType,
           calories_burned: calsBurned, duration_min: durationMin, distance_km: distanceKm, heart_rate_avg: heartRate,
-          time: timeIso })
+          time: timeIso
+        })
         showToast(`${{ low: '😴', medium: '💪', high: '🔥' }[intensity]} Logged ${desc}`)
       }
       await renderActive()
@@ -580,16 +610,16 @@ async function initApp() {
     const entry = {
       name,
       calories: Number(document.getElementById('mp-cal').value) || 0,
-      protein:  Number(document.getElementById('mp-pro').value) || 0,
-      carbs:    Number(document.getElementById('mp-car').value) || 0,
-      fat:      Number(document.getElementById('mp-fat').value) || 0,
+      protein: Number(document.getElementById('mp-pro').value) || 0,
+      carbs: Number(document.getElementById('mp-car').value) || 0,
+      fat: Number(document.getElementById('mp-fat').value) || 0,
       meal: document.querySelector('#mp-meal-btns .meal-btn.active')?.dataset.meal || 'snack',
     }
     const editId = state.pendingEditPresetId
     closeSheets()
     try {
       if (editId) { await db.updateMeal(editId, entry); showToast('✅ Meal updated') }
-      else        { await db.addMeal(entry);             showToast('✅ Meal saved') }
+      else { await db.addMeal(entry); showToast('✅ Meal saved') }
       state.mealsCache = null
     } catch (err) { showToast('❌ ' + err.message) }
   })
@@ -615,7 +645,7 @@ async function initApp() {
     closeSheets()
     try {
       if (editId) { await db.updateWorkoutPreset(editId, entry); showToast('✅ Workout updated') }
-      else        { await db.addWorkoutPreset(entry);             showToast('✅ Workout saved') }
+      else { await db.addWorkoutPreset(entry); showToast('✅ Workout saved') }
       state.workoutPresetsCache = null
     } catch (err) { showToast('❌ ' + err.message) }
   })
@@ -631,14 +661,15 @@ async function initApp() {
 
   // Pre-load caches and initial render
   if (state.currentUser) {
-    db.loadMeals().then(m => { state.mealsCache = m }).catch(() => {})
-    db.loadWorkoutPresets().then(w => { state.workoutPresetsCache = w }).catch(() => {})
+    db.loadMeals().then(m => { state.mealsCache = m }).catch(() => { })
+    db.loadWorkoutPresets().then(w => { state.workoutPresetsCache = w }).catch(() => { })
   }
 
   await renderActive()
 
   // Auto-sync Strava after initial render (non-blocking)
   if (stravaIsConnected()) {
+    setInterval(() => syncStrava({ silent: true, onComplete: renderActive }).catch(e => console.warn('Strava sync:', e)), 30000)
     syncStrava({ silent: true, onComplete: renderActive }).catch(e => console.warn('Strava sync:', e))
   }
   // Auto-sync Google Health after initial render (non-blocking)
@@ -688,9 +719,9 @@ function findMatchingMeal(text) {
 }
 
 function updateAutocomplete(query) {
-  const list  = document.getElementById('f-desc-ac')
+  const list = document.getElementById('f-desc-ac')
   const meals = state.mealsCache || []
-  const q     = query.toLowerCase().trim()
+  const q = query.toLowerCase().trim()
   if (!q || !meals.length) { list.classList.remove('open'); return }
   const matches = meals.filter(m => m.name.toLowerCase().includes(q)).slice(0, 5)
   if (!matches.length) { list.classList.remove('open'); return }
@@ -706,10 +737,10 @@ function updateAutocomplete(query) {
       const m = (state.mealsCache || []).find(x => x.id === item.dataset.presetId)
       if (!m) return
       document.getElementById('f-desc').value = m.name
-      document.getElementById('f-cal').value  = m.calories || ''
-      document.getElementById('f-pro').value  = m.protein  || ''
-      document.getElementById('f-car').value  = m.carbs    || ''
-      document.getElementById('f-fat').value  = m.fat      || ''
+      document.getElementById('f-cal').value = m.calories || ''
+      document.getElementById('f-pro').value = m.protein || ''
+      document.getElementById('f-car').value = m.carbs || ''
+      document.getElementById('f-fat').value = m.fat || ''
       if (m.meal) document.querySelectorAll('#food-sheet .meal-btn').forEach(b =>
         b.classList.toggle('active', b.dataset.meal === m.meal))
       list.classList.remove('open')
@@ -719,9 +750,9 @@ function updateAutocomplete(query) {
 }
 
 function updateWorkoutAutocomplete(query) {
-  const list    = document.getElementById('w-desc-ac')
+  const list = document.getElementById('w-desc-ac')
   const presets = state.workoutPresetsCache || []
-  const q       = query.toLowerCase().trim()
+  const q = query.toLowerCase().trim()
   if (!q || !presets.length) { list.classList.remove('open'); return }
   const matches = presets.filter(p => p.name.toLowerCase().includes(q)).slice(0, 5)
   if (!matches.length) { list.classList.remove('open'); return }
@@ -738,10 +769,10 @@ function updateWorkoutAutocomplete(query) {
       if (!p) return
       document.getElementById('w-desc').value = p.name
       if (p.calories_burned) document.getElementById('w-calories-burned').value = p.calories_burned
-      if (p.duration_min)    document.getElementById('w-duration-min').value    = p.duration_min
-      if (p.distance_km)     document.getElementById('w-distance-km').value     = p.distance_km
-      if (p.heart_rate_avg)  document.getElementById('w-heart-rate').value      = p.heart_rate_avg
-      if (p.activity_type)   document.getElementById('w-activity-type').value   = p.activity_type
+      if (p.duration_min) document.getElementById('w-duration-min').value = p.duration_min
+      if (p.distance_km) document.getElementById('w-distance-km').value = p.distance_km
+      if (p.heart_rate_avg) document.getElementById('w-heart-rate').value = p.heart_rate_avg
+      if (p.activity_type) document.getElementById('w-activity-type').value = p.activity_type
       if (p.intensity) {
         document.querySelectorAll('#intensity-btns-main .intensity-btn').forEach(b =>
           b.classList.toggle('active', b.dataset.intensity === p.intensity))
@@ -763,7 +794,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Re-render on any auth change (sign in, sign out, token refresh)
   supabase.auth.onAuthStateChange((event, session) => {
     state.currentUser = session?.user ?? null
-    state.dbCache     = null
+    state.dbCache = null
     updateSigninOverlay()
     renderActive()
   })

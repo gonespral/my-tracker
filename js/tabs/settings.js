@@ -126,6 +126,10 @@ export async function renderSettings() {
             <span class="material-symbols-outlined" style="font-size:20px;vertical-align:-4px">login</span>
             Sign in with GitHub
           </button>
+          <button class="github-signin-btn" data-action="signin-google" style="margin-top:10px; background: #4285F4; color: #fff;">
+            <span class="material-symbols-outlined" style="font-size:20px;vertical-align:-4px">login</span>
+            Sign in with Google
+          </button>
         </div>
       </div>`
     return
