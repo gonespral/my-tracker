@@ -1,5 +1,5 @@
 import { state } from './state.js'
-import { supabase, db, setWorkoutConflictOverride, isDemo } from './db.js'
+import { supabase, db, setWorkoutConflictOverride, dismissWorkoutConflict, reflagWorkoutConflict, isDemo } from './db.js'
 import { TARGETS, hydrateCalorieTargets } from './config.js'
 import { dateStr, nowTime } from './utils.js'
 import { showToast, openSheet, closeSheet, closeSheets, toggleEntryMenu, closeMenus, bindSnapDrag } from './ui.js'
@@ -117,11 +117,27 @@ document.addEventListener('click', async (e) => {
     case 'activate-workout-conflict':
       closeMenus()
       try {
-        setWorkoutConflictOverride(actionEl.dataset.group, actionEl.dataset.source)
+        setWorkoutConflictOverride(actionEl.dataset.group, actionEl.dataset.source, actionEl.dataset.id)
         db.bust()
         await renderActive()
         showToast('✅ Selected activity will count')
       } catch (err) { showToast('❌ ' + err.message) }
+      break
+
+    case 'unflag-workout-conflict':
+      closeMenus()
+      dismissWorkoutConflict(actionEl.dataset.group)
+      db.bust()
+      await renderActive()
+      showToast('✅ Marked as not a duplicate')
+      break
+
+    case 'reflag-workout-conflict':
+      closeMenus()
+      reflagWorkoutConflict(actionEl.dataset.group)
+      db.bust()
+      await renderActive()
+      showToast('✅ Flagged as duplicate again')
       break
 
     case 'open-workout-sheet':

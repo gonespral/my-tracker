@@ -1972,6 +1972,13 @@ body {
   flex-shrink: 0;
 }
 
+/* ── Form sheets (activity, food) — capped so backdrop is tappable ─── */
+.sheet-form {
+  max-height: 75dvh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 /* ── Tall sheet (settings, chat history) ────────────────────────────── */
 .sheet-tall {
   min-height: 62vh;
