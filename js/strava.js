@@ -345,15 +345,14 @@ export async function pushActivityToStrava(entry) {
   // Strava's create endpoint only accepts name, sport_type, start_date_local, elapsed_time,
   // distance, and description — everything else goes in the description text.
   const meta = []
-  if (entry.duration_min) meta.push(`Duration: ${entry.duration_min} min`)
-  if (entry.distance_km) meta.push(`Distance: ${entry.distance_km} km`)
+  if (entry.duration_min)    meta.push(`Duration: ${entry.duration_min} min`)
+  if (entry.distance_km)     meta.push(`Distance: ${entry.distance_km} km`)
   if (entry.calories_burned) meta.push(`Calories: ${entry.calories_burned} kcal`)
-  if (entry.heart_rate_avg) meta.push(`Avg HR: ${entry.heart_rate_avg} bpm`)
-  if (entry.intensity) meta.push(`Intensity: ${entry.intensity}`)
+  if (entry.heart_rate_avg)  meta.push(`Avg HR: ${entry.heart_rate_avg} bpm`)
+  if (entry.intensity)       meta.push(`Intensity: ${entry.intensity}`)
   const descParts = []
-  if (entry.description) descParts.push(entry.description)
   if (meta.length) descParts.push(meta.join(' · '))
-  descParts.push('Logged via MyTracker\nhttps://github.com/gonespral/my-tracker')
+  descParts.push('Logged via MyTracker — https://github.com/gonespral/my-tracker')
   const description = descParts.join('\n\n')
 
   const body = {
