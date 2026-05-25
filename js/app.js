@@ -102,7 +102,6 @@ document.addEventListener('click', async (e) => {
       closeMenus()
       const entry = Object.values(state.dbCache?.workouts || {}).flat().find(e => e.id === id)
       if (!entry) { showToast('❌ Activity not found'); break }
-      if (!entry.time) { showToast('❌ Set a time before pushing to Strava'); break }
       if (!entry.duration_min) { showToast('❌ Set a duration before pushing to Strava'); break }
       showToast('🔄 Pushing to Strava…')
       try {

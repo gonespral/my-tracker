@@ -400,19 +400,13 @@ export async function pushActivityToStrava(entry) {
   const sportType = ACTIVITY_TYPE_TO_STRAVA[(entry.activity_type || '').toLowerCase()] || 'Workout'
 
   const startMs = parseWorkoutStart(entry.date, entry.time)
+  if (!startMs) throw new Error('Set a specific time on the activity before pushing to Strava')
   const pad = n => String(n).padStart(2, '0')
   const toLocalIso = ms => {
     const d = new Date(ms)
     return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
   }
-  let startIso
-  if (startMs) {
-    startIso = toLocalIso(startMs)
-  } else if (entry.date) {
-    startIso = `${entry.date}T00:00:00`
-  } else {
-    startIso = toLocalIso(Date.now())
-  }
+  const startIso = toLocalIso(startMs)
 
   // Use TCX file upload only when calorie spoofing is enabled (requires synthetic HR)
   let targetHr = null
