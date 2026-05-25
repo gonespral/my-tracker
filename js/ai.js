@@ -341,7 +341,7 @@ export function setChatPanelState(nextState) {
   panel.classList.add(nextState)
 
   const inp = document.getElementById('main-input')
-  if (inp) inp.placeholder = nextState === 'expanded' ? 'Reply to Claude…' : 'Type something…'
+  if (inp) inp.placeholder = 'Type something…'
 
   syncChatPanelLayout(nextState)
 
