@@ -217,10 +217,16 @@ Rules:
 - You may call multiple tools in one turn.
 - Estimate calories/macros from context; use preset values when name matches.
 - After logging a food that appears in the frequent-but-not-preset list, briefly suggest saving it as a preset (one short sentence, only once per food).
-- Replies must be extremely short — 1 sentence max. No markdown.`
+- Reply like a text message: 1-2 sentences max, no markdown, no em dashes, no lists, no headers, no symbols, no formatting of any kind.`
 }
 
-export async function callClaudeApi(messages, system) {
+let _abortController = null
+export const isChatLoading = () => _abortController !== null
+export function abortChat() {
+  if (_abortController) { _abortController.abort(); _abortController = null }
+}
+
+export async function callClaudeApi(messages, system, signal) {
   const key = localStorage.getItem('tracker-anthropic-key') || ''
   if (!key) { openSheet('apikey-sheet'); throw new Error('No API key') }
   const r = await fetch('https://api.anthropic.com/v1/messages', {
@@ -232,6 +238,7 @@ export async function callClaudeApi(messages, system) {
       'anthropic-dangerous-direct-browser-access': 'true',
     },
     body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 512, system, tools: CLAUDE_TOOLS, messages }),
+    signal,
   })
   if (!r.ok) {
     const err = await r.json().catch(() => ({}))
@@ -417,13 +424,16 @@ export async function sendChatMessage(text, renderActiveFn, images = []) {
   state.chatDisplay.push({ role: 'assistant', text: thinkingVerb() + '…', thinking: true })
   renderChat()
 
+  _abortController = new AbortController()
+  const signal = _abortController.signal
+
   try {
     const system = await buildClaudeSystem()
     let replyText = ''
     let currentMessages = state.chatApiMessages
 
     for (let round = 0; round < 5; round++) {
-      const msg = await callClaudeApi(currentMessages, system)
+      const msg = await callClaudeApi(currentMessages, system, signal)
       const toolCalls = msg.content.filter(b => b.type === 'tool_use')
       replyText = msg.content.find(b => b.type === 'text')?.text || ''
 
@@ -443,7 +453,11 @@ export async function sendChatMessage(text, renderActiveFn, images = []) {
     if (replyText) state.chatDisplay.push({ role: 'assistant', text: replyText })
   } catch (e) {
     state.chatDisplay.pop()
-    state.chatDisplay.push({ role: 'assistant', text: '❌ ' + e.message })
+    if (e.name !== 'AbortError') {
+      state.chatDisplay.push({ role: 'assistant', text: '❌ ' + e.message })
+    }
+  } finally {
+    _abortController = null
   }
 
   renderChat()
@@ -452,9 +466,10 @@ export async function sendChatMessage(text, renderActiveFn, images = []) {
 
 export function openChat(initialText, renderActiveFn, images = []) {
   const key = localStorage.getItem('tracker-anthropic-key') || ''
-  if (!key) { openSheet('apikey-sheet'); return }
+  if (!key) { openSheet('apikey-sheet'); return Promise.resolve() }
   if (initialText || images.length) {
     setChatPanelState('peek')
-    sendChatMessage(initialText, renderActiveFn, images)
+    return sendChatMessage(initialText, renderActiveFn, images)
   }
+  return Promise.resolve()
 }
