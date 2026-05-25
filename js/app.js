@@ -292,17 +292,45 @@ async function initApp() {
 
   attachBtn.addEventListener('click', () => imageFileInput.click())
 
+  function compressImage(file) {
+    const MAX_BYTES = 4.5 * 1024 * 1024
+    const MAX_DIM = 1568
+    return new Promise((resolve, reject) => {
+      const img = new Image()
+      const url = URL.createObjectURL(file)
+      img.onload = () => {
+        URL.revokeObjectURL(url)
+        let { width, height } = img
+        if (width > MAX_DIM || height > MAX_DIM) {
+          const scale = MAX_DIM / Math.max(width, height)
+          width = Math.round(width * scale)
+          height = Math.round(height * scale)
+        }
+        const canvas = document.createElement('canvas')
+        canvas.width = width
+        canvas.height = height
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height)
+        const tryQuality = (quality) => {
+          const dataUrl = canvas.toDataURL('image/jpeg', quality)
+          const base64 = dataUrl.split(',')[1]
+          if (base64.length * 0.75 <= MAX_BYTES || quality <= 0.1) {
+            resolve({ data: base64, mediaType: 'image/jpeg' })
+          } else {
+            tryQuality(Math.max(quality - 0.15, 0.1))
+          }
+        }
+        tryQuality(0.85)
+      }
+      img.onerror = reject
+      img.src = url
+    })
+  }
+
   imageFileInput.addEventListener('change', async () => {
     const files = Array.from(imageFileInput.files || [])
     imageFileInput.value = ''
     if (!files.length) return
-    const reads = files.map(file => new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onload = e => resolve({ data: e.target.result.split(',')[1], mediaType: file.type || 'image/jpeg' })
-      reader.onerror = reject
-      reader.readAsDataURL(file)
-    }))
-    const loaded = await Promise.all(reads)
+    const loaded = await Promise.all(files.map(compressImage))
     pendingImages = [...pendingImages, ...loaded]
     updateAttachBadge()
   })
