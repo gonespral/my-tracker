@@ -14,6 +14,9 @@ import { handleGoogleHealthCallback, syncGoogleHealth, googleHealthIsConnected }
 import { showTutorialIfNew } from './tutorial.js'
 
 // Disable pinch-zoom and double-tap zoom on iOS PWA
+document.addEventListener('touchstart', e => {
+  if (e.touches.length > 1) e.preventDefault()
+}, { passive: false })
 document.addEventListener('touchmove', e => {
   if (e.touches.length > 1) e.preventDefault()
 }, { passive: false })
