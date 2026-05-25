@@ -2569,8 +2569,12 @@ body {
   }
 
   #chat-panel.expanded ~ .input-bar {
-    margin: 0;
+    z-index: 350;
     border-radius: 0;
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 0;
+    padding-bottom: calc(10px + var(--safe-bot));
     box-shadow: none;
   }
 }
