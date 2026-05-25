@@ -8,34 +8,24 @@ const SLIDES = [
     body: 'Your personal health dashboard. Track food, workouts, and weight — all synced to your account across devices.',
   },
   {
-    icon: 'restaurant',
-    title: 'Log food & macros',
-    body: 'Type a meal in the chat bar at the bottom — Claude will estimate calories and macros from a description or photo. Or tap any meal section on Today to log manually.',
-  },
-  {
-    icon: 'directions_run',
-    title: 'Log workouts',
-    body: 'Log activities with intensity, duration, distance, and calories burned. Your daily calorie target automatically increases on training days.',
-  },
-  {
-    icon: 'smart_toy',
-    title: 'Chat with Claude AI',
-    body: 'The input bar connects you to Claude. Log meals, describe workouts, ask nutrition questions, or snap a photo of your food — Claude understands natural language.',
+    icon: 'bolt',
+    title: 'Log food & workouts',
+    body: 'Type a meal or activity in the chat bar at the bottom. Claude will estimate calories and macros from a description or photo. Your daily calorie target automatically increases on training days.',
   },
   {
     icon: 'key',
-    title: 'Set up AI features',
-    body: 'AI features need an Anthropic API key. Get one at console.anthropic.com — there\'s a free tier. Paste it in Settings → Claude AI. It stays on this device only.',
+    title: 'Set up Claude API',
+    body: 'Claude needs an Anthropic API key. Get one at console.anthropic.com. Paste it in Settings → Claude. It stays on this device only.',
   },
   {
     icon: 'directions_bike',
     title: 'Connect Strava',
-    body: 'Sync your Strava activities automatically. Open Settings → Strava and tap Connect. Activities import on every load and can be pushed to Strava when you log them here.',
+    body: 'Open Settings → Strava and tap Connect. Activities import on every load and can be pushed to Strava when you log them here.',
   },
   {
     icon: 'local_fire_department',
     title: 'Calorie spoofing',
-    body: 'Strava does not let you set calories on manually logged activities. Enable "Calorie spoofing" in Settings → Strava to work around this: the app estimates a synthetic heart rate from your calories, age, weight, and sex, then uploads the activity as a TCX file so Strava computes the correct calorie count from the heart rate data.',
+    body: 'Strava does not let you set calories on manually logged activities. Enable "Calorie spoofing" in Settings → Strava. The app estimates a synthetic heart rate from your calories, age, weight, and sex.',
   },
   {
     icon: 'monitor_heart',
@@ -70,10 +60,10 @@ function render() {
       </button>
       <div class="tutorial-icon">
         ${slide.logoSlide
-          ? `<img src="brand/svg/logo-mono-dark.svg" class="tutorial-logo tutorial-logo-dark" alt="MyTracker">
+      ? `<img src="brand/svg/logo-mono-dark.svg" class="tutorial-logo tutorial-logo-dark" alt="MyTracker">
              <img src="brand/svg/logo-mono-light.svg" class="tutorial-logo tutorial-logo-light" alt="MyTracker">`
-          : `<span class="material-symbols-outlined" style="font-size:48px;font-variation-settings:'FILL' 1,'wght' 300,'GRAD' 0,'opsz' 48">${slide.icon}</span>`
-        }
+      : `<span class="material-symbols-outlined" style="font-size:48px;font-variation-settings:'FILL' 1,'wght' 300,'GRAD' 0,'opsz' 48">${slide.icon}</span>`
+    }
       </div>
       <div class="tutorial-title${slide.logoSlide ? ' tutorial-title-logo' : ''}">${slide.title}</div>
       <div class="tutorial-body">${slide.body}</div>
