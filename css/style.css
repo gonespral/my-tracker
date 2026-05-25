@@ -1545,6 +1545,8 @@ body {
   left: 0;
   right: 0;
   max-width: 540px;
+  max-height: 85dvh;
+  overflow-y: auto;
   margin: 0 auto;
   background: var(--card);
   border-radius: 24px 24px 0 0;
@@ -1553,6 +1555,7 @@ body {
   transition: transform .3s cubic-bezier(.34, 1.1, .64, 1);
   z-index: 500;
   box-shadow: 0 -4px 32px rgba(0, 0, 0, .12);
+  -webkit-overflow-scrolling: touch;
 }
 
 .sheet.open {
@@ -1563,12 +1566,15 @@ body {
   width: 36px;
   height: 4px;
   background: var(--border);
+  background-clip: content-box;
   border-radius: 2px;
-  margin: 0 auto 18px;
-  cursor: grab;
+  margin: 0 auto 6px;
+  cursor: pointer;
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
+  padding: 12px 0;
+  box-sizing: content-box;
 }
 
 .sheet-title {
