@@ -10,7 +10,7 @@ Try the demo at [gonespral.github.io/my-tracker](https://gonespral.github.io/my-
 
 ## Features
 
-- **AI Logging:** Chat with Claude to log food, workouts, and weight in plain English. Attach photos — Claude uses vision to identify meals. Frequently logged items are suggested as presets automatically.
+- **AI Logging:** Chat with Claude to log food, workouts, and weight in plain English. Attach photos and Claude uses vision to identify meals. Frequently logged items are suggested as presets automatically.
 - **Nutrition:** Daily food tracking with calorie and macro targets (rest vs. training day). Meal presets for quick re-logging.
 - **Workouts:** Manual logging with intensity, duration, distance, and heart rate. Activity presets. Push to Strava.
 - **Integrations:** Auto-sync from Strava and Google Health with duplicate detection.
