@@ -272,7 +272,7 @@ export async function syncStrava({ silent = false, onComplete = null } = {}) {
         })
 
         await db.insertWorkouts(toInsert)
-        if (!silent) showToast(`✅ Synced ${toInsert.length} new activit${toInsert.length === 1 ? 'y' : 'ies'}`)
+        showToast(`✅ Synced ${toInsert.length} new activit${toInsert.length === 1 ? 'y' : 'ies'}`)
       } else {
         if (!silent) showToast('✅ Strava: already up to date')
       }

@@ -6,6 +6,7 @@ export const state = {
   workoutPresetsCache: null,
   workoutConflictGroups: null,
   activeTab:    'today',
+  heatmapMonthOffset: 0,
 
   // Pending edits
   pendingEditFoodId:          null,
