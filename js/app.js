@@ -184,6 +184,16 @@ document.addEventListener('click', async (e) => {
       openWorkoutPresetSheet(null)
       break
 
+    case 'panel-stats-toggle': {
+      const section = actionEl.nextElementSibling
+      if (!section) break
+      const isOpen = section.style.display !== 'none'
+      section.style.display = isOpen ? 'none' : 'block'
+      const arrow = actionEl.querySelector('.panel-toggle-arrow')
+      if (arrow) arrow.textContent = isOpen ? 'expand_more' : 'expand_less'
+      break
+    }
+
     case 'toggle-section': {
       const accordion = actionEl.closest('.accordion')
       if (accordion) accordion.classList.toggle('open')
