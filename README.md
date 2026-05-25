@@ -1,6 +1,11 @@
 # <picture><source media="(prefers-color-scheme: dark)" srcset="brand/svg/logo-mono-light.svg"><source media="(prefers-color-scheme: light)" srcset="brand/svg/logo-mono-dark.svg"><img alt="MyTracker" src="brand/svg/logo-mono-dark.svg" width="36" align="top"></picture> MyTracker
 
-![MyTracker Screenshot](brand/shots/510_1x_shots_so.png)
+<table>
+	<tr>
+		<td><img src="brand/shots/510_1x_shots_so.png" alt="MyTracker Screenshot 1"></td>
+		<td><img src="brand/shots/866_1x_shots_so.png" alt="MyTracker Screenshot 2"></td>
+	</tr>
+</table>
 
 ---
 
