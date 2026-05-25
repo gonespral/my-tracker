@@ -9,20 +9,20 @@
 
 /* ── Tokens ───────────────────────────────────────────── */
 :root {
-  --bg: #f0f2f6;
+  --bg: #f6f8fa;
   --card: #ffffff;
-  --border: #dde1ea;
-  --accent: #1d7a3a;
-  --accent-2: #3fa05c;
-  --accent-soft: #e2f5e8;
-  --warn: #f59e0b;
-  --warn-soft: #fef3c7;
-  --danger: #ef4444;
-  --danger-soft: #fee2e2;
-  --tx: #111827;
-  --tx2: #4b5563;
-  --tx3: #9ca3af;
-  --track: #e9ecf2;
+  --border: #d0d7de;
+  --accent: #1a7f37;
+  --accent-2: #2da44e;
+  --accent-soft: #dafbe1;
+  --warn: #9a6700;
+  --warn-soft: #fff8c5;
+  --danger: #cf222e;
+  --danger-soft: #ffebe9;
+  --tx: #1f2328;
+  --tx2: #636c76;
+  --tx3: #6e7781;
+  --track: #eaeef2;
   --nav-shadow: 0 -4px 20px rgba(0, 0, 0, 0.05);
   --safe-bot: env(safe-area-inset-bottom, 0px);
   --bar-h: 66px;
@@ -54,21 +54,21 @@ body {
 
 /* ── Dark mode ──────────────────────────────────────────── */
 [data-theme="dark"] {
-  --bg: #121212;
-  --card: #1e1e1e;
-  --border: #2e2e2e;
-  --accent: #4ade80;
-  --accent-2: #86efac;
-  --accent-soft: #14532d;
-  --warn: #fbbf24;
-  --warn-soft: #451a03;
-  --danger: #f87171;
-  --danger-soft: #450a0a;
-  --tx: #f0f0f0;
-  --tx2: #a0a0a0;
-  --tx3: #606060;
-  --track: #2a2a2a;
-  --nav-shadow: 0 -4px 20px rgba(0, 0, 0, 0.25);
+  --bg: #0d1117;
+  --card: #161b22;
+  --border: #30363d;
+  --accent: #3fb950;
+  --accent-2: #56d364;
+  --accent-soft: #033a16;
+  --warn: #d29922;
+  --warn-soft: #341a00;
+  --danger: #f85149;
+  --danger-soft: #67060c;
+  --tx: #e6edf3;
+  --tx2: #8b949e;
+  --tx3: #6e7681;
+  --track: #21262d;
+  --nav-shadow: 0 -4px 20px rgba(0, 0, 0, 0.4);
 }
 
 [data-theme="dark"] .chart-card,
