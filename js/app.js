@@ -117,7 +117,7 @@ document.addEventListener('click', async (e) => {
     case 'activate-workout-conflict':
       closeMenus()
       try {
-        setWorkoutConflictOverride(actionEl.dataset.group, actionEl.dataset.source)
+        setWorkoutConflictOverride(actionEl.dataset.group, actionEl.dataset.source, actionEl.dataset.id)
         db.bust()
         await renderActive()
         showToast('✅ Selected activity will count')
