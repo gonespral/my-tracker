@@ -28,7 +28,7 @@ function updateSigninOverlay() {
 export async function renderActive() {
   try {
     if (state.activeTab === 'today') await renderToday()
-    if (state.activeTab === 'nutrition') await renderNutrition()
+    if (state.activeTab === 'nutrition') await renderNutrition(state.heatmapMonthOffset || 0)
     if (state.activeTab === 'workouts') await renderWorkouts()
   } catch (e) {
     console.error('Render error:', e)
@@ -140,6 +140,17 @@ document.addEventListener('click', async (e) => {
       const offset = parseInt(actionEl.dataset.offset) || 0
       state.heatmapMonthOffset = offset
       await renderActive()
+      break
+    }
+
+    case 'panel-stats-toggle': {
+      const section = actionEl.nextElementSibling
+      const lbl = actionEl.querySelector('.panel-toggle-label')
+      const arr = actionEl.querySelector('.panel-toggle-arrow')
+      const isOpen = section.style.display !== 'none'
+      section.style.display = isOpen ? 'none' : 'block'
+      if (lbl) lbl.textContent = isOpen ? 'Stats' : 'Hide stats'
+      if (arr) arr.textContent = isOpen ? 'expand_more' : 'expand_less'
       break
     }
 
