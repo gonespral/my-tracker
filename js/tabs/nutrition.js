@@ -12,7 +12,7 @@ function renderWeightSection(data) {
     return `<button class="log-add-btn" data-action="log-weight">+ Log today's weight</button>`
   }
 
-  const entries = weights.slice(0, 10).map((w, i) => {
+  const entries = weights.slice(0, 3).map((w, i) => {
     const prev = weights[i + 1]
     const delta = prev ? w.kg - prev.kg : null
     let dHtml = ''
@@ -41,7 +41,7 @@ function renderWeightSection(data) {
     <button class="log-add-btn" style="margin-bottom:12px" data-action="log-weight">+ Log today's weight</button>
     ${sparklineHTML(weights)}
     ${entries}
-    ${weights.length > 10 ? `<div class="empty" style="padding:8px 0">${weights.length - 10} older entries not shown</div>` : ''}`
+    ${weights.length > 3 ? `<div class="empty" style="padding:8px 0">${weights.length - 3} older entries not shown</div>` : ''}`
 }
 
 export async function renderNutrition(monthOffset) {
