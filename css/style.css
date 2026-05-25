@@ -2561,6 +2561,20 @@ body {
   }
 }
 
+@media (max-width: 767px) {
+  #chat-panel {
+    border-left: none;
+    border-right: none;
+    border-radius: 0;
+  }
+
+  #chat-panel.expanded ~ .input-bar {
+    margin: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+}
+
 /* ── Tutorial ────────────────────────────────────────────── */
 .tutorial-overlay {
   position: fixed;
