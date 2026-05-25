@@ -563,10 +563,10 @@ body {
 }
 
 .meal-macro-chart {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(68px, 1fr));
-  gap: 10px;
-  align-items: end;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(58px, 1fr));
+    gap: 8px;
+    align-items: end;
 }
 
 .meal-macro-col {
@@ -1514,6 +1514,14 @@ body {
   transform: scale(.95);
 }
 
+.send-btn.thinking {
+  background: var(--danger);
+}
+
+.send-btn.thinking:active {
+  opacity: .9;
+}
+
 /* ── Bottom sheets ────────────────────────────────────────────── */
 .backdrop {
   position: fixed;
@@ -2122,8 +2130,7 @@ body {
 }
 
 .send-btn.thinking {
-  opacity: .5;
-  pointer-events: none;
+  opacity: .98;
 }
 
 .send-btn.thinking svg {

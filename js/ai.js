@@ -56,10 +56,11 @@ export const CLAUDE_TOOLS = [
       properties: {
         description:     { type: 'string' },
         intensity:       { type: 'string', enum: ['low','medium','high'] },
-        calories_burned: { type: 'number', description: 'kcal burned (optional)' },
-        duration_min:    { type: 'number', description: 'duration in minutes (optional)' },
-        distance_km:     { type: 'number', description: 'distance in km (optional)' },
-        heart_rate_avg:  { type: 'number', description: 'average heart rate in bpm (optional)' },
+        calories_burned: { type: 'number', description: 'kcal burned — omit if not mentioned' },
+        duration_min:    { type: 'number', description: 'duration in minutes — omit if not mentioned' },
+        distance_km:     { type: 'number', description: 'distance in km — omit if not mentioned' },
+        heart_rate_avg:  { type: 'number', description: 'average heart rate in bpm — omit if not mentioned' },
+        time:            { type: 'string', description: 'start time HH:MM 24h (e.g. "14:30") — omit if not mentioned' },
         date:            { type: 'string', description: 'YYYY-MM-DD — omit for today' },
       },
       required: ['description', 'intensity'],
@@ -78,6 +79,7 @@ export const CLAUDE_TOOLS = [
         duration_min:    { type: 'number' },
         distance_km:     { type: 'number' },
         heart_rate_avg:  { type: 'number' },
+        time:            { type: 'string', description: 'start time HH:MM 24h — omit if not mentioned' },
       },
       required: ['id'],
     },
@@ -89,6 +91,21 @@ export const CLAUDE_TOOLS = [
       type: 'object',
       properties: { id: { type: 'string' } },
       required: ['id'],
+    },
+  },
+  {
+    name: 'lookup_workouts',
+    description: 'Look up logged workouts by date, date range, source, or text search.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: 'Search text for description, activity type, or source' },
+        date: { type: 'string', description: 'YYYY-MM-DD' },
+        date_from: { type: 'string', description: 'YYYY-MM-DD' },
+        date_to: { type: 'string', description: 'YYYY-MM-DD' },
+        source: { type: 'string', description: 'manual, strava, google-health, or fitbit' },
+        limit: { type: 'number', description: 'Max results to return' },
+      },
     },
   },
   {
@@ -117,6 +134,19 @@ export const CLAUDE_TOOLS = [
         meal:     { type: 'string', enum: ['breakfast','lunch','snack','dinner'] },
       },
       required: ['name', 'calories'],
+    },
+  },
+  {
+    name: 'save_workout_preset',
+    description: 'Save an activity as a reusable workout preset.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        name:            { type: 'string' },
+        intensity:       { type: 'string', enum: ['low','medium','high'] },
+        calories_burned: { type: 'number', description: 'kcal burned' },
+      },
+      required: ['name'],
     },
   },
   {
@@ -186,12 +216,20 @@ Rules:
 - Log food/workouts/weight for ANY date the user mentions. Use YYYY-MM-DD format.
 - To edit, call edit_food or edit_workout with the entry ID. Only send changed fields.
 - Never try to edit or delete [read-only external] workouts.
+- Use lookup_workouts to inspect workout history beyond the recent log.
 - You may call multiple tools in one turn.
 - Estimate calories/macros from context; use preset values when name matches.
-- Keep replies concise. No markdown.`
+- Keep replies concise.
+- No markdown.
+- No emojis.
+- No em dashes.
+- Do your reasoning privately and only output the final answer.
+- Never reveal chain-of-thought, hidden reasoning, drafts, or intermediate thoughts.
+- If a response would normally include reasoning, omit it and provide only the result.
+`
 }
 
-export async function callClaudeApi(messages, system) {
+export async function callClaudeApi(messages, system, signal) {
   const key = localStorage.getItem('tracker-anthropic-key') || ''
   if (!key) { openSheet('apikey-sheet'); throw new Error('No API key') }
   const r = await fetch('https://api.anthropic.com/v1/messages', {
@@ -202,6 +240,7 @@ export async function callClaudeApi(messages, system) {
       'anthropic-version': '2023-06-01',
       'anthropic-dangerous-direct-browser-access': 'true',
     },
+    signal,
     body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 512, system, tools: CLAUDE_TOOLS, messages }),
   })
   if (!r.ok) {
@@ -234,7 +273,7 @@ export async function executeTool(name, input) {
       await db.addWorkout(date, { description: input.description, intensity: input.intensity,
         calories_burned: input.calories_burned||null, duration_min: input.duration_min||null,
         distance_km: input.distance_km||null, heart_rate_avg: input.heart_rate_avg||null,
-        time: toUTCISO(date, nowTime()) })
+        time: toUTCISO(date, input.time || nowTime()) })
       return `logged for ${date}`
     }
     if (name === 'edit_workout') {
@@ -249,6 +288,7 @@ export async function executeTool(name, input) {
       if (input.duration_min    !== undefined) fields.duration_min    = input.duration_min
       if (input.distance_km     !== undefined) fields.distance_km     = input.distance_km
       if (input.heart_rate_avg  !== undefined) fields.heart_rate_avg  = input.heart_rate_avg
+      if (input.time            !== undefined) fields.time            = toUTCISO(workout?.date || date, input.time)
       await db.updateWorkout(input.id, fields)
       return 'updated'
     }
@@ -260,11 +300,57 @@ export async function executeTool(name, input) {
       await db.deleteWorkout(input.id); 
       return 'deleted' 
     }
+    if (name === 'lookup_workouts') {
+      const data = state.dbCache || await db.load()
+      const workouts = Object.entries(data.workouts || {})
+        .flatMap(([date, entries]) => entries.map(entry => ({ ...entry, date })))
+        .filter(workout => {
+          if (input.date && workout.date !== input.date) return false
+          if (input.date_from && workout.date < input.date_from) return false
+          if (input.date_to && workout.date > input.date_to) return false
+          if (input.source && (workout.source || 'manual') !== input.source) return false
+          const query = String(input.query || '').trim().toLowerCase()
+          if (!query) return true
+          const haystack = [workout.description, workout.activity_type, workout.sport_type, workout.source, workout.intensity]
+            .filter(Boolean)
+            .join(' ')
+            .toLowerCase()
+          return haystack.includes(query)
+        })
+        .sort((a, b) => {
+          if (a.date !== b.date) return b.date.localeCompare(a.date)
+          const aTime = String(a.time || '')
+          const bTime = String(b.time || '')
+          return bTime.localeCompare(aTime)
+        })
+        .slice(0, Math.max(1, Math.min(Number(input.limit) || 20, 50)))
+
+      if (!workouts.length) return 'no workouts found'
+
+      return workouts.map(w => {
+        const parts = [w.date, w.id, w.description || '—', w.intensity || 'medium']
+        if (w.calories_burned != null) parts.push(`${w.calories_burned} kcal`)
+        if (w.duration_min != null) parts.push(`${w.duration_min} min`)
+        if (w.distance_km != null) parts.push(`${w.distance_km} km`)
+        if (w.heart_rate_avg != null) parts.push(`${w.heart_rate_avg} bpm`)
+        if (w.source) parts.push(w.source)
+        return parts.join(' | ')
+      }).join('\n')
+    }
     if (name === 'log_weight')      { await db.upsertWeight({ kg: input.kg, date, time: nowTime() }); return `logged for ${date}` }
     if (name === 'save_meal_preset') {
       await db.addMeal({ name: input.name, calories: input.calories||0, protein: input.protein||0, carbs: input.carbs||0, fat: input.fat||0, meal: input.meal||'snack' })
       state.mealsCache = null
       return `saved "${input.name}" as meal preset`
+    }
+    if (name === 'save_workout_preset') {
+      await db.addWorkoutPreset({
+        name: input.name,
+        intensity: input.intensity || 'medium',
+        calories_burned: input.calories_burned || null,
+      })
+      state.workoutPresetsCache = null
+      return `saved "${input.name}" as workout preset`
     }
     if (name === 'set_targets') {
       if (input.cal_rest     !== undefined) TARGETS.calories.rest     = input.cal_rest
@@ -293,6 +379,8 @@ export const thinkingVerb = () => THINKING_VERBS[Math.floor(Math.random() * THIN
 
 const CHAT_COLLAPSED_HEIGHT = '18px'
 const CHAT_PEEK_HEIGHT = '75px'
+let chatAbortController = null
+let activeChatRequestId = 0
 
 function getChatPanelState(panel = document.getElementById('chat-panel')) {
   if (!panel) return 'collapsed'
@@ -304,6 +392,42 @@ function getChatPanelState(panel = document.getElementById('chat-panel')) {
 function syncChatPanelLayout(stateName) {
   document.documentElement.style.setProperty('--chat-peek-h', stateName === 'collapsed' ? CHAT_COLLAPSED_HEIGHT : CHAT_PEEK_HEIGHT)
   syncBackdrop()
+}
+
+function syncChatComposerUI() {
+  const sendBtn = document.getElementById('send-btn')
+  const sendIcon = sendBtn?.querySelector('.material-symbols-outlined')
+  const panel = document.getElementById('chat-panel')
+  const input = document.getElementById('main-input')
+
+  if (sendBtn) {
+    sendBtn.classList.toggle('thinking', state.chatPending)
+    sendBtn.title = state.chatPending ? 'Stop thinking' : 'Send'
+    sendBtn.setAttribute('aria-label', state.chatPending ? 'Stop thinking' : 'Send')
+  }
+
+  if (sendIcon) sendIcon.textContent = state.chatPending ? 'stop_circle' : 'send'
+
+  if (input && !state.chatPending) {
+    input.placeholder = panel?.classList.contains('expanded') ? 'Reply to Claude…' : 'Type something…'
+  }
+}
+
+function setChatPending(nextPending) {
+  state.chatPending = nextPending
+  syncChatComposerUI()
+}
+
+function createAbortError() {
+  return new DOMException('aborted', 'AbortError')
+}
+
+function isAbortError(error) {
+  return error?.name === 'AbortError' || error?.message === 'aborted'
+}
+
+function throwIfChatAborted(requestId) {
+  if (requestId !== activeChatRequestId || chatAbortController?.signal.aborted) throw createAbortError()
 }
 
 function hasChatContent() {
@@ -325,9 +449,10 @@ export function setChatPanelState(nextState) {
   panel.classList.add(nextState)
 
   const inp = document.getElementById('main-input')
-  if (inp) inp.placeholder = nextState === 'expanded' ? 'Reply to Claude…' : 'Type something…'
+  if (inp && !state.chatPending) inp.placeholder = nextState === 'expanded' ? 'Reply to Claude…' : 'Type something…'
 
   syncChatPanelLayout(nextState)
+  syncChatComposerUI()
 
   if (nextState === 'expanded') {
     setTimeout(() => document.getElementById('chat-messages')?.scrollTo(0, 999999), 50)
@@ -342,9 +467,9 @@ export function renderChat() {
   el.scrollTop = el.scrollHeight
 
   const last = [...state.chatDisplay].reverse().find(m => m.role === 'assistant')
+  const panel = document.getElementById('chat-panel')
+  const peekText = document.getElementById('chat-peek-text')
   if (last) {
-    const panel = document.getElementById('chat-panel')
-    const peekText = document.getElementById('chat-peek-text')
     if (peekText) {
       peekText.textContent = last.text
       peekText.classList.toggle('thinking', !!last.thinking)
@@ -353,6 +478,9 @@ export function renderChat() {
       panel.classList.add('peek')
       syncChatPanelLayout('peek')
     }
+  } else if (peekText) {
+    peekText.textContent = ''
+    peekText.classList.remove('thinking')
   }
 }
 
@@ -377,6 +505,7 @@ export function toggleChatPanel() {
 }
 
 export function clearChat() {
+  stopChatResponse()
   state.chatApiMessages = []
   state.chatDisplay     = []
   const el = document.getElementById('chat-messages')
@@ -386,21 +515,42 @@ export function clearChat() {
   setChatPanelState('collapsed')
 }
 
+export function stopChatResponse() {
+  activeChatRequestId += 1
+  if (chatAbortController) {
+    chatAbortController.abort()
+    chatAbortController = null
+  }
+  if (state.chatDisplay.length && state.chatDisplay[state.chatDisplay.length - 1]?.thinking) {
+    state.chatDisplay.pop()
+    renderChat()
+  }
+  setChatPending(false)
+}
+
 export async function sendChatMessage(text, renderActiveFn) {
   text = text.trim()
   if (!text) return
+  if (state.chatPending) return
+  const requestId = ++activeChatRequestId
+  chatAbortController = new AbortController()
+  setChatPending(true)
   state.chatDisplay.push({ role: 'user', text })
   state.chatApiMessages.push({ role: 'user', content: text })
   state.chatDisplay.push({ role: 'assistant', text: thinkingVerb() + '…', thinking: true })
   renderChat()
 
   try {
+    throwIfChatAborted(requestId)
     const system = await buildClaudeSystem()
+    throwIfChatAborted(requestId)
     let replyText = ''
     let currentMessages = state.chatApiMessages
 
     for (let round = 0; round < 5; round++) {
-      const msg = await callClaudeApi(currentMessages, system)
+      throwIfChatAborted(requestId)
+      const msg = await callClaudeApi(currentMessages, system, chatAbortController.signal)
+      throwIfChatAborted(requestId)
       const toolCalls = msg.content.filter(b => b.type === 'tool_use')
       replyText = msg.content.find(b => b.type === 'text')?.text || ''
 
@@ -411,6 +561,7 @@ export async function sendChatMessage(text, renderActiveFn) {
       const toolResults = await Promise.all(toolCalls.map(async tc => ({
         type: 'tool_result', tool_use_id: tc.id, content: String(await executeTool(tc.name, tc.input))
       })))
+      throwIfChatAborted(requestId)
       state.chatApiMessages.push({ role: 'assistant', content: msg.content })
       state.chatApiMessages.push({ role: 'user', content: toolResults })
       currentMessages = state.chatApiMessages
@@ -419,9 +570,14 @@ export async function sendChatMessage(text, renderActiveFn) {
     state.chatDisplay.pop()
     if (replyText) state.chatDisplay.push({ role: 'assistant', text: replyText })
   } catch (e) {
+    if (requestId !== activeChatRequestId) return
     state.chatDisplay.pop()
-    state.chatDisplay.push({ role: 'assistant', text: '❌ ' + e.message })
+    if (!isAbortError(e)) state.chatDisplay.push({ role: 'assistant', text: '❌ ' + e.message })
   }
+
+  if (requestId !== activeChatRequestId) return
+  chatAbortController = null
+  setChatPending(false)
 
   renderChat()
   if (renderActiveFn) await renderActiveFn()

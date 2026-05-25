@@ -3,6 +3,21 @@ import { state } from './state.js'
 
 export const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 
+function normalizePresetName(name) {
+  return String(name || '').trim().replace(/\s+/g, ' ').toLowerCase()
+}
+
+async function ensureUniquePresetName(table, name, excludeId, label) {
+  const normalized = normalizePresetName(name)
+  if (!normalized) return
+
+  const { data, error } = await supabase.from(table).select('id,name').eq('user_id', state.currentUser.id)
+  if (error) throw error
+
+  const conflict = (data || []).find(row => row.id !== excludeId && normalizePresetName(row.name) === normalized)
+  if (conflict) throw new Error(`A ${label} with that name already exists`)
+}
+
 const CONFLICT_PREFERENCE_KEY = 'tracker-workout-conflict-preference'
 const CONFLICT_OVERRIDES_KEY = 'tracker-workout-conflict-overrides'
 const CONFLICT_DISMISSALS_KEY = 'tracker-workout-conflict-dismissals'
@@ -41,7 +56,7 @@ export function parseWorkoutStart(date, time) {
   }
 
   const match = time.trim().match(/^(\d{1,2}):(\d{2})\s*([ap]m)$/i)
-  if (!match) return null
+  if (!match || !date) return null
 
   let hours = Number(match[1]) % 12
   if (match[3].toLowerCase() === 'pm') hours += 12
@@ -376,11 +391,13 @@ export const db = {
   },
 
   async addMeal(entry) {
+    await ensureUniquePresetName('meal_presets', entry.name, null, 'meal preset')
     const { error } = await supabase.from('meal_presets').insert({ user_id: state.currentUser.id, ...entry })
     if (error) throw error
   },
 
   async updateMeal(id, entry) {
+    if (entry.name !== undefined) await ensureUniquePresetName('meal_presets', entry.name, id, 'meal preset')
     const { error } = await supabase.from('meal_presets').update(entry).eq('id', id)
     if (error) throw error
   },
@@ -397,11 +414,13 @@ export const db = {
   },
 
   async addWorkoutPreset(entry) {
+    await ensureUniquePresetName('workout_presets', entry.name, null, 'activity preset')
     const { error } = await supabase.from('workout_presets').insert({ user_id: state.currentUser.id, ...entry })
     if (error) throw error
   },
 
   async updateWorkoutPreset(id, entry) {
+    if (entry.name !== undefined) await ensureUniquePresetName('workout_presets', entry.name, id, 'activity preset')
     const { error } = await supabase.from('workout_presets').update(entry).eq('id', id)
     if (error) throw error
   },
@@ -439,6 +458,28 @@ export const db = {
       .eq('user_id', state.currentUser.id).eq('source', 'google-health').in('external_id', ids)
     if (error) throw error
     return (data || []).map(r => r.external_id)
+  },
+
+  async getStravaEntriesSince(afterDate) {
+    const { data, error } = await supabase
+      .from('workout_entries')
+      .select('id, external_id')
+      .eq('user_id', state.currentUser.id)
+      .eq('source', 'strava')
+      .gte('date', afterDate)
+    if (error) throw error
+    return data || []
+  },
+
+  async deleteWorkoutsByIds(ids) {
+    if (!ids.length) return
+    const { error } = await supabase
+      .from('workout_entries')
+      .delete()
+      .eq('user_id', state.currentUser.id)
+      .in('id', ids)
+    if (error) throw error
+    this.bust()
   },
 
   async deleteGoogleHealthWorkouts() {

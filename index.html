@@ -5,7 +5,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>MyTracker</title>
-  <link rel="icon" href="brand/icons/favicon-dark.svg" />
+  <link rel="icon" type="image/png" sizes="192x192" href="brand/icons/icon-192-dark.png" />
   <link rel="apple-touch-icon" href="brand/icons/apple-touch-icon.png" media="(prefers-color-scheme: light)" />
   <link rel="apple-touch-icon" href="brand/icons/apple-touch-icon-mono-dark.png" media="(prefers-color-scheme: dark)" />
   <link rel="manifest" href="manifest.json" />
@@ -167,9 +167,10 @@
   <div class="sheet" id="intensity-sheet">
     <div class="sheet-handle"></div>
     <div class="sheet-title">Log Activity</div>
-    <div class="form-field">
+    <div class="form-field autocomplete-wrap">
       <label class="form-label" for="w-desc">Activity</label>
       <input class="form-input" id="w-desc" type="text" placeholder="e.g. Morning run" autocomplete="off" />
+      <div class="autocomplete-list" id="w-desc-ac"></div>
     </div>
     <div class="form-row-2">
       <div class="form-field">
@@ -303,9 +304,10 @@
   <div class="sheet" id="meal-preset-sheet">
     <div class="sheet-handle"></div>
     <div class="sheet-title" id="meal-preset-title">New Meal</div>
-    <div class="form-field">
+    <div class="form-field autocomplete-wrap">
       <label class="form-label" for="mp-name">Name</label>
-      <input class="form-input" id="mp-name" type="text" placeholder="e.g. Oats with protein" />
+      <input class="form-input" id="mp-name" type="text" placeholder="e.g. Oats with protein" autocomplete="off" />
+      <div class="autocomplete-list" id="mp-name-ac"></div>
     </div>
     <div class="form-field">
       <label class="form-label" for="mp-cal">Calories (kcal)</label>
@@ -341,9 +343,10 @@
   <div class="sheet" id="workout-preset-sheet">
     <div class="sheet-handle"></div>
     <div class="sheet-title" id="wps-title">New Workout</div>
-    <div class="form-field">
+    <div class="form-field autocomplete-wrap">
       <label class="form-label" for="wps-name">Name</label>
-      <input class="form-input" id="wps-name" type="text" placeholder="e.g. Morning swim" />
+      <input class="form-input" id="wps-name" type="text" placeholder="e.g. Morning swim" autocomplete="off" />
+      <div class="autocomplete-list" id="wps-name-ac"></div>
     </div>
     <div class="form-field">
       <label class="form-label">Intensity</label>

@@ -15,16 +15,40 @@ function workoutTypeIcon(desc) {
   return typeIcon(detectActivityType(desc))
 }
 
-function isPresetEntry(desc) {
+function normalizePresetValue(value) {
+  return String(value ?? '').trim().replace(/\s+/g, ' ').toLowerCase()
+}
+
+function samePresetNumber(left, right) {
+  return Number(left || 0) === Number(right || 0)
+}
+
+function isSavedMealEntry(entry) {
   const meals = state.mealsCache || []
-  const norm = s => (s || '').toLowerCase().trim()
-  const d = norm(desc)
-  return meals.some(m => norm(m.name) === d)
+  const entryName = normalizePresetValue(entry.description)
+  const entryMeal = normalizePresetValue(entry.meal || 'snack')
+  return meals.some(meal =>
+    normalizePresetValue(meal.name) === entryName &&
+    samePresetNumber(meal.calories, entry.calories) &&
+    samePresetNumber(meal.protein, entry.protein) &&
+    samePresetNumber(meal.carbs, entry.carbs) &&
+    samePresetNumber(meal.fat, entry.fat) &&
+    normalizePresetValue(meal.meal || 'snack') === entryMeal)
+}
+
+function isSavedWorkoutPresetEntry(entry) {
+  const presets = state.workoutPresetsCache || []
+  const entryName = normalizePresetValue(entry.description)
+  const entryIntensity = normalizePresetValue(entry.intensity || 'medium')
+  return presets.some(preset =>
+    normalizePresetValue(preset.name) === entryName &&
+    normalizePresetValue(preset.intensity || 'medium') === entryIntensity &&
+    samePresetNumber(preset.calories_burned, entry.calories_burned))
 }
 
 // date param is passed so edit/delete actions know which day the entry belongs to
 export const foodItem = (e, date) => {
-  const fromPreset = isPresetEntry(e.description)
+  const fromPreset = isSavedMealEntry(e)
   const mealIcon = MEAL_ICON[e.meal || 'uncategorised'] || FOOD_ICON
   return `
   <div class="log-item">
@@ -55,6 +79,7 @@ export const foodItem = (e, date) => {
 
 export const workoutItem = (e, date) => {
   const intensityIcon = INTENSITY_ICON[e.intensity] || INTENSITY_ICON.medium
+  const fromPreset = isSavedWorkoutPresetEntry(e)
 
   // Resolve icon: explicit activity_type > Strava sport_type > detect from description
   const logIcon = e.activity_type
@@ -76,6 +101,7 @@ export const workoutItem = (e, date) => {
   const inConflict     = !!e.conflictGroupId
   const isDismissed    = !!e.dismissedConflictGroupId
   const duplicateBadge = isDuplicate ? `<span class="tag tag-duplicate">Duplicate</span>` : ''
+  const savedBadge = fromPreset ? `<span class="tag tag-saved">Saved</span>` : ''
   const stravaBadge    = isStrava
     ? `<a class="tag tag-strava" href="https://www.strava.com/activities/${e.external_id}" target="_blank" rel="noopener" style="text-decoration:none">Strava ↗</a>`
     : ''
@@ -100,7 +126,7 @@ export const workoutItem = (e, date) => {
   if (!isStrava && stravaIsConnected()) {
     menuItems.push(`<button data-action="push-to-strava" data-id="${e.id}">Push to Strava</button>`)
   }
-  if (!isImported) {
+if (!isImported) {
     menuItems.push(`<button class="danger" data-action="delete-workout" data-id="${e.id}">Delete</button>`)
   }
 
@@ -124,6 +150,7 @@ export const workoutItem = (e, date) => {
         <div class="log-tags">
           <span class="tag intensity-${e.intensity}">${intensityIcon} ${cap(e.intensity)}</span>
           ${duplicateBadge}
+          ${savedBadge}
           ${e.calories_burned ? `<span class="tag">${ICON_FLAME} ${e.calories_burned} kcal</span>` : ''}
           ${e.duration_min ? `<span class="tag">${ICON_CLOCK} ${e.duration_min} min</span>` : ''}
           ${e.distance_km  ? `<span class="tag">${ICON_PIN} ${e.distance_km} km</span>`  : ''}
