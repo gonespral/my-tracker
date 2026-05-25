@@ -134,6 +134,7 @@ export function openWorkoutSheet(date = null) {
   closeMenus()
   state.pendingEditWorkoutId = null
   state.pendingWorkoutDate   = date
+  document.getElementById('w-desc-ac')?.classList.remove('open')
   document.getElementById('w-desc').value = ''
   document.getElementById('w-date').value = date || dateStr()
   document.getElementById('w-time').value = ''
@@ -165,6 +166,7 @@ export function editWorkout(id, date) {
 
   state.pendingEditWorkoutId = id
   state.pendingWorkoutDate   = entryDate
+  document.getElementById('w-desc-ac')?.classList.remove('open')
   document.getElementById('w-desc').value = entry.description || ''
   document.getElementById('w-date').value = entryDate
   document.getElementById('w-time').value = entry.time ? formatTimeTo24H(entry.time) : ''
@@ -176,7 +178,7 @@ export function editWorkout(id, date) {
   document.querySelectorAll('#intensity-btns-main .intensity-btn').forEach(b =>
     b.classList.toggle('active', b.dataset.intensity === (entry.intensity || 'medium')))
   document.getElementById('save-workout-btn').textContent = 'Update Activity'
-  document.getElementById('w-date').disabled = true
+  document.getElementById('w-date').disabled = false
   openSheet('intensity-sheet')
 }
 

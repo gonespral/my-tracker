@@ -1,5 +1,5 @@
 import { nowTime, dateStr } from './utils.js'
-import { db, supabase } from './db.js'
+import { db, supabase, parseWorkoutStart } from './db.js'
 import { showToast } from './ui.js'
 import { STRAVA_CLIENT_ID as DEFAULT_CLIENT_ID, EDGE_FUNCTION_URL } from './config.js'
 
@@ -234,6 +234,15 @@ export async function syncStrava({ silent = false, onComplete = null } = {}) {
     if (!resp.ok) throw new Error(`Strava API error (${resp.status})`)
 
     const activities = await resp.json()
+    const afterDate = new Date(Date.now() - 90 * 24 * 3600 * 1000).toISOString().slice(0, 10)
+
+    // Remove local Strava entries deleted on Strava
+    const localEntries = await db.getStravaEntriesSince(afterDate)
+    if (localEntries.length) {
+      const stravaIds = new Set(activities.map(a => String(a.id)))
+      const toDelete = localEntries.filter(e => e.external_id && !stravaIds.has(e.external_id)).map(e => e.id)
+      if (toDelete.length) await db.deleteWorkoutsByIds(toDelete)
+    }
 
     if (activities.length) {
       const ids = activities.map(a => String(a.id))
@@ -305,7 +314,7 @@ export function connectStrava() {
   url.searchParams.set('redirect_uri', redirectUri)
   url.searchParams.set('response_type', 'code')
   url.searchParams.set('approval_prompt', 'auto')
-  url.searchParams.set('scope', 'activity:read_all,activity:write')
+  url.searchParams.set('scope', 'activity:read_all,activity:write,profile:write')
   url.searchParams.set('state', 'strava-oauth')
   window.location.href = url.toString()
 }
@@ -322,6 +331,68 @@ const ACTIVITY_TYPE_TO_STRAVA = {
   pilates: 'Pilates', surfing: 'Surfing', snowboard: 'Snowboard',
 }
 
+// Keytel et al. (2005) formula — solve for HR given target cal/min, weight, age, sex
+function targetHrForCalories(calories, durationMin, weightKg, ageYears, sex) {
+  if (!calories || !durationMin || !weightKg || !ageYears) return null
+  const calPerMin = calories / durationMin
+  let hr
+  if (sex === 'female') {
+    hr = (calPerMin * 4.184 + 20.4022 + 0.1263 * weightKg - 0.074 * ageYears) / 0.4472
+  } else {
+    hr = (calPerMin * 4.184 + 55.0969 - 0.1988 * weightKg - 0.2017 * ageYears) / 0.6309
+  }
+  hr = Math.round(hr)
+  return (hr >= 60 && hr <= 200) ? hr : null
+}
+
+function buildTcx(entry, startIso, sportType, targetHr) {
+  const tcxSport = ['Run', 'Bike'].includes(sportType) ? sportType : 'Other'
+  const elapsedSec = entry.duration_min ? Math.round(entry.duration_min * 60) : 0
+  const distanceMeters = entry.distance_km ? entry.distance_km * 1000 : 0
+  const avgHr = targetHr || (entry.heart_rate_avg ? Math.round(entry.heart_rate_avg) : null)
+
+  // One trackpoint every 60s with slight HR variation to look natural
+  const startMs = new Date(startIso).getTime()
+  const interval = 60
+  const trackpoints = []
+  for (let s = 0; s <= elapsedSec; s += interval) {
+    const tIso = new Date(startMs + s * 1000).toISOString().replace(/\.\d+Z$/, 'Z')
+    const dist = distanceMeters ? (distanceMeters * s / elapsedSec).toFixed(1) : null
+    let hrTag = ''
+    if (avgHr) {
+      const jitter = Math.round((Math.random() - 0.5) * 6)
+      hrTag = `\n            <HeartRateBpm><Value>${avgHr + jitter}</Value></HeartRateBpm>`
+    }
+    trackpoints.push(`          <Trackpoint>
+            <Time>${tIso}</Time>${dist ? `\n            <DistanceMeters>${dist}</DistanceMeters>` : ''}${hrTag}
+          </Trackpoint>`)
+  }
+
+  const hrSummary = avgHr
+    ? `\n        <AverageHeartRateBpm><Value>${avgHr}</Value></AverageHeartRateBpm>
+        <MaximumHeartRateBpm><Value>${Math.min(avgHr + 10, 200)}</Value></MaximumHeartRateBpm>`
+    : ''
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<TrainingCenterDatabase xmlns="http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2">
+  <Activities>
+    <Activity Sport="${tcxSport}">
+      <Id>${startIso}</Id>
+      <Lap StartTime="${startIso}">
+        <TotalTimeSeconds>${elapsedSec}</TotalTimeSeconds>
+        <DistanceMeters>${distanceMeters}</DistanceMeters>
+        <Calories>${entry.calories_burned ? Math.round(entry.calories_burned) : 0}</Calories>${hrSummary}
+        <Intensity>Active</Intensity>
+        <TriggerMethod>Manual</TriggerMethod>
+        <Track>
+${trackpoints.join('\n')}
+        </Track>
+      </Lap>
+    </Activity>
+  </Activities>
+</TrainingCenterDatabase>`
+}
+
 export async function pushActivityToStrava(entry) {
   if (!stravaIsConnected()) throw new Error('Strava not connected')
 
@@ -329,57 +400,97 @@ export async function pushActivityToStrava(entry) {
 
   const sportType = ACTIVITY_TYPE_TO_STRAVA[(entry.activity_type || '').toLowerCase()] || 'Workout'
 
-  // entry.time is a true UTC ISO string (stored via toUTCISO which uses local setHours → toISOString).
-  // Strava's start_date_local wants the original wall-clock time with no timezone suffix,
-  // so we reformat using local-time getters to undo the UTC conversion.
-  let startDate
-  if (entry.time) {
-    const d = new Date(entry.time)
-    const pad = n => String(n).padStart(2, '0')
-    startDate = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+  const startMs = parseWorkoutStart(entry.date, entry.time)
+  // TCX requires UTC ISO timestamps — use the real UTC time from startMs
+  let startIso
+  if (startMs) {
+    startIso = new Date(startMs).toISOString().replace(/\.\d+Z$/, 'Z')
+  } else if (entry.date) {
+    startIso = new Date(entry.date + 'T00:00:00').toISOString().replace(/\.\d+Z$/, 'Z')
   } else {
-    startDate = entry.date ? entry.date + 'T00:00:00' : new Date().toISOString().slice(0, 19)
+    startIso = new Date().toISOString().replace(/\.\d+Z$/, 'Z')
   }
 
-  // Build description with all metadata + source attribution.
-  // Strava's create endpoint only accepts name, sport_type, start_date_local, elapsed_time,
-  // distance, and description — everything else goes in the description text.
-  const meta = []
-  if (entry.duration_min)    meta.push(`Duration: ${entry.duration_min} min`)
-  if (entry.distance_km)     meta.push(`Distance: ${entry.distance_km} km`)
-  if (entry.calories_burned) meta.push(`Calories: ${entry.calories_burned} kcal`)
-  if (entry.heart_rate_avg)  meta.push(`Avg HR: ${entry.heart_rate_avg} bpm`)
-  if (entry.intensity)       meta.push(`Intensity: ${entry.intensity}`)
-  const descParts = []
-  if (meta.length) descParts.push(meta.join(' · '))
-  descParts.push('Logged via MyTracker — https://github.com/gonespral/my-tracker')
-  const description = descParts.join('\n\n')
+  const description = 'Logged via MyTracker — https://github.com/gonespral/my-tracker'
 
-  const body = {
-    name: entry.description || 'Workout',
-    sport_type: sportType,
-    start_date_local: startDate,
-    elapsed_time: entry.duration_min ? Math.round(entry.duration_min * 60) : 0,
-    description,
+  let targetHr = null
+  if (stravaSpoofCaloriesEnabled() && entry.calories_burned && entry.duration_min) {
+    const profile = await db.loadSettings().catch(() => null)
+    const weight = Number(profile?.weight_kg) || null
+    const age = Number(profile?.age_years) || null
+    const sex = profile?.sex || 'male'
+    targetHr = targetHrForCalories(entry.calories_burned, entry.duration_min, weight, age, sex)
+    if (targetHr) console.log('[Strava push] synthetic HR for calories:', targetHr)
   }
-  if (entry.distance_km) body.distance = entry.distance_km * 1000
 
-  const resp = await fetch('https://www.strava.com/api/v3/activities', {
+  const tcx = buildTcx(entry, startIso, sportType, targetHr)
+  const form = new FormData()
+  form.append('file', new Blob([tcx], { type: 'application/octet-stream' }), 'activity.tcx')
+  form.append('data_type', 'tcx')
+  form.append('name', entry.description || 'Workout')
+  form.append('sport_type', sportType)
+  form.append('description', description)
+
+  console.log('[Strava push] TCX upload, start:', startIso, 'calories:', entry.calories_burned)
+  const uploadResp = await fetch('https://www.strava.com/api/v3/uploads', {
     method: 'POST',
-    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+    headers: { 'Authorization': `Bearer ${token}` },
+    body: form,
   })
 
-  if (resp.status === 401) { disconnectStrava(true); throw new Error('Session expired — please reconnect Strava') }
-  if (resp.status === 403) throw new Error('Write permission missing — reconnect Strava to enable pushing')
-  if (!resp.ok) {
-    const raw = await resp.text().catch(() => '')
-    console.error('Strava push failed', resp.status, raw, JSON.stringify(body))
-    let msg = `${resp.status}`
+  if (uploadResp.status === 401) { disconnectStrava(true); throw new Error('Session expired — please reconnect Strava') }
+  if (uploadResp.status === 403) throw new Error('Write permission missing — reconnect Strava to enable pushing')
+  if (!uploadResp.ok) {
+    const raw = await uploadResp.text().catch(() => '')
+    console.error('Strava upload failed', uploadResp.status, raw)
+    let msg = `${uploadResp.status}`
     try { const j = JSON.parse(raw); msg = j.message || j.error || JSON.stringify(j.errors) || msg } catch (_) {}
     throw new Error(`Strava: ${msg}`)
   }
-  return resp.json()
+
+  const upload = await uploadResp.json()
+  console.log('[Strava upload response]', upload)
+
+  // Poll until Strava finishes processing and returns an activity_id
+  let activityId = upload.activity_id
+  const uploadId = upload.id || upload.id_str
+  if (!activityId && uploadId) {
+    for (let i = 0; i < 10; i++) {
+      await new Promise(r => setTimeout(r, 1500))
+      const poll = await fetch(`https://www.strava.com/api/v3/uploads/${uploadId}`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      })
+      if (!poll.ok) break
+      const status = await poll.json()
+      console.log('[Strava upload poll]', status)
+      if (status.error) throw new Error(`Strava upload error: ${status.error}`)
+      if (status.activity_id) { activityId = status.activity_id; break }
+    }
+  }
+
+  return { id: activityId }
+}
+
+const S_SPOOF_CALORIES = 'strava-spoof-calories'
+export const stravaSpoofCaloriesEnabled = () => localStorage.getItem(S_SPOOF_CALORIES) === 'true'
+export const setStravaSpoofCalories = v => localStorage.setItem(S_SPOOF_CALORIES, v ? 'true' : 'false')
+
+const S_SYNC_WEIGHT = 'strava-sync-weight'
+export const stravaWeightSyncEnabled = () => localStorage.getItem(S_SYNC_WEIGHT) === 'true'
+export const setStravaWeightSync = v => localStorage.setItem(S_SYNC_WEIGHT, v ? 'true' : 'false')
+
+export async function updateStravaAthleteWeight(kg) {
+  if (!stravaIsConnected() || !stravaWeightSyncEnabled()) return
+  try {
+    const token = await getValidAccessToken()
+    await fetch('https://www.strava.com/api/v3/athlete', {
+      method: 'PUT',
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ weight: kg }),
+    })
+  } catch (e) {
+    console.error('Strava weight update failed:', e)
+  }
 }
 
 export async function disconnectStrava(silent = false) {

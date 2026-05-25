@@ -11,7 +11,7 @@ import { state } from '../state.js'
 import { supabase, db, getWorkoutConflictPreference, setWorkoutConflictPreference } from '../db.js'
 import { fmt, round, cap } from '../utils.js'
 import { openSheet, showToast, closeMenus, closeSheets } from '../ui.js'
-import { connectStrava, disconnectStrava, syncStrava, updateStravaSettingsSection, stravaAutoPushEnabled } from '../strava.js'
+import { connectStrava, disconnectStrava, syncStrava, updateStravaSettingsSection, stravaAutoPushEnabled, stravaWeightSyncEnabled, setStravaWeightSync, stravaSpoofCaloriesEnabled, setStravaSpoofCalories } from '../strava.js'
 import { connectGoogleHealth, disconnectGoogleHealth, syncGoogleHealth, updateGoogleHealthSettingsSection } from '../google-health.js'
 import { materialIcon } from '../icons.js'
 
@@ -262,6 +262,31 @@ export async function renderSettings() {
             <span class="toggle-slider"></span>
           </label>
         </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0">
+          <div>
+            <div style="font-size:14px;font-weight:500">Sync weight</div>
+            <div style="font-size:12px;color:var(--tx3);margin-top:2px">Update Strava athlete weight when you log a weight entry</div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="strava-sync-weight-toggle" ${stravaWeightSyncEnabled() ? 'checked' : ''}>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0">
+          <div>
+            <div style="font-size:14px;font-weight:500">Spoof calories via HR</div>
+            <div style="font-size:12px;color:var(--tx3);margin-top:2px;line-height:1.5">
+              Embeds synthetic heart rate data in the uploaded TCX file so Strava calculates calories from it.
+              Uses the Keytel formula with your age, weight, and sex from your profile to back-calculate
+              the average HR that would produce your logged calories. Results are approximate.
+              Requires age, sex, and weight set in your profile.
+            </div>
+          </div>
+          <label class="toggle-switch" style="flex-shrink:0">
+            <input type="checkbox" id="strava-spoof-calories-toggle" ${stravaSpoofCaloriesEnabled() ? 'checked' : ''}>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
       </div>
     `)}
 
@@ -457,6 +482,16 @@ export async function renderSettings() {
     showToast(e.target.checked ? '✅ Auto push enabled' : 'Auto push disabled')
   })
 
+  document.getElementById('strava-sync-weight-toggle')?.addEventListener('change', e => {
+    setStravaWeightSync(e.target.checked)
+    showToast(e.target.checked ? '✅ Weight sync enabled' : 'Weight sync disabled')
+  })
+
+  document.getElementById('strava-spoof-calories-toggle')?.addEventListener('change', e => {
+    setStravaSpoofCalories(e.target.checked)
+    showToast(e.target.checked ? '✅ Calorie spoofing enabled' : 'Calorie spoofing disabled')
+  })
+
   document.getElementById('connect-strava-btn').addEventListener('click', connectStrava)
 
   document.getElementById('disconnect-strava-btn')?.addEventListener('click', disconnectStrava)
@@ -512,6 +547,7 @@ export function openPresetSheet(id) {
   document.querySelectorAll('#mp-meal-btns .meal-btn').forEach(b =>
     b.classList.toggle('active', b.dataset.meal === (m?.meal || 'snack')))
   document.getElementById('save-preset-btn').textContent = m ? 'Update Meal' : 'Save Meal'
+  document.getElementById('mp-name-ac')?.classList.remove('open')
   openSheet('meal-preset-sheet')
 }
 
@@ -534,6 +570,7 @@ export function openWorkoutPresetSheet(id) {
   document.querySelectorAll('#wps-intensity-btns .intensity-btn').forEach(b =>
     b.classList.toggle('active', b.dataset.intensity === (w?.intensity || 'medium')))
   document.getElementById('save-wps-btn').textContent = w ? 'Update Activity' : 'Save Activity'
+  document.getElementById('wps-name-ac')?.classList.remove('open')
   openSheet('workout-preset-sheet')
 }
 

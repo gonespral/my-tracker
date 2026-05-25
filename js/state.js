@@ -25,6 +25,7 @@ export const state = {
   // Chat
   chatApiMessages: [],
   chatDisplay:     [],
+  chatPending:     false,
 
   // UI
   statsOpen: false,
