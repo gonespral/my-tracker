@@ -120,6 +120,11 @@ export function openSheet(id) {
   syncBackdrop()
 }
 
+export function closeSheet(id) {
+  document.getElementById(id)?.classList.remove('open')
+  syncBackdrop()
+}
+
 export function closeSheets() {
   document.querySelectorAll('.sheet').forEach(s => s.classList.remove('open'))
   state.pendingEditFoodId    = null

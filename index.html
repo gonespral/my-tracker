@@ -114,9 +114,14 @@
   </div>
 
   <!-- Input bar -->
+  <input type="file" id="image-file-input" accept="image/*" multiple style="display:none" />
   <div class="input-bar">
     <button class="mic-btn" id="mic-btn" aria-label="Voice input">
       <span class="material-symbols-outlined" style="font-size:18px">mic</span>
+    </button>
+    <button class="attach-btn" id="attach-btn" aria-label="Attach image">
+      <span class="material-symbols-outlined" style="font-size:18px">photo_camera</span>
+      <span class="attach-badge" id="attach-badge" style="display:none"></span>
     </button>
     <textarea class="input-field" id="main-input" rows="1"
       placeholder="Type something…" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>

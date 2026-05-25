@@ -135,6 +135,34 @@ export const CLAUDE_TOOLS = [
   },
 ]
 
+function normFood(s) {
+  return s.toLowerCase()
+    .replace(/\b\d+(\.\d+)?\s*(g|ml|oz|x|kg|lb|cup|tbsp|tsp|piece|slice|scoop)s?\b/gi, '')
+    .replace(/\b(large|medium|small|big|half|whole|extra)\b/gi, '')
+    .replace(/[^a-z ]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function frequentFoodsNotPreset(data, presets) {
+  const normPresets = new Set(presets.map(p => normFood(p.name)))
+  const counts = {}
+  const examples = {}
+  for (const entries of Object.values(data.food || {})) {
+    for (const e of entries) {
+      const key = normFood(e.description)
+      if (!key) continue
+      counts[key] = (counts[key] || 0) + 1
+      if (!examples[key]) examples[key] = e
+    }
+  }
+  return Object.entries(counts)
+    .filter(([key, n]) => n >= 2 && !normPresets.has(key))
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 8)
+    .map(([key, n]) => ({ key, count: n, entry: examples[key] }))
+}
+
 export async function buildClaudeSystem() {
   const data     = await db.load()
   const meals    = state.mealsCache || []
@@ -165,6 +193,11 @@ export async function buildClaudeSystem() {
   const burnedToday = workouts.reduce((s, w) => s + (w.calories_burned || 0), 0)
   const effectiveTarget = calTarget + burnedToday
 
+  const frequent = frequentFoodsNotPreset(data, meals)
+  const frequentSection = frequent.length
+    ? `\nFrequently logged foods not yet saved as presets (logged ${frequent.map(f => `"${f.entry.description}" x${f.count}`).join(', ')}):`
+    : ''
+
   return `You are a concise fitness tracking assistant embedded in the user's personal tracker app.
 Today: ${fmtDate(today)} (${today})
 Calories today: ${round(totals.calories)} / ${effectiveTarget} kcal (${round(effectiveTarget - totals.calories)} remaining)${burnedToday > 0 ? ` [base ${calTarget} + ${burnedToday} burned]` : ''}
@@ -177,13 +210,14 @@ ${recentLines.length ? recentLines.join('\n') : '  (empty)'}
 
 Saved meal presets:
 ${mealsList}
-
+${frequentSection}
 Rules:
 - Log food/workouts/weight for ANY date the user mentions. Use YYYY-MM-DD format.
 - To edit, call edit_food or edit_workout with the entry ID. Only send changed fields.
 - You may call multiple tools in one turn.
 - Estimate calories/macros from context; use preset values when name matches.
-- Keep replies concise. No markdown.`
+- After logging a food that appears in the frequent-but-not-preset list, briefly suggest saving it as a preset (one short sentence, only once per food).
+- Replies must be extremely short — 1 sentence max. No markdown.`
 }
 
 export async function callClaudeApi(messages, system) {
@@ -312,8 +346,10 @@ export function setChatPanelState(nextState) {
 export function renderChat() {
   const el = document.getElementById('chat-messages')
   if (!el) return
-  el.innerHTML = state.chatDisplay.map(m =>
-    `<div class="chat-bubble ${m.role}${m.thinking ? ' thinking' : ''}">${m.text}</div>`).join('')
+  el.innerHTML = state.chatDisplay.map(m => {
+    const imgLabel = m.imageCount ? `<span class="chat-img-label">📎 ${m.imageCount} image${m.imageCount > 1 ? 's' : ''} attached</span>` : ''
+    return `<div class="chat-bubble ${m.role}${m.thinking ? ' thinking' : ''}">${m.text}${imgLabel}</div>`
+  }).join('')
   el.scrollTop = el.scrollHeight
 
   const last = [...state.chatDisplay].reverse().find(m => m.role === 'assistant')
@@ -361,11 +397,23 @@ export function clearChat() {
   setChatPanelState('collapsed')
 }
 
-export async function sendChatMessage(text, renderActiveFn) {
+export async function sendChatMessage(text, renderActiveFn, images = []) {
   text = text.trim()
-  if (!text) return
-  state.chatDisplay.push({ role: 'user', text })
-  state.chatApiMessages.push({ role: 'user', content: text })
+  if (!text && !images.length) return
+
+  const displayText = text || '(image)'
+  state.chatDisplay.push({ role: 'user', text: displayText, imageCount: images.length || undefined })
+
+  let apiContent
+  if (images.length) {
+    apiContent = [
+      ...images.map(img => ({ type: 'image', source: { type: 'base64', media_type: img.mediaType, data: img.data } })),
+      { type: 'text', text: text || 'What do you see in this image?' },
+    ]
+  } else {
+    apiContent = text
+  }
+  state.chatApiMessages.push({ role: 'user', content: apiContent })
   state.chatDisplay.push({ role: 'assistant', text: thinkingVerb() + '…', thinking: true })
   renderChat()
 
@@ -402,11 +450,11 @@ export async function sendChatMessage(text, renderActiveFn) {
   if (renderActiveFn) await renderActiveFn()
 }
 
-export function openChat(initialText, renderActiveFn) {
+export function openChat(initialText, renderActiveFn, images = []) {
   const key = localStorage.getItem('tracker-anthropic-key') || ''
   if (!key) { openSheet('apikey-sheet'); return }
-  if (initialText) {
+  if (initialText || images.length) {
     setChatPanelState('peek')
-    sendChatMessage(initialText, renderActiveFn)
+    sendChatMessage(initialText, renderActiveFn, images)
   }
 }
