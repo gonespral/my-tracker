@@ -1,103 +1,95 @@
 # <picture><source media="(prefers-color-scheme: dark)" srcset="brand/svg/logo-mono-light.svg"><source media="(prefers-color-scheme: light)" srcset="brand/svg/logo-mono-dark.svg"><img alt="MyTracker" src="brand/svg/logo-mono-dark.svg" width="36" align="top"></picture> MyTracker
 
-
 ![MyTracker Screenshot](brand/shots/481_1x_shots_so.png)
 
 ---
 
-MyTracker is a self-hosted health and fitness tracking dashboard built with vanilla HTML, CSS, and JavaScript. It uses Supabase as its backend and integrates a client-side Claude assistant for natural-language food, workout, and weight logging. No frameworks, no build step, no subscriptions, no server-side middleware.
+Self-hosted health and fitness tracker. Vanilla HTML/CSS/JS, Supabase backend, Claude AI assistant for natural-language logging. No framework, no build step, no subscriptions.
 
-Try out the demo at [gonespral.github.io/my-tracker](https://gonespral.github.io/my-tracker/?demo=1)!
+Try the demo at [gonespral.github.io/my-tracker](https://gonespral.github.io/my-tracker/?demo=1).
 
 ## Features
 
-- **Activity & Workout Tracking:** Log workouts manually, save frequently used workouts as presets, or auto-sync your activities.
-- **Nutrition & Calorie Management:** Detailed daily food tracking with macro breakdowns. 
-- **AI-Powered Natural Language Logging:** Chat directly with the integrated Claude AI assistant to log complex meals or workouts in plain English.
-- **External Integrations & Duplicate Activity Detection:** Native support for importing activities from **Strava** and **Google Health**. 
-- **Fully Responsive Offline-Capable PWA:** Beautiful, mobile-first design with a dark mode toggle and smooth micro-animations. Operates seamlessly as an installable PWA.
-- **Privacy-First & Self-Hosted:** Own your own data. The backend is powered by your own Supabase instance with Row-Level Security.
+- **AI Logging:** Chat with Claude to log food, workouts, and weight in plain English. Attach photos — Claude uses vision to identify meals. Frequently logged items are suggested as presets automatically.
+- **Nutrition:** Daily food tracking with calorie and macro targets (rest vs. training day). Meal presets for quick re-logging.
+- **Workouts:** Manual logging with intensity, duration, distance, and heart rate. Activity presets. Push to Strava.
+- **Integrations:** Auto-sync from Strava and Google Health with duplicate detection.
+- **Voice input:** Dictate food or workout entries via the Web Speech API.
+- **PWA:** Installable, mobile-first, dark mode, smooth animations.
+- **Privacy-first:** Your Supabase instance, your data. Row-Level Security on all tables. API keys live only in `localStorage`.
 
 > [!note]
-> This project is heavily vibecoded. It exists because every fitness tracker I tried either lacked the one feature I actually needed, buried useful functionality behind a subscription, or couldn't integrate properly with services like Strava and Google Fit without some janky middleware. So I built my own, host it myself, and only add features I personally want. Expect rough edges, unconventional patterns, and code that works because it works.
+> This project is heavily vibecoded. It exists because every fitness tracker I tried either lacked the one feature I actually needed, buried it behind a subscription, or couldn't integrate with Strava and Google Fit without janky middleware. So I built my own. Expect rough edges and code that works because it works.
 
 ## Architecture
 
-Vanilla JS single-page application. The HTML shell (`index.html`) is static. All panels are rendered dynamically by JS modules using `innerHTML`. Events are delegated from a single top-level listener in `app.js` using `data-action` attributes.
+Vanilla JS SPA. Static `index.html` shell; all panels rendered dynamically by JS modules via `innerHTML`. Events delegated from a single top-level listener in `app.js` via `data-action` attributes. No bundler.
 
-**State management:** `state.js` exports a single mutable object imported by all modules. DB results are cached in `state.dbCache`; call `db.bust()` after any write to invalidate.
+| File | Role |
+|:---|:---|
+| `js/app.js` | Entry point — auth, tabs, event delegation |
+| `js/state.js` | Single mutable state object shared across modules |
+| `js/db.js` | Supabase client + all DB operations |
+| `js/ai.js` | Claude API, chat panel, tool execution |
+| `js/strava.js` | Strava OAuth + sync + push |
+| `js/google-health.js` | Google Health OAuth + sync |
+| `js/tabs/` | Per-tab renderers (today, nutrition, workouts, settings) |
 
-**Authentication:** GitHub OAuth via Supabase. Sign-in overlay is shown when no session exists.
+**Auth:** GitHub or Google OAuth via Supabase. Sign-in overlay shown when no session exists.
 
-**AI chat:** Claude API is called directly from the browser using an Anthropic API key stored in `localStorage`. The key is entered by the user in the settings sheet and never leaves the browser except in direct requests to Anthropic.
+**AI chat:** Claude API called directly from the browser using an Anthropic key stored in `localStorage`. Supports tool use (log/edit/delete food, workouts, weight; manage presets; update targets) and image attachments (vision).
 
 ## Database
 
-All SQL lives in `supabase/migrations/` and is meant to be run in order against a fresh Supabase project. The initial migration (`00001_initial_schema.sql`) creates every table, enables Row-Level Security with per-user policies on all tables, and adds performance indexes.
+Run migrations in `supabase/migrations/` in order against a fresh Supabase project.
 
 | Migration | What it does |
 |:---|:---|
 | `00001_initial_schema.sql` | Tables (`food_entries`, `workout_entries`, `weight_entries`, `meal_presets`, `workout_presets`, `user_settings`), RLS policies, indexes |
 
----
-
 ## Setup
-
-### Prerequisites
-
-Node.js (for the dev server convenience script) or any static HTTP server.
 
 ### Local Development
 
 ```bash
-git clone https://github.com/your-username/health-tracker.git
+git clone https://github.com/gonespral/health-tracker.git
 cd health-tracker
-npm run dev
+npm run dev   # serves on http://localhost:3000
 ```
 
-The app serves at `http://localhost:3000`. There is no build step — all files are plain ES modules served as static assets.
-
-### Supabase Configuration
+### Supabase
 
 1. Create a new Supabase project.
-2. Open the SQL Editor in the Supabase dashboard and run each file in `supabase/migrations/` in order (starting with `00001_initial_schema.sql`). This creates all tables, RLS policies, and indexes.
-3. Copy `js/env.example.js` to `js/env.js` and fill in your Supabase details (and any OAuth Client IDs you wish to provide by default). `js/env.js` is git-ignored to keep your keys safe.
-4. Enable **GitHub** as an authentication provider under Authentication > Providers in the Supabase dashboard.
+2. Run each file in `supabase/migrations/` in order via the SQL Editor.
+3. Copy `js/env.example.js` → `js/env.js` and fill in your Supabase URL, anon key, and any OAuth client IDs.
+4. Enable **GitHub** and/or **Google** under Authentication → Providers.
 5. Add your local and production URLs as redirect URIs.
 
 ### Claude AI
 
-1. Get an API key from the [Anthropic Console](https://console.anthropic.com/).
-2. Open the app, click the settings icon, and paste your key.
+Get an API key from the [Anthropic Console](https://console.anthropic.com/), then paste it in the app's Settings sheet. Stored in `localStorage` only.
 
-The key is stored in `localStorage` and only sent to Anthropic's API endpoint.
+### Strava & Google Health
 
-### Strava and Google Fit
+Enter client credentials in Settings within the app.
 
-Enter client credentials in the settings sheet within the app.
+- **Strava:** Register at [strava.com/settings/api](https://www.strava.com/settings/api).
+- **Google Health:** Create a web client ID in the [Google API Console](https://console.developers.google.com/) and enable the Fitness API.
 
-- **Strava:** Register an app at [strava.com/settings/api](https://www.strava.com/settings/api).
-- **Google Fit:** Create a web client ID in the [Google API Console](https://console.developers.google.com/) and enable the Fitness API.
+#### Calorie spoofing (Strava)
 
-#### Calorie spoofing
-
-Strava does not allow setting calories on manually created activities via its API. Enabling **Calorie spoofing** in Settings → Strava works around this: the app derives a synthetic heart rate from your logged calories, duration, weight, age, and sex using the Keytel et al. (2005) formula, then uploads the activity as a TCX file. Strava processes the heart rate data and computes the calorie count itself, resulting in the correct value appearing on your activity.
-
-Enable it only if you regularly log calories burned and want them reflected on Strava. Requires your weight, age, and sex to be set in Settings → Profile.
+Strava doesn't allow setting calories on manually created activities via the API. When enabled, the app derives a synthetic heart rate from your logged calories, duration, weight, age, and sex (Keytel et al. 2005), uploads the activity as a TCX file, and lets Strava compute the calories from the heart rate data. Requires weight, age, and sex set in Settings → Profile.
 
 ## Deployment
 
-Pushes to `main` trigger a GitHub Actions workflow (`.github/workflows/deploy.yml`) that publishes the static files to GitHub Pages.
+Pushes to `main` deploy to GitHub Pages via `.github/workflows/deploy.yml`. Set these repository secrets under Settings → Secrets → Actions:
 
-**Important for deployment:** Because this is a static site without a build step, the deployment workflow expects your environment variables to be set as **GitHub Actions Secrets**. 
-
-Go to your repository settings > **Secrets and variables** > **Actions** and add the following repository secrets:
 - `SUPABASE_URL`
 - `SUPABASE_ANON_KEY`
 - `STRAVA_CLIENT_ID`
 - `GOOGLE_HEALTH_CLIENT_ID`
 
-The deployment action will automatically inject these into a generated `js/env.js` file before publishing to GitHub Pages, keeping your codebase completely free of hardcoded keys!
+The workflow injects them into a generated `js/env.js` before publishing.
 
 ## License
 
