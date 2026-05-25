@@ -137,6 +137,18 @@ body {
   letter-spacing: -0.2px;
 }
 
+.github-repo-link {
+  display: flex;
+  align-items: center;
+  color: inherit;
+  opacity: 0.5;
+  transition: opacity .15s;
+}
+
+.github-repo-link:hover {
+  opacity: 1;
+}
+
 .app-icon {
   width: 28px;
   height: 28px;
