@@ -58,14 +58,18 @@ export async function renderWorkouts(monthOffset) {
           </div>
           ${monthHeatmapHTML(data, monthOffset, 'workouts')}
         </div>
-        <div class="chart-card" style="margin-top:12px">${activityTypeBreakdownHTML(data, year, month)}</div>
-        <div class="streak-card">${streakHTML(data)}</div>
-
-        <div class="section-divider"></div>
-        <div class="section-label">Last 30 days</div>
-
-        <div class="chart-card">${activityStatsHTML(data, 30)}</div>
-        <div class="chart-card" style="margin-top:12px">${calTrendHTML(data, 30, { title: 'Calorie burn', primary: 'burned' })}</div>
+        <button class="stats-toggle" data-action="panel-stats-toggle">
+          <span class="panel-toggle-label">Stats</span>
+          <span class="material-symbols-outlined panel-toggle-arrow" style="font-size:16px">expand_more</span>
+        </button>
+        <div class="stats-section" style="display:none">
+          <div class="chart-card">${activityTypeBreakdownHTML(data, year, month)}</div>
+          <div class="streak-card">${streakHTML(data)}</div>
+          <div class="section-divider"></div>
+          <div class="section-label">Last 30 days</div>
+          <div class="chart-card">${activityStatsHTML(data, 30)}</div>
+          <div class="chart-card" style="margin-top:12px">${calTrendHTML(data, 30, { title: 'Calorie burn', primary: 'burned' })}</div>
+        </div>
       </div>
       <div class="panel-right">
         <button class="log-add-btn" style="margin-bottom:16px" data-action="open-workout-sheet">+ Log activity</button>

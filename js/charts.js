@@ -576,7 +576,7 @@ function nutritionHeatmapStyle(diff, target) {
   const track = parseCssColor(rootStyles?.getPropertyValue('--track')) || { r: 233, g: 236, b: 242 }
 
   const absDiff = Math.abs(diff)
-  const onTargetWindow = Math.max(50, target * 0.3)
+  const onTargetWindow = Math.max(50, target * 0.25)
   const scale = Math.max(target * 0.8, 400)
   const closeness = absDiff <= onTargetWindow ? 1 : clamp(1 - ((absDiff - onTargetWindow) / scale), 0.12, 1)
   const background = mixRgbColors(track, accent, closeness)
