@@ -2,7 +2,7 @@ import { state } from './state.js'
 import { supabase, db, setWorkoutConflictOverride, isDemo } from './db.js'
 import { TARGETS, hydrateCalorieTargets } from './config.js'
 import { dateStr, nowTime } from './utils.js'
-import { showToast, openSheet, closeSheets, toggleEntryMenu, closeMenus, bindSnapDrag } from './ui.js'
+import { showToast, openSheet, closeSheet, closeSheets, toggleEntryMenu, closeMenus, bindSnapDrag } from './ui.js'
 import { startListening, stopListening } from './speech.js'
 import { openChat, clearChat, expandChatPanel, collapseChatPanel, hideChatPanel, toggleChatPanel, sendChatMessage, renderChat, setChatPanelState } from './ai.js'
 import { renderToday, openFoodSheet, openFoodSheetWithPreset, openWorkoutSheet, editFood, editWorkout, saveToMeals } from './tabs/today.js'
@@ -273,9 +273,47 @@ async function initApp() {
   }
   mainInput.addEventListener('input', resizeInput)
 
+  // ── Image attachment ──
+  let pendingImages = []
+  const attachBtn = document.getElementById('attach-btn')
+  const attachBadge = document.getElementById('attach-badge')
+  const imageFileInput = document.getElementById('image-file-input')
+
+  function updateAttachBadge() {
+    if (pendingImages.length > 0) {
+      attachBadge.textContent = pendingImages.length
+      attachBadge.style.display = 'block'
+      attachBtn.classList.add('has-images')
+    } else {
+      attachBadge.style.display = 'none'
+      attachBtn.classList.remove('has-images')
+    }
+  }
+
+  attachBtn.addEventListener('click', () => imageFileInput.click())
+
+  imageFileInput.addEventListener('change', async () => {
+    const files = Array.from(imageFileInput.files || [])
+    imageFileInput.value = ''
+    if (!files.length) return
+    const reads = files.map(file => new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = e => resolve({ data: e.target.result.split(',')[1], mediaType: file.type || 'image/jpeg' })
+      reader.onerror = reject
+      reader.readAsDataURL(file)
+    }))
+    const loaded = await Promise.all(reads)
+    pendingImages = [...pendingImages, ...loaded]
+    updateAttachBadge()
+  })
+
   const handleMainInput = async () => {
     const text = mainInput.value.trim()
-    if (!text) return
+    if (!text && !pendingImages.length) return
+
+    const images = pendingImages
+    pendingImages = []
+    updateAttachBadge()
 
     const chatPanel = document.getElementById('chat-panel')
 
@@ -283,7 +321,15 @@ async function initApp() {
     if (chatPanel.classList.contains('expanded')) {
       mainInput.value = ''
       resizeInput()
-      await sendChatMessage(text, renderActive)
+      await sendChatMessage(text, renderActive, images)
+      return
+    }
+
+    // Images always go to Claude
+    if (images.length) {
+      mainInput.value = ''
+      resizeInput()
+      openChat(text, renderActive, images)
       return
     }
 
@@ -423,12 +469,16 @@ async function initApp() {
   document.querySelectorAll('.sheet').forEach(sheet => {
     const handle = sheet.querySelector('.sheet-handle')
     if (!handle) return
+    const isPresetSheet = sheet.id === 'meal-preset-sheet' || sheet.id === 'workout-preset-sheet'
     bindSnapDrag(handle, {
       targetEl: sheet,
       states: ['open', 'closed'],
       getState: () => sheet.classList.contains('open') ? 'open' : 'closed',
       setState: nextState => {
-        if (nextState === 'closed') closeSheets()
+        if (nextState === 'closed') {
+          if (isPresetSheet) { closeSheet(sheet.id); openSheet('settings-sheet') }
+          else closeSheets()
+        }
       },
     })
   })
@@ -447,9 +497,16 @@ async function initApp() {
 
   // ── Backdrop closes sheets and collapses chat ──
   document.getElementById('backdrop').addEventListener('click', () => {
-    closeSheets()
-    if (chatPanel.classList.contains('expanded')) collapseChatPanel()
-    else if (chatPanel.classList.contains('peek')) hideChatPanel()
+    const presetOpen = ['meal-preset-sheet', 'workout-preset-sheet']
+      .find(id => document.getElementById(id)?.classList.contains('open'))
+    if (presetOpen) {
+      closeSheet(presetOpen)
+      openSheet('settings-sheet')
+    } else {
+      closeSheets()
+      if (chatPanel.classList.contains('expanded')) collapseChatPanel()
+      else if (chatPanel.classList.contains('peek')) hideChatPanel()
+    }
   })
 
   // ── Mic ──
@@ -616,11 +673,13 @@ async function initApp() {
       meal: document.querySelector('#mp-meal-btns .meal-btn.active')?.dataset.meal || 'snack',
     }
     const editId = state.pendingEditPresetId
-    closeSheets()
+    closeSheet('meal-preset-sheet')
+    openSheet('settings-sheet')
     try {
       if (editId) { await db.updateMeal(editId, entry); showToast('✅ Meal updated') }
       else { await db.addMeal(entry); showToast('✅ Meal saved') }
       state.mealsCache = null
+      await renderSettings()
     } catch (err) { showToast('❌ ' + err.message) }
   })
 
@@ -642,11 +701,13 @@ async function initApp() {
     }
     const editId = state.pendingEditWorkoutPresetId
     state.pendingEditWorkoutPresetId = null
-    closeSheets()
+    closeSheet('workout-preset-sheet')
+    openSheet('settings-sheet')
     try {
       if (editId) { await db.updateWorkoutPreset(editId, entry); showToast('✅ Workout updated') }
       else { await db.addWorkoutPreset(entry); showToast('✅ Workout saved') }
       state.workoutPresetsCache = null
+      await renderSettings()
     } catch (err) { showToast('❌ ' + err.message) }
   })
 
