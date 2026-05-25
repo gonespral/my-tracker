@@ -28,7 +28,7 @@ function updateSigninOverlay() {
 export async function renderActive() {
   try {
     if (state.activeTab === 'today') await renderToday()
-    if (state.activeTab === 'nutrition') await renderNutrition()
+    if (state.activeTab === 'nutrition') await renderNutrition(state.heatmapMonthOffset || 0)
     if (state.activeTab === 'workouts') await renderWorkouts()
   } catch (e) {
     console.error('Render error:', e)
@@ -140,6 +140,17 @@ document.addEventListener('click', async (e) => {
       const offset = parseInt(actionEl.dataset.offset) || 0
       state.heatmapMonthOffset = offset
       await renderActive()
+      break
+    }
+
+    case 'panel-stats-toggle': {
+      const section = actionEl.nextElementSibling
+      const lbl = actionEl.querySelector('.panel-toggle-label')
+      const arr = actionEl.querySelector('.panel-toggle-arrow')
+      const isOpen = section.style.display !== 'none'
+      section.style.display = isOpen ? 'none' : 'block'
+      if (lbl) lbl.textContent = isOpen ? 'Stats' : 'Hide stats'
+      if (arr) arr.textContent = isOpen ? 'expand_more' : 'expand_less'
       break
     }
 
@@ -418,19 +429,24 @@ async function initApp() {
   })
 
   document.querySelectorAll('.sheet').forEach(sheet => {
+    const handlePill = sheet.querySelector('.sheet-handle')
     const dragHandles = [
-      sheet.querySelector('.sheet-handle'),
+      handlePill,
       sheet.querySelector('.sheet-title'),
     ].filter(Boolean)
 
     if (!dragHandles.length) return
+
+    if (handlePill) {
+      handlePill.addEventListener('click', () => closeSheets())
+    }
 
     dragHandles.forEach(handleEl => {
       bindSnapDrag(handleEl, {
         targetEl: sheet,
         states: ['open', 'closed'],
         threshold: 24,
-        activationDistance: 3,
+        activationDistance: 2,
         getState: () => sheet.classList.contains('open') ? 'open' : 'closed',
         setState: nextState => {
           if (nextState === 'closed') closeSheets()
