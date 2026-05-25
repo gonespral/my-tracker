@@ -194,8 +194,13 @@ export async function buildClaudeSystem() {
   const effectiveTarget = calTarget + burnedToday
 
   const frequent = frequentFoodsNotPreset(data, meals)
-  const frequentSection = frequent.length
-    ? `\nFrequently logged foods not yet saved as presets (logged ${frequent.map(f => `"${f.entry.description}" x${f.count}`).join(', ')}):`
+  const autoSave  = frequent.filter(f => f.count >= 3)
+  const suggest   = frequent.filter(f => f.count === 2)
+  const autoSaveSection = autoSave.length
+    ? `\nAUTO-SAVE REQUIRED — call save_meal_preset immediately for each of these (logged 3+ times, not yet a preset):\n${autoSave.map(f => `  • "${f.entry.description}" x${f.count} — cal:${round(f.entry.calories)} P:${round(f.entry.protein)}g C:${round(f.entry.carbs)}g F:${round(f.entry.fat)}g meal:${f.entry.meal||'snack'}`).join('\n')}`
+    : ''
+  const suggestSection = suggest.length
+    ? `\nFrequently logged but not yet preset (logged 2 times — suggest saving): ${suggest.map(f => `"${f.entry.description}"`).join(', ')}`
     : ''
 
   return `You are a concise fitness tracking assistant embedded in the user's personal tracker app.
@@ -210,13 +215,14 @@ ${recentLines.length ? recentLines.join('\n') : '  (empty)'}
 
 Saved meal presets:
 ${mealsList}
-${frequentSection}
+${autoSaveSection}${suggestSection}
 Rules:
 - Log food/workouts/weight for ANY date the user mentions. Use YYYY-MM-DD format.
 - To edit, call edit_food or edit_workout with the entry ID. Only send changed fields.
 - You may call multiple tools in one turn.
 - Estimate calories/macros from context; use preset values when name matches.
-- After logging a food that appears in the frequent-but-not-preset list, briefly suggest saving it as a preset (one short sentence, only once per food).
+- If the AUTO-SAVE REQUIRED section lists any foods, call save_meal_preset for each one in this response — do not wait, do not ask.
+- For foods in the suggest section, mention once that they could be saved as a preset (one short sentence).
 - Reply like a text message: 1-2 sentences max, no markdown, no em dashes, no lists, no headers, no symbols, no formatting of any kind.`
 }
 
@@ -224,6 +230,91 @@ let _abortController = null
 export const isChatLoading = () => _abortController !== null
 export function abortChat() {
   if (_abortController) { _abortController.abort(); _abortController = null }
+}
+
+export async function fetchDailyWisdom() {
+  if (!state.currentUser) return null
+  const key = localStorage.getItem('tracker-anthropic-key') || ''
+  if (!key) return null
+
+  const today = dateStr()
+  const cacheKey = `tracker-wisdom-${state.currentUser.id}-${today}`
+  const cached = sessionStorage.getItem(cacheKey)
+  if (cached) return cached
+
+  const data = await db.load()
+  const weights = data.weights || []
+
+  // 7-day summaries
+  const days = []
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(); d.setDate(d.getDate() - i)
+    const ds = dateStr(d)
+    const food = data.food[ds] || []
+    const workouts = data.workouts[ds] || []
+    const t = sumFood(food)
+    days.push({ ds, food, workouts, cal: t.calories, pro: t.protein, carbs: t.carbs, fat: t.fat })
+  }
+
+  const loggedDays = days.filter(d => d.food.length > 0)
+  const avgCal  = loggedDays.length ? round(loggedDays.reduce((s, d) => s + d.cal,   0) / loggedDays.length) : 0
+  const avgPro  = loggedDays.length ? round(loggedDays.reduce((s, d) => s + d.pro,   0) / loggedDays.length) : 0
+  const avgCarb = loggedDays.length ? round(loggedDays.reduce((s, d) => s + d.carbs, 0) / loggedDays.length) : 0
+  const avgFat  = loggedDays.length ? round(loggedDays.reduce((s, d) => s + d.fat,   0) / loggedDays.length) : 0
+  const workoutDays = days.filter(d => d.workouts.length > 0).length
+
+  const activityLog = days
+    .filter(d => d.workouts.length > 0)
+    .map(d => {
+      const acts = d.workouts.map(w => {
+        const parts = [w.description, w.intensity]
+        if (w.duration_min) parts.push(`${w.duration_min}min`)
+        if (w.calories_burned) parts.push(`${w.calories_burned}kcal burned`)
+        if (w.distance_km) parts.push(`${w.distance_km}km`)
+        return parts.join(' ')
+      }).join(', ')
+      return `${fmtDateShort(d.ds)}: ${acts}`
+    }).join('\n') || 'none'
+
+  const weightLine = weights.length >= 2
+    ? `Weight: ${weights[0].kg.toFixed(1)} kg now vs ${weights[Math.min(weights.length-1, 6)].kg.toFixed(1)} kg ${Math.min(weights.length-1, 6)} entries ago`
+    : weights.length === 1 ? `Weight: ${weights[0].kg.toFixed(1)} kg (only one reading)` : 'Weight: not logged'
+
+  const prompt = `You are a concise health insight generator. Given 7 days of tracking data, output ONE specific observation the user should know. Pick the single most useful insight from: goal adherence, nutrition trends, protein/calorie gaps, training frequency, activity variety, training load/intensity, rest vs training balance, weight trend.
+
+Today: ${fmtDate(today)}
+Targets: ${TARGETS.calories.rest} kcal rest / ${TARGETS.calories.training} kcal training / P${TARGETS.protein}g C${TARGETS.carbs}g F${TARGETS.fat}g
+7-day nutrition averages (${loggedDays.length} days logged): ${avgCal} kcal / P${avgPro}g C${avgCarb}g F${avgFat}g
+Workout days in last 7: ${workoutDays}/7
+Activity log:
+${activityLog}
+${weightLine}
+Today logged: ${days[0].cal} kcal / P${days[0].pro}g C${days[0].carbs}g F${days[0].fat}g, ${days[0].workouts.length} workout(s)
+
+Rules: one sentence, no markdown, no em dashes, no emojis, no lists, strictly informative, write like a short text message.`
+
+  try {
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 80,
+        system: prompt,
+        messages: [{ role: 'user', content: 'Give me one insight.' }],
+      }),
+    })
+    if (!r.ok) return null
+    const msg = await r.json()
+    const text = msg.content.find(b => b.type === 'text')?.text?.trim() || null
+    if (text) sessionStorage.setItem(cacheKey, text)
+    return text
+  } catch (_) { return null }
 }
 
 export async function callClaudeApi(messages, system, signal) {
@@ -355,7 +446,11 @@ export function renderChat() {
   if (!el) return
   el.innerHTML = state.chatDisplay.map(m => {
     const imgLabel = m.imageCount ? `<span class="chat-img-label">📎 ${m.imageCount} image${m.imageCount > 1 ? 's' : ''} attached</span>` : ''
-    return `<div class="chat-bubble ${m.role}${m.thinking ? ' thinking' : ''}">${m.text}${imgLabel}</div>`
+    const bubble = `<div class="chat-bubble ${m.role}${m.thinking ? ' thinking' : ''}">${m.text}${imgLabel}</div>`
+    if (m.role === 'assistant') {
+      return `<div class="chat-assistant-row"><span class="chat-claude-icon material-symbols-outlined">robot_2</span>${bubble}</div>`
+    }
+    return bubble
   }).join('')
   el.scrollTop = el.scrollHeight
 
@@ -390,8 +485,8 @@ export function toggleChatPanel() {
   const panel = document.getElementById('chat-panel')
   if (!panel) return
   if (panel.classList.contains('expanded')) collapseChatPanel()
-  else if (panel.classList.contains('peek')) expandChatPanel()
-  else collapseChatPanel()
+  else if (panel.classList.contains('peek')) { if (state.chatDisplay.length > 0) expandChatPanel() }
+  else if (state.chatDisplay.length > 0) collapseChatPanel()
 }
 
 export function clearChat() {

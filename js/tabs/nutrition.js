@@ -113,7 +113,6 @@ export async function renderNutrition(monthOffset) {
             ${mealMacroAvgHTML(data, 30)}
           </div>
         </div>
-        <div class="section-divider"></div>
         <div class="section-label">Weight</div>
         ${renderWeightSection(data)}
       </div>

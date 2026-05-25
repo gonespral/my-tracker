@@ -5,7 +5,7 @@ import { dateStr, nowTime } from './utils.js'
 import { showToast, openSheet, closeSheet, closeSheets, toggleEntryMenu, closeMenus, bindSnapDrag } from './ui.js'
 import { startListening, stopListening } from './speech.js'
 import { openChat, clearChat, expandChatPanel, collapseChatPanel, hideChatPanel, toggleChatPanel, sendChatMessage, renderChat, setChatPanelState, isChatLoading, abortChat } from './ai.js'
-import { renderToday, openFoodSheet, openFoodSheetWithPreset, openWorkoutSheet, editFood, editWorkout, saveToMeals } from './tabs/today.js'
+import { renderToday, openFoodSheet, openFoodSheetWithPreset, openWorkoutSheet, editFood, editWorkout, saveToMeals, reloadWisdom } from './tabs/today.js'
 import { renderNutrition } from './tabs/nutrition.js'
 import { renderWorkouts } from './tabs/workouts.js'
 import { renderSettings, openPresetSheet, deletePreset, openWorkoutPresetSheet, deleteWorkoutPreset } from './tabs/settings.js'
@@ -214,6 +214,10 @@ document.addEventListener('click', async (e) => {
       if (accordion) accordion.classList.toggle('open')
       break
     }
+    case 'reload-wisdom':
+      reloadWisdom()
+      break
+
     case 'heatmap-month': {
       const offset = parseInt(actionEl.dataset.offset, 10)
       if (!isNaN(offset)) {
@@ -429,9 +433,8 @@ async function initApp() {
   mainInput.addEventListener('submit-input', handleMainInput)
 
   document.getElementById('chat-panel-handle').addEventListener('click', toggleChatPanel)
-  document.getElementById('chat-peek-body').addEventListener('click', expandChatPanel)
-  document.getElementById('chat-clear-btn').addEventListener('click', clearChat)
-  document.getElementById('chat-collapse-btn').addEventListener('click', collapseChatPanel)
+  document.getElementById('chat-peek-body').addEventListener('click', () => { if (state.chatDisplay.length > 0) expandChatPanel() })
+
 
   const chatPanel = document.getElementById('chat-panel')
   const chatHandleHeight = 18
@@ -506,7 +509,7 @@ async function initApp() {
       dragging = true
       e.preventDefault()
       const minHeight = chatHandleHeight
-      const maxHeight = chatExpandedHeight()
+      const maxHeight = state.chatDisplay.length > 0 ? chatExpandedHeight() : chatHandleHeight
       const nextHeight = Math.max(minHeight, Math.min(maxHeight, startHeight - delta))
       chatPanel.style.height = nextHeight + 'px'
     })

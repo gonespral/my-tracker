@@ -462,7 +462,7 @@ export function streakHTML(data) {
   return `
     <div class="streak-number-wrap">
       <div class="streak-number">${weekStreak}</div>
-      <div class="streak-label">week streak</div>
+      <div class="streak-label">week activity streak</div>
     </div>
     <div class="streak-dots">${dots.join('')}</div>`
 }
