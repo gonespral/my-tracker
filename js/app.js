@@ -13,21 +13,6 @@ import { handleStravaCallback, syncStrava, stravaIsConnected, pushActivityToStra
 import { handleGoogleHealthCallback, syncGoogleHealth, googleHealthIsConnected } from './google-health.js'
 import { showTutorialIfNew } from './tutorial.js'
 
-// Disable pinch-zoom and double-tap zoom on iOS PWA
-document.addEventListener('touchstart', e => {
-  if (e.touches.length > 1) e.preventDefault()
-}, { passive: false })
-document.addEventListener('touchmove', e => {
-  if (e.touches.length > 1) e.preventDefault()
-}, { passive: false })
-;(function () {
-  let lastTap = 0
-  document.addEventListener('touchend', e => {
-    const now = Date.now()
-    if (now - lastTap < 300) e.preventDefault()
-    lastTap = now
-  }, { passive: false })
-})()
 
 function signIn() {
   supabase.auth.signInWithOAuth({
