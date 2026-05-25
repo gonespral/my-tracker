@@ -2569,7 +2569,7 @@ body {
   }
 
   #chat-panel.expanded ~ .input-bar {
-    z-index: 350;
+    z-index: 460;
     border-radius: 0;
     border: none;
     border-top: 1px solid var(--border);
