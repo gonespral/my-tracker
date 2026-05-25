@@ -91,6 +91,57 @@ CREATE TABLE public.user_integrations (
     PRIMARY KEY (user_id, provider)
 );
 
+-- ── Approved Users / Signup Whitelist ────────────────────────────────────
+
+CREATE TABLE public.allowed_users (
+    email TEXT PRIMARY KEY,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- IMPORTANT: Uncomment the line below and change to your actual GitHub email
+-- BEFORE running this migration, or you will lock yourself out!
+-- INSERT INTO public.allowed_users (email) VALUES (lower('your_actual_email@example.com'));
+
+CREATE OR REPLACE FUNCTION public.is_approved_user()
+RETURNS boolean
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public, auth
+AS $$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM public.allowed_users
+        WHERE lower(email) = lower(coalesce(auth.jwt() ->> 'email', ''))
+    ) THEN
+        RETURN true;
+    END IF;
+
+    RAISE EXCEPTION 'Access rejected by Supabase: email % is not approved.', coalesce(auth.jwt() ->> 'email', 'unknown');
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.assert_approved_user()
+RETURNS void
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public, auth
+AS $$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM public.allowed_users
+        WHERE lower(email) = lower(coalesce(auth.jwt() ->> 'email', ''))
+    ) THEN
+        RETURN;
+    END IF;
+
+    RAISE EXCEPTION 'Access rejected by Supabase: email % is not approved.', coalesce(auth.jwt() ->> 'email', 'unknown');
+END;
+$$;
+
 -- ── Row-Level Security ───────────────────────────────────────────────────
 
 ALTER TABLE public.food_entries      ENABLE ROW LEVEL SECURITY;
@@ -103,31 +154,31 @@ ALTER TABLE public.user_integrations ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Users manage own food entries"
     ON public.food_entries FOR ALL TO authenticated
-    USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+    USING (auth.uid() = user_id AND public.is_approved_user()) WITH CHECK (auth.uid() = user_id AND public.is_approved_user());
 
 CREATE POLICY "Users manage own workout entries"
     ON public.workout_entries FOR ALL TO authenticated
-    USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+    USING (auth.uid() = user_id AND public.is_approved_user()) WITH CHECK (auth.uid() = user_id AND public.is_approved_user());
 
 CREATE POLICY "Users manage own weight entries"
     ON public.weight_entries FOR ALL TO authenticated
-    USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+    USING (auth.uid() = user_id AND public.is_approved_user()) WITH CHECK (auth.uid() = user_id AND public.is_approved_user());
 
 CREATE POLICY "Users manage own meal presets"
     ON public.meal_presets FOR ALL TO authenticated
-    USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+    USING (auth.uid() = user_id AND public.is_approved_user()) WITH CHECK (auth.uid() = user_id AND public.is_approved_user());
 
 CREATE POLICY "Users manage own workout presets"
     ON public.workout_presets FOR ALL TO authenticated
-    USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+    USING (auth.uid() = user_id AND public.is_approved_user()) WITH CHECK (auth.uid() = user_id AND public.is_approved_user());
 
 CREATE POLICY "Users manage own settings"
     ON public.user_settings FOR ALL TO authenticated
-    USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+    USING (auth.uid() = user_id AND public.is_approved_user()) WITH CHECK (auth.uid() = user_id AND public.is_approved_user());
 
 CREATE POLICY "Users manage own integrations"
     ON public.user_integrations FOR ALL TO authenticated
-    USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+    USING (auth.uid() = user_id AND public.is_approved_user()) WITH CHECK (auth.uid() = user_id AND public.is_approved_user());
 
 -- ── Indexes ──────────────────────────────────────────────────────────────
 
@@ -135,24 +186,14 @@ CREATE INDEX idx_food_entries_user_date    ON public.food_entries (user_id, date
 CREATE INDEX idx_workout_entries_user_date ON public.workout_entries (user_id, date);
 CREATE INDEX idx_weight_entries_user_date  ON public.weight_entries (user_id, date);
 
--- ── Registration Whitelist ───────────────────────────────────────────────
-
-CREATE TABLE public.allowed_emails (
-    email TEXT PRIMARY KEY,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
-);
-
--- IMPORTANT: Uncomment the line below and change to your actual GitHub email 
--- BEFORE running this migration, or you will lock yourself out!
--- INSERT INTO public.allowed_emails (email) VALUES ('your_actual_email@example.com');
-
-ALTER TABLE public.allowed_emails ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow read access for all authenticated users" ON public.allowed_emails FOR SELECT TO authenticated USING (true);
-
 CREATE OR REPLACE FUNCTION public.check_whitelist()
 RETURNS TRIGGER AS $$
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM public.allowed_emails WHERE email = NEW.email) THEN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM public.allowed_users
+        WHERE lower(email) = lower(NEW.email)
+    ) THEN
         RAISE EXCEPTION 'Signup disabled: Email % is not on the whitelist.', NEW.email;
     END IF;
     RETURN NEW;

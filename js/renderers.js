@@ -70,7 +70,7 @@ export const foodItem = (e, date) => {
       <button class="entry-menu-btn" data-action="toggle-menu">${materialIcon('more_vert', 16)}</button>
       <div class="entry-menu">
         <button data-action="edit-food" data-id="${e.id}" data-date="${date}">Edit</button>
-        <button data-action="save-to-meals" data-id="${e.id}" data-date="${date}">Save to meals</button>
+        <button data-action="save-to-meals" data-id="${e.id}" data-date="${date}">Save as preset</button>
         <button class="danger" data-action="delete-food" data-id="${e.id}">Delete</button>
       </div>
     </div>

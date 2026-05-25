@@ -1,7 +1,7 @@
 import { TARGETS, MEAL_ORDER, MEAL_LABEL, MEAL_ICON } from '../config.js'
 import { state } from '../state.js'
 import { db } from '../db.js'
-import { dateStr, sumFood, formatTimeTo24H, calculateNetActiveCalories } from '../utils.js'
+import { dateStr, sumFood, calculateNetActiveCalories } from '../utils.js'
 import { calRingHTML, macroRingHTML, weekChartHTML, streakHTML } from '../charts.js'
 import { foodItem, workoutItem } from '../renderers.js'
 import { openSheet, showToast, closeMenus } from '../ui.js'
@@ -169,7 +169,7 @@ export function editWorkout(id, date) {
   document.getElementById('w-desc-ac')?.classList.remove('open')
   document.getElementById('w-desc').value = entry.description || ''
   document.getElementById('w-date').value = entryDate
-  document.getElementById('w-time').value = entry.time ? formatTimeTo24H(entry.time) : ''
+  document.getElementById('w-time').value = entry.time ? entry.time.slice(11, 16) : ''
   document.getElementById('w-activity-type').value   = entry.activity_type   || ''
   document.getElementById('w-calories-burned').value = entry.calories_burned || ''
   document.getElementById('w-duration-min').value    = entry.duration_min    || ''

@@ -79,6 +79,12 @@ Enter client credentials in the settings sheet within the app.
 - **Strava:** Register an app at [strava.com/settings/api](https://www.strava.com/settings/api).
 - **Google Fit:** Create a web client ID in the [Google API Console](https://console.developers.google.com/) and enable the Fitness API.
 
+#### Calorie spoofing
+
+Strava does not allow setting calories on manually created activities via its API. Enabling **Calorie spoofing** in Settings → Strava works around this: the app derives a synthetic heart rate from your logged calories, duration, weight, age, and sex using the Keytel et al. (2005) formula, then uploads the activity as a TCX file. Strava processes the heart rate data and computes the calorie count itself, resulting in the correct value appearing on your activity.
+
+Enable it only if you regularly log calories burned and want them reflected on Strava. Requires your weight, age, and sex to be set in Settings → Profile.
+
 ## Deployment
 
 Pushes to `main` trigger a GitHub Actions workflow (`.github/workflows/deploy.yml`) that publishes the static files to GitHub Pages.

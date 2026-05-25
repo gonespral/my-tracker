@@ -60,6 +60,15 @@ export function computeCalorieTargets(profile, fallbackWeightKg = null) {
   }
 }
 
+// 30% protein / 40% carbs / 30% fat split
+export function recommendMacros(calories) {
+  return {
+    protein: Math.round(calories * 0.30 / 4),
+    carbs:   Math.round(calories * 0.40 / 4),
+    fat:     Math.round(calories * 0.30 / 9),
+  }
+}
+
 export function hydrateCalorieTargets(profile, fallbackWeightKg = null) {
   const targets = computeCalorieTargets(profile, fallbackWeightKg)
   if (!targets) return null

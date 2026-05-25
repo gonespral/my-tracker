@@ -1,29 +1,26 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>MyTracker</title>
-  <link rel="icon" type="image/png" sizes="192x192" href="brand/icons/icon-192-dark.png" />
-  <link rel="apple-touch-icon" href="brand/icons/apple-touch-icon.png" media="(prefers-color-scheme: light)" />
-  <link rel="apple-touch-icon" href="brand/icons/apple-touch-icon-mono-dark.png" media="(prefers-color-scheme: dark)" />
+  <link rel="icon" href="brand/icons/favicon.svg" />
+  <link rel="icon" media="(prefers-color-scheme: dark)" href="brand/icons/favicon-dark.svg" />
+  <link rel="apple-touch-icon" href="brand/icons/apple-touch-icon.png" />
+  <link rel="apple-touch-icon" media="(prefers-color-scheme: dark)" href="brand/icons/apple-touch-icon-dark.png" />
   <link rel="manifest" href="manifest.json" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-title" content="MyTracker" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-  <meta name="theme-color" content="#f6f8fa" media="(prefers-color-scheme: light)" />
-  <meta name="theme-color" content="#0d1117" media="(prefers-color-scheme: dark)" />
+  <meta name="theme-color" content="#f7f6f2" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#121212" media="(prefers-color-scheme: dark)" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link
-    href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap"
-    rel="stylesheet" />
-  <link rel="stylesheet"
-    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
   <link rel="stylesheet" href="css/style.css?v=5" />
   <script>
-    ; (function () {
+    ;(function() {
       const saved = localStorage.getItem('tracker-theme')
       const t = saved || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
       document.documentElement.setAttribute('data-theme', t)
@@ -33,377 +30,338 @@
 
 <body>
 
-  <!-- ── App ────────────────────────────────────────────────── -->
-  <div id="app">
+<!-- ── App ────────────────────────────────────────────────── -->
+<div id="app">
 
-    <!-- Top bar: title + actions + tabs -->
-    <header class="top-bar">
-      <div class="top-bar-inner">
-        <span class="top-bar-title">
-          <img src="brand/svg/logo-mono-light.svg" alt="MyTracker" class="app-icon app-icon-light">
-          <img src="brand/svg/logo-mono-dark.svg" alt="MyTracker" class="app-icon app-icon-dark">
-          MyTracker
-          <div id="demo-mode-tag" onclick="alert('To disable Demo Mode, open Settings (gear icon) and tap Sign Out.')" style="display:none; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; background:var(--warn-soft); color:#92400e; padding:3px 8px; border-radius:999px; cursor:pointer; margin-left:4px;">Demo</div>
-          <script>
-            if (localStorage.getItem('tracker-demo') === '1' || window.location.search.includes('demo=')) {
-              document.getElementById('demo-mode-tag').style.display = 'block';
-            }
-          </script>
-          <a href="https://github.com/gonespral/health-tracker" target="_blank" class="github-repo-link"
-            aria-label="GitHub Repository">
-            <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
-              <path
-                d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z">
-              </path>
-            </svg>
-          </a>
-        </span>
-        <div class="top-bar-actions">
-          <button id="theme-toggle" class="icon-btn" title="Toggle dark mode" aria-label="Toggle dark mode">
-            <span class="material-symbols-outlined icon-sun" style="font-size:18px">light_mode</span>
-            <span class="material-symbols-outlined icon-moon" style="font-size:18px">dark_mode</span>
+  <!-- Top bar: title + actions + tabs -->
+  <header class="top-bar">
+    <div class="top-bar-inner">
+      <span class="top-bar-title">
+        <img src="brand/svg/logo-mono-light.svg" alt="MyTracker" class="app-icon app-icon-light">
+        <img src="brand/svg/logo-mono-dark.svg" alt="MyTracker" class="app-icon app-icon-dark">
+        MyTracker
+      </span>
+      <div class="top-bar-actions">
+        <button id="theme-toggle" class="icon-btn" title="Toggle dark mode" aria-label="Toggle dark mode">
+          <span class="material-symbols-outlined icon-sun" style="font-size:18px">light_mode</span>
+          <span class="material-symbols-outlined icon-moon" style="font-size:18px">dark_mode</span>
+        </button>
+        <button id="apikey-btn" class="icon-btn" title="Settings" aria-label="Settings">
+          <span class="material-symbols-outlined" style="font-size:18px">settings</span>
+        </button>
+      </div>
+    </div>
+    <div class="top-bar-tabs">
+      <button class="tab active" data-tab="today">Today</button>
+      <button class="tab" data-tab="nutrition">Nutrition</button>
+      <button class="tab" data-tab="workouts">Activities</button>
+    </div>
+  </header>
+
+  <!-- Panels -->
+  <main class="panels">
+
+    <!-- TODAY -->
+    <div class="panel active" id="panel-today">
+      <div class="today-inner">
+        <div class="today-left">
+          <div class="cal-section" id="cal-section"></div>
+          <div class="macro-rings" id="macro-rings"></div>
+          <button class="stats-toggle" id="stats-toggle">
+            <span id="toggle-label">Stats</span>
+            <span id="toggle-arrow" class="material-symbols-outlined" style="font-size:16px">expand_more</span>
           </button>
-          <button id="apikey-btn" class="icon-btn" title="Settings" aria-label="Settings">
-            <span class="material-symbols-outlined" style="font-size:18px">settings</span>
-          </button>
-        </div>
-      </div>
-      <div class="top-bar-tabs">
-        <button class="tab active" data-tab="today">Today</button>
-        <button class="tab" data-tab="nutrition">Nutrition</button>
-        <button class="tab" data-tab="workouts">Activities</button>
-      </div>
-    </header>
-
-    <!-- Panels -->
-    <main class="panels">
-
-      <!-- TODAY -->
-      <div class="panel active" id="panel-today">
-        <div class="today-inner">
-          <div class="today-left">
-            <div class="cal-section" id="cal-section"></div>
-            <div class="macro-rings" id="macro-rings"></div>
-            <button class="stats-toggle" id="stats-toggle">
-              <span id="toggle-label">Stats</span>
-              <span id="toggle-arrow" class="material-symbols-outlined" style="font-size:16px">expand_more</span>
-            </button>
-            <div class="stats-section" id="stats-section" style="display:none">
-              <div class="chart-card" id="week-chart-card"></div>
-              <div class="streak-card" id="streak-card"></div>
-            </div>
-          </div>
-          <div class="today-right" id="today-logs"></div>
-        </div>
-      </div>
-
-      <!-- NUTRITION -->
-      <div class="panel" id="panel-nutrition"></div>
-
-      <!-- WORKOUTS -->
-      <div class="panel" id="panel-workouts"></div>
-
-    </main>
-
-    <!-- Unified chat panel (peek strip + expanded chat) -->
-    <div id="chat-panel" class="collapsed">
-      <div class="chat-panel-handle-row" id="chat-panel-handle">
-        <div class="chat-panel-handle"></div>
-      </div>
-      <div id="chat-peek-body">
-        <div class="chat-peek-label">Claude</div>
-        <div class="chat-peek-text" id="chat-peek-text"></div>
-      </div>
-      <div id="chat-panel-body">
-        <div class="chat-header">
-          <div class="sheet-title" style="margin:0">Claude</div>
-          <div style="display:flex;gap:4px;align-items:center">
-            <button class="chat-close-btn" id="chat-clear-btn" title="New chat" style="font-size:14px;opacity:0.6"><span
-                class="material-symbols-outlined" style="font-size:14px">restart_alt</span></button>
-            <button class="chat-close-btn" id="chat-collapse-btn"><span class="material-symbols-outlined"
-                style="font-size:14px">close</span></button>
+          <div class="stats-section" id="stats-section" style="display:none">
+            <div class="chart-card" id="week-chart-card"></div>
+            <div class="streak-card" id="streak-card"></div>
+            <div class="chart-card" id="macro-bar-card"></div>
           </div>
         </div>
-        <div class="chat-messages" id="chat-messages"></div>
+        <div class="today-right" id="today-logs"></div>
       </div>
     </div>
 
-    <!-- Input bar -->
-    <div class="input-bar">
-      <button class="mic-btn" id="mic-btn" aria-label="Voice input">
-        <span class="material-symbols-outlined" style="font-size:18px">mic</span>
+    <!-- NUTRITION -->
+    <div class="panel" id="panel-nutrition"></div>
+
+    <!-- WORKOUTS -->
+    <div class="panel" id="panel-workouts"></div>
+
+  </main>
+
+  <!-- Unified chat panel (peek strip + expanded chat) -->
+  <div id="chat-panel" class="collapsed">
+    <div class="chat-panel-handle-row" id="chat-panel-handle">
+      <div class="chat-panel-handle"></div>
+    </div>
+    <div id="chat-peek-body">
+      <div class="chat-peek-label">Claude</div>
+      <div class="chat-peek-text" id="chat-peek-text"></div>
+    </div>
+    <div id="chat-panel-body">
+      <div class="chat-header">
+        <div class="sheet-title" style="margin:0">Claude</div>
+        <div style="display:flex;gap:4px;align-items:center">
+          <button class="chat-close-btn" id="chat-clear-btn" title="New chat" style="font-size:14px;opacity:0.6"><span class="material-symbols-outlined" style="font-size:14px">restart_alt</span></button>
+          <button class="chat-close-btn" id="chat-collapse-btn"><span class="material-symbols-outlined" style="font-size:14px">close</span></button>
+        </div>
+      </div>
+      <div class="chat-messages" id="chat-messages"></div>
+    </div>
+  </div>
+
+  <!-- Input bar -->
+  <div class="input-bar">
+    <button class="mic-btn" id="mic-btn" aria-label="Voice input">
+      <span class="material-symbols-outlined" style="font-size:18px">mic</span>
+    </button>
+    <textarea class="input-field" id="main-input" rows="1"
+      placeholder="Type something…" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
+    <button class="send-btn" id="send-btn" aria-label="Send">
+      <span class="material-symbols-outlined" style="font-size:18px;color:white">send</span>
+    </button>
+  </div>
+
+</div><!-- /#app -->
+
+<!-- Sign-in overlay (shown when logged out) -->
+<div id="signin-overlay" class="signin-overlay" style="display:none">
+  <div class="signin-card">
+    <div class="signin-title">MyTracker</div>
+    <div class="signin-sub">Sign in to view your data</div>
+    <button class="github-signin-btn" data-action="signin">
+      <span class="material-symbols-outlined" style="font-size:20px;vertical-align:-4px">login</span>
+      Sign in with GitHub
+    </button>
+  </div>
+</div>
+
+<!-- Backdrop -->
+<div class="backdrop" id="backdrop"></div>
+
+<!-- ── Activity sheet ──────────────────────────────────────── -->
+<div class="sheet" id="intensity-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">Log Activity</div>
+  <div class="form-field autocomplete-wrap">
+    <label class="form-label" for="w-desc">Activity</label>
+    <input class="form-input" id="w-desc" type="text" placeholder="e.g. Morning run" autocomplete="off" />
+    <div class="autocomplete-list" id="w-desc-ac"></div>
+  </div>
+  <div style="display:flex;gap:8px">
+    <div class="form-field" style="flex:1">
+      <label class="form-label" for="w-date">Date</label>
+      <input class="form-input" id="w-date" type="date" />
+    </div>
+    <div class="form-field" style="flex:1">
+      <label class="form-label" for="w-time">Time</label>
+      <input class="form-input" id="w-time" type="time" />
+    </div>
+  </div>
+  <div class="form-field">
+    <label class="form-label">Intensity</label>
+    <div class="intensity-btns" id="intensity-btns-main">
+      <button class="intensity-btn" data-intensity="low" type="button">
+        <span class="material-symbols-outlined" style="font-size:13px;margin-right:4px">signal_cellular_alt_1_bar</span>Low
       </button>
-      <textarea class="input-field" id="main-input" rows="1" placeholder="Type something…" autocomplete="off"
-        autocorrect="off" spellcheck="false"></textarea>
-      <button class="send-btn" id="send-btn" aria-label="Send">
-        <span class="material-symbols-outlined" style="font-size:18px;color:white">send</span>
+      <button class="intensity-btn active" data-intensity="medium" type="button">
+        <span class="material-symbols-outlined" style="font-size:13px;margin-right:4px">signal_cellular_alt</span>Medium
       </button>
-    </div>
-
-  </div><!-- /#app -->
-
-  <!-- Sign-in overlay (shown when logged out) -->
-  <div id="signin-overlay" class="signin-overlay" style="display:none">
-    <div class="signin-card">
-      <div class="signin-title">MyTracker</div>
-      <div class="signin-sub">Sign in to view your data</div>
-      <button class="github-signin-btn" data-action="signin" data-provider="github"
-        style="width:100%;justify-content:center;margin-bottom:10px">
-        <span class="material-symbols-outlined" style="font-size:20px;vertical-align:-4px">login</span>
-        Sign in with GitHub
-      </button>
-      <button class="google-signin-btn" data-action="signin" data-provider="google"
-        style="width:100%;justify-content:center">
-        <span class="material-symbols-outlined" style="font-size:20px;vertical-align:-4px">login</span>
-        Sign in with Google
+      <button class="intensity-btn" data-intensity="high" type="button">
+        <span class="material-symbols-outlined" style="font-size:13px;margin-right:4px">trending_up</span>High
       </button>
     </div>
   </div>
-
-  <!-- Backdrop -->
-  <div class="backdrop" id="backdrop"></div>
-
-  <!-- ── Activity sheet ──────────────────────────────────────── -->
-  <div class="sheet" id="intensity-sheet">
-    <div class="sheet-handle"></div>
-    <div class="sheet-title">Log Activity</div>
-    <div class="form-field autocomplete-wrap">
-      <label class="form-label" for="w-desc">Activity</label>
-      <input class="form-input" id="w-desc" type="text" placeholder="e.g. Morning run" autocomplete="off" />
-      <div class="autocomplete-list" id="w-desc-ac"></div>
-    </div>
-    <div class="form-row-2">
-      <div class="form-field">
-        <label class="form-label" for="w-date">Date</label>
-        <input class="form-input" id="w-date" type="date" />
-      </div>
-      <div class="form-field">
-        <label class="form-label" for="w-time">Time <span
-            style="font-size:11px;color:var(--tx3);font-weight:400">(optional)</span></label>
-        <input class="form-input" id="w-time" type="time" />
-      </div>
-    </div>
-    <div class="form-field">
-      <label class="form-label">Intensity</label>
-      <div class="intensity-btns" id="intensity-btns-main">
-        <button class="intensity-btn" data-intensity="low" type="button">
-          <span class="material-symbols-outlined"
-            style="font-size:13px;margin-right:4px">signal_cellular_alt_1_bar</span>Low
-        </button>
-        <button class="intensity-btn active" data-intensity="medium" type="button">
-          <span class="material-symbols-outlined"
-            style="font-size:13px;margin-right:4px">signal_cellular_alt</span>Medium
-        </button>
-        <button class="intensity-btn" data-intensity="high" type="button">
-          <span class="material-symbols-outlined" style="font-size:13px;margin-right:4px">trending_up</span>High
-        </button>
-      </div>
-    </div>
-    <div class="form-field">
-      <label class="form-label" for="w-activity-type">Activity type <span
-          style="font-size:11px;color:var(--tx3);font-weight:400">(auto-detected if blank)</span></label>
-      <select class="form-input" id="w-activity-type">
-        <option value="">Auto-detect from name</option>
-        <option value="run">Running</option>
-        <option value="cycle">Cycling</option>
-        <option value="swim">Swimming</option>
-        <option value="walk">Walking</option>
-        <option value="lift">Lifting / Gym</option>
-        <option value="box">Martial arts</option>
-        <option value="hiit">HIIT / Cardio</option>
-        <option value="yoga">Yoga / Pilates</option>
-        <option value="tennis">Racquet sport</option>
-        <option value="climb">Climbing</option>
-        <option value="row">Rowing / Kayak</option>
-        <option value="ball">Ball sport</option>
-      </select>
-    </div>
-    <div class="form-field">
-      <label class="form-label" for="w-calories-burned">Calories burned (optional)</label>
-      <input id="w-calories-burned" type="number" class="form-input" inputmode="numeric" placeholder="e.g. 350"
-        min="0" />
-    </div>
-    <div class="form-row-2">
-      <div class="form-field">
-        <label class="form-label" for="w-duration-min">Duration (min)</label>
-        <input id="w-duration-min" type="number" class="form-input" inputmode="numeric" placeholder="e.g. 45" min="0" />
-      </div>
-      <div class="form-field">
-        <label class="form-label" for="w-distance-km">Distance (km)</label>
-        <input id="w-distance-km" type="number" class="form-input" inputmode="decimal" placeholder="e.g. 5.2" min="0"
-          step="0.1" />
-      </div>
-    </div>
-    <div class="form-field">
-      <label class="form-label" for="w-heart-rate">Avg heart rate (bpm)</label>
-      <input id="w-heart-rate" type="number" class="form-input" inputmode="numeric" placeholder="e.g. 145" min="0" />
-    </div>
-    <button class="btn-primary" id="save-workout-btn">Log Activity</button>
+  <div class="form-field">
+    <label class="form-label" for="w-activity-type">Activity type <span style="font-size:11px;color:var(--tx3);font-weight:400">(auto-detected if blank)</span></label>
+    <select class="form-input" id="w-activity-type">
+      <option value="">Auto-detect from name</option>
+      <option value="run">Running</option>
+      <option value="cycle">Cycling</option>
+      <option value="swim">Swimming</option>
+      <option value="walk">Walking</option>
+      <option value="lift">Lifting / Gym</option>
+      <option value="box">Martial arts / Combat</option>
+      <option value="hiit">HIIT / Cardio</option>
+      <option value="yoga">Yoga / Pilates</option>
+      <option value="tennis">Racquet sport</option>
+      <option value="climb">Climbing</option>
+      <option value="row">Rowing / Kayak</option>
+      <option value="ball">Ball sport</option>
+    </select>
   </div>
-
-  <!-- ── Food sheet ─────────────────────────────────────────── -->
-  <div class="sheet" id="food-sheet">
-    <div class="sheet-handle"></div>
-    <div class="sheet-title">Log Food</div>
-    <div id="preset-match-banner" class="preset-match-banner" style="display:none"></div>
-    <div class="form-field">
-      <label class="form-label" for="f-date">Date</label>
-      <input class="form-input" id="f-date" type="date" />
-    </div>
-    <div class="form-field">
-      <label class="form-label">Meal</label>
-      <div class="meal-btns">
-        <button class="meal-btn active" data-meal="breakfast" type="button">Breakfast</button>
-        <button class="meal-btn" data-meal="lunch" type="button">Lunch</button>
-        <button class="meal-btn" data-meal="snack" type="button">Snack</button>
-        <button class="meal-btn" data-meal="dinner" type="button">Dinner</button>
-      </div>
-    </div>
-    <div class="form-field autocomplete-wrap">
-      <label class="form-label" for="f-desc">Description</label>
-      <input class="form-input" id="f-desc" type="text" placeholder="e.g. Pasta pesto + 2 eggs" autocomplete="off" />
-      <div class="autocomplete-list" id="f-desc-ac"></div>
-    </div>
-    <div class="form-field">
-      <label class="form-label" for="f-cal">Calories (kcal)</label>
-      <input class="form-input" id="f-cal" type="number" inputmode="numeric" placeholder="0" min="0" />
-    </div>
-    <div class="form-macros">
-      <div class="form-field">
-        <label class="form-label" for="f-pro">Protein (g)</label>
-        <input class="form-input" id="f-pro" type="number" inputmode="numeric" placeholder="0" min="0" />
-      </div>
-      <div class="form-field">
-        <label class="form-label" for="f-car">Carbs (g)</label>
-        <input class="form-input" id="f-car" type="number" inputmode="numeric" placeholder="0" min="0" />
-      </div>
-      <div class="form-field">
-        <label class="form-label" for="f-fat">Fat (g)</label>
-        <input class="form-input" id="f-fat" type="number" inputmode="numeric" placeholder="0" min="0" />
-      </div>
-    </div>
-    <button class="btn-primary" id="log-food-btn">Log Food</button>
+  <div class="form-field">
+    <label class="form-label" for="w-calories-burned">Calories burned (optional)</label>
+    <input id="w-calories-burned" type="number" class="form-input" inputmode="numeric" placeholder="e.g. 350" min="0" />
   </div>
-
-  <!-- ── Weight sheet ───────────────────────────────────────── -->
-  <div class="sheet" id="weight-edit-sheet">
-    <div class="sheet-handle"></div>
-    <div class="sheet-title" id="weight-sheet-title">Log weight</div>
+  <div class="form-row-2">
     <div class="form-field">
-      <label class="form-label" for="w-edit-date">Date</label>
-      <input id="w-edit-date" type="date" class="form-input" />
+      <label class="form-label" for="w-duration-min">Duration (min)</label>
+      <input id="w-duration-min" type="number" class="form-input" inputmode="numeric" placeholder="e.g. 45" min="0" />
     </div>
     <div class="form-field">
-      <label class="form-label" for="w-edit-kg">Weight (kg)</label>
-      <input id="w-edit-kg" type="number" class="form-input" inputmode="decimal" step="0.1" placeholder="e.g. 73.5" />
+      <label class="form-label" for="w-distance-km">Distance (km)</label>
+      <input id="w-distance-km" type="number" class="form-input" inputmode="decimal" placeholder="e.g. 5.2" min="0" step="0.1" />
     </div>
-    <button class="btn-primary" id="save-weight-btn">Save</button>
   </div>
-
-  <!-- ── Meal preset sheet ──────────────────────────────────── -->
-  <div class="sheet" id="meal-preset-sheet">
-    <div class="sheet-handle"></div>
-    <div class="sheet-title" id="meal-preset-title">New Meal</div>
-    <div class="form-field autocomplete-wrap">
-      <label class="form-label" for="mp-name">Name</label>
-      <input class="form-input" id="mp-name" type="text" placeholder="e.g. Oats with protein" autocomplete="off" />
-      <div class="autocomplete-list" id="mp-name-ac"></div>
-    </div>
-    <div class="form-field">
-      <label class="form-label" for="mp-cal">Calories (kcal)</label>
-      <input class="form-input" id="mp-cal" type="number" inputmode="numeric" placeholder="0" min="0" />
-    </div>
-    <div class="form-macros">
-      <div class="form-field">
-        <label class="form-label" for="mp-pro">Protein (g)</label>
-        <input class="form-input" id="mp-pro" type="number" inputmode="numeric" placeholder="0" min="0" />
-      </div>
-      <div class="form-field">
-        <label class="form-label" for="mp-car">Carbs (g)</label>
-        <input class="form-input" id="mp-car" type="number" inputmode="numeric" placeholder="0" min="0" />
-      </div>
-      <div class="form-field">
-        <label class="form-label" for="mp-fat">Fat (g)</label>
-        <input class="form-input" id="mp-fat" type="number" inputmode="numeric" placeholder="0" min="0" />
-      </div>
-    </div>
-    <div class="form-field">
-      <label class="form-label">Default meal</label>
-      <div class="meal-btns" id="mp-meal-btns">
-        <button class="meal-btn" data-meal="breakfast" type="button">Breakfast</button>
-        <button class="meal-btn" data-meal="lunch" type="button">Lunch</button>
-        <button class="meal-btn active" data-meal="snack" type="button">Snack</button>
-        <button class="meal-btn" data-meal="dinner" type="button">Dinner</button>
-      </div>
-    </div>
-    <button class="btn-primary" id="save-preset-btn">Save Meal</button>
+  <div class="form-field">
+    <label class="form-label" for="w-heart-rate">Avg heart rate (bpm)</label>
+    <input id="w-heart-rate" type="number" class="form-input" inputmode="numeric" placeholder="e.g. 145" min="0" />
   </div>
+  <button class="btn-primary" id="save-workout-btn">Log Activity</button>
+</div>
 
-  <!-- ── Workout preset sheet ───────────────────────────────── -->
-  <div class="sheet" id="workout-preset-sheet">
-    <div class="sheet-handle"></div>
-    <div class="sheet-title" id="wps-title">New Workout</div>
-    <div class="form-field autocomplete-wrap">
-      <label class="form-label" for="wps-name">Name</label>
-      <input class="form-input" id="wps-name" type="text" placeholder="e.g. Morning swim" autocomplete="off" />
-      <div class="autocomplete-list" id="wps-name-ac"></div>
+<!-- ── Food sheet ─────────────────────────────────────────── -->
+<div class="sheet" id="food-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">Log Food</div>
+  <div id="preset-match-banner" class="preset-match-banner" style="display:none"></div>
+  <div class="form-field">
+    <label class="form-label" for="f-date">Date</label>
+    <input class="form-input" id="f-date" type="date" />
+  </div>
+  <div class="form-field">
+    <label class="form-label">Meal</label>
+    <div class="meal-btns">
+      <button class="meal-btn active" data-meal="breakfast" type="button">Breakfast</button>
+      <button class="meal-btn" data-meal="lunch" type="button">Lunch</button>
+      <button class="meal-btn" data-meal="snack" type="button">Snack</button>
+      <button class="meal-btn" data-meal="dinner" type="button">Dinner</button>
+    </div>
+  </div>
+  <div class="form-field autocomplete-wrap">
+    <label class="form-label" for="f-desc">Description</label>
+    <input class="form-input" id="f-desc" type="text" placeholder="e.g. Pasta pesto + 2 eggs" autocomplete="off" />
+    <div class="autocomplete-list" id="f-desc-ac"></div>
+  </div>
+  <div class="form-field">
+    <label class="form-label" for="f-cal">Calories (kcal)</label>
+    <input class="form-input" id="f-cal" type="number" inputmode="numeric" placeholder="0" min="0" />
+  </div>
+  <div class="form-macros">
+    <div class="form-field">
+      <label class="form-label" for="f-pro">Protein (g)</label>
+      <input class="form-input" id="f-pro" type="number" inputmode="numeric" placeholder="0" min="0" />
     </div>
     <div class="form-field">
-      <label class="form-label">Intensity</label>
-      <div class="intensity-btns" id="wps-intensity-btns">
-        <button class="intensity-btn" data-intensity="low" type="button">
-          <span class="material-symbols-outlined"
-            style="font-size:13px;margin-right:4px">signal_cellular_alt_1_bar</span>Low
-        </button>
-        <button class="intensity-btn active" data-intensity="medium" type="button">
-          <span class="material-symbols-outlined"
-            style="font-size:13px;margin-right:4px">signal_cellular_alt</span>Medium
-        </button>
-        <button class="intensity-btn" data-intensity="high" type="button">
-          <span class="material-symbols-outlined" style="font-size:13px;margin-right:4px">trending_up</span>High
-        </button>
-      </div>
+      <label class="form-label" for="f-car">Carbs (g)</label>
+      <input class="form-input" id="f-car" type="number" inputmode="numeric" placeholder="0" min="0" />
     </div>
     <div class="form-field">
-      <label class="form-label" for="wps-calories-burned">Calories burned (optional)</label>
-      <input class="form-input" id="wps-calories-burned" type="number" inputmode="numeric" placeholder="e.g. 350"
-        min="0" />
+      <label class="form-label" for="f-fat">Fat (g)</label>
+      <input class="form-input" id="f-fat" type="number" inputmode="numeric" placeholder="0" min="0" />
     </div>
-    <button class="btn-primary" id="save-wps-btn">Save Workout</button>
   </div>
+  <button class="btn-primary" id="log-food-btn">Log Food</button>
+</div>
 
-  <!-- ── API key sheet (fallback when no key is set) ────────── -->
-  <div class="sheet" id="apikey-sheet">
-    <div class="sheet-handle"></div>
-    <div class="sheet-title">Set up Claude AI</div>
-    <p class="setup-note">
-      Paste your <a href="https://console.anthropic.com/settings/keys" target="_blank">Anthropic API key</a>.
-      Stored locally — never sent anywhere except Anthropic's API.
-    </p>
+<!-- ── Weight sheet ───────────────────────────────────────── -->
+<div class="sheet" id="weight-edit-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title" id="weight-sheet-title">Log weight</div>
+  <div class="form-field">
+    <label class="form-label" for="w-edit-kg">Weight (kg)</label>
+    <input id="w-edit-kg" type="number" class="form-input" inputmode="decimal" step="0.1" placeholder="e.g. 73.5" />
+  </div>
+  <button class="btn-primary" id="save-weight-btn">Save</button>
+</div>
+
+<!-- ── Meal preset sheet ──────────────────────────────────── -->
+<div class="sheet" id="meal-preset-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title" id="meal-preset-title">New Meal</div>
+  <div class="form-field">
+    <label class="form-label" for="mp-name">Name</label>
+    <input class="form-input" id="mp-name" type="text" placeholder="e.g. Oats with protein" />
+  </div>
+  <div class="form-field">
+    <label class="form-label" for="mp-cal">Calories (kcal)</label>
+    <input class="form-input" id="mp-cal" type="number" inputmode="numeric" placeholder="0" min="0" />
+  </div>
+  <div class="form-macros">
     <div class="form-field">
-      <label class="form-label" for="apikey-input">API key</label>
-      <input class="form-input" id="apikey-input" type="password" placeholder="sk-ant-..." autocomplete="off" />
+      <label class="form-label" for="mp-pro">Protein (g)</label>
+      <input class="form-input" id="mp-pro" type="number" inputmode="numeric" placeholder="0" min="0" />
     </div>
-    <button class="btn-primary" id="save-apikey-btn">Save</button>
-  </div>
-
-  <!-- ── Settings sheet ────────────────────────────────────── -->
-  <div class="sheet sheet-tall" id="settings-sheet" style="padding-bottom:0">
-    <div class="sheet-handle"></div>
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-      <div class="sheet-title" style="margin:0">Settings</div>
-      <button id="settings-close-btn" class="chat-close-btn" style="font-size:18px"><span
-          class="material-symbols-outlined" style="font-size:18px">close</span></button>
+    <div class="form-field">
+      <label class="form-label" for="mp-car">Carbs (g)</label>
+      <input class="form-input" id="mp-car" type="number" inputmode="numeric" placeholder="0" min="0" />
     </div>
-    <div id="settings-content"
-      style="flex:1;overflow-y:auto;min-height:0;margin:0 -20px;padding:0 20px calc(20px + var(--safe-bot))"></div>
+    <div class="form-field">
+      <label class="form-label" for="mp-fat">Fat (g)</label>
+      <input class="form-input" id="mp-fat" type="number" inputmode="numeric" placeholder="0" min="0" />
+    </div>
   </div>
+  <div class="form-field">
+    <label class="form-label">Default meal</label>
+    <div class="meal-btns" id="mp-meal-btns">
+      <button class="meal-btn" data-meal="breakfast" type="button">Breakfast</button>
+      <button class="meal-btn" data-meal="lunch" type="button">Lunch</button>
+      <button class="meal-btn active" data-meal="snack" type="button">Snack</button>
+      <button class="meal-btn" data-meal="dinner" type="button">Dinner</button>
+    </div>
+  </div>
+  <button class="btn-primary" id="save-preset-btn">Save Meal</button>
+</div>
 
-  <!-- Toast -->
-  <div class="toast" id="toast"></div>
+<!-- ── Workout preset sheet ───────────────────────────────── -->
+<div class="sheet" id="workout-preset-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title" id="wps-title">New Workout</div>
+  <div class="form-field">
+    <label class="form-label" for="wps-name">Name</label>
+    <input class="form-input" id="wps-name" type="text" placeholder="e.g. Morning swim" />
+  </div>
+  <div class="form-field">
+    <label class="form-label">Intensity</label>
+    <div class="intensity-btns" id="wps-intensity-btns">
+      <button class="intensity-btn" data-intensity="low" type="button">
+        <span class="material-symbols-outlined" style="font-size:13px;margin-right:4px">signal_cellular_alt_1_bar</span>Low
+      </button>
+      <button class="intensity-btn active" data-intensity="medium" type="button">
+        <span class="material-symbols-outlined" style="font-size:13px;margin-right:4px">signal_cellular_alt</span>Medium
+      </button>
+      <button class="intensity-btn" data-intensity="high" type="button">
+        <span class="material-symbols-outlined" style="font-size:13px;margin-right:4px">trending_up</span>High
+      </button>
+    </div>
+  </div>
+  <div class="form-field">
+    <label class="form-label" for="wps-calories-burned">Calories burned (optional)</label>
+    <input class="form-input" id="wps-calories-burned" type="number" inputmode="numeric" placeholder="e.g. 350" min="0" />
+  </div>
+  <button class="btn-primary" id="save-wps-btn">Save Workout</button>
+</div>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-  <script type="module" src="js/app.js"></script>
+<!-- ── API key sheet (fallback when no key is set) ────────── -->
+<div class="sheet" id="apikey-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">Set up Claude AI</div>
+  <p class="setup-note">
+    Paste your <a href="https://console.anthropic.com/settings/keys" target="_blank">Anthropic API key</a>.
+    Stored locally — never sent anywhere except Anthropic's API.
+  </p>
+  <div class="form-field">
+    <label class="form-label" for="apikey-input">API key</label>
+    <input class="form-input" id="apikey-input" type="password" placeholder="sk-ant-..." autocomplete="off" />
+  </div>
+  <button class="btn-primary" id="save-apikey-btn">Save</button>
+</div>
+
+<!-- ── Settings sheet ────────────────────────────────────── -->
+<div class="sheet sheet-tall" id="settings-sheet" style="padding-bottom:0">
+  <div class="sheet-handle"></div>
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+    <div class="sheet-title" style="margin:0">Settings</div>
+    <button id="settings-close-btn" class="chat-close-btn" style="font-size:18px"><span class="material-symbols-outlined" style="font-size:18px">close</span></button>
+  </div>
+  <div id="settings-content" style="flex:1;overflow-y:auto;min-height:0;margin:0 -20px;padding:0 20px calc(20px + var(--safe-bot))"></div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script type="module" src="js/app.js"></script>
 </body>
-
 </html>
