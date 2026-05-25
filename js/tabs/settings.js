@@ -6,6 +6,7 @@ import {
   CALORIE_SEX,
   computeCalorieTargets,
   hydrateCalorieTargets,
+  recommendMacros,
 } from '../config.js'
 import { state } from '../state.js'
 import { supabase, db, getWorkoutConflictPreference, setWorkoutConflictPreference } from '../db.js'
@@ -14,6 +15,7 @@ import { openSheet, showToast, closeMenus, closeSheets } from '../ui.js'
 import { connectStrava, disconnectStrava, syncStrava, updateStravaSettingsSection, stravaAutoPushEnabled, stravaWeightSyncEnabled, setStravaWeightSync, stravaSpoofCaloriesEnabled, setStravaSpoofCalories } from '../strava.js'
 import { connectGoogleHealth, disconnectGoogleHealth, syncGoogleHealth, updateGoogleHealthSettingsSection } from '../google-health.js'
 import { materialIcon } from '../icons.js'
+import { showTutorial } from '../tutorial.js'
 
 const STRAVA_ICON = materialIcon('directions_bike', 16)
 const GOOGLE_HEALTH_ICON = materialIcon('monitor_heart', 16)
@@ -55,16 +57,59 @@ function formatCalorieProfileSummary(targets, latestWeightKg) {
   `
 }
 
-function setCalorieProfileSummary(targets, latestWeightKg) {
+function withDeficit(rest, deficitKcal) {
+  const deficit = Math.max(0, Number(deficitKcal) || 0)
+  return Math.max(0, Math.round(rest - deficit))
+}
+
+function formatCalorieProfileSummaryWithDeficit(targets, latestWeightKg, deficitKcal = 0) {
+  if (!targets) return formatCalorieProfileSummary(targets, latestWeightKg)
+
+  const deficit = Math.max(0, Number(deficitKcal) || 0)
+  if (!deficit) return formatCalorieProfileSummary(targets, latestWeightKg)
+
+  const sexLabel = CALORIE_SEX[targets.sex]?.label || 'Other'
+  const activity = CALORIE_ACTIVITY_LEVELS[targets.activity_level]?.label || 'Moderate'
+  const weightLabel = Number.isFinite(targets.weight_kg)
+    ? `${targets.weight_kg.toFixed(targets.weight_kg % 1 ? 2 : 0)} kg`
+    : 'n/a'
+  const usedLatest = latestWeightKg != null && targets.weight_kg === latestWeightKg
+  const adjustedTarget = withDeficit(targets.rest, deficit)
+
+  return `
+    <strong>${adjustedTarget.toLocaleString()} kcal/day</strong> target after deficit.<br>
+    Maintenance: ${targets.rest.toLocaleString()} kcal · Deficit: ${Math.round(deficit).toLocaleString()} kcal · BMR: ${targets.bmr.toLocaleString()} kcal · ${sexLabel} · ${targets.age} years · ${targets.height_cm} cm · ${weightLabel} · ${activity}${usedLatest ? ` · using latest logged weight (${latestWeightKg.toFixed(2)} kg)` : ''}.
+  `
+}
+
+function setCalorieProfileSummary(targets, latestWeightKg, deficitKcal = 0) {
   const summary = document.getElementById('settings-profile-summary')
   if (!summary) return
-  summary.innerHTML = formatCalorieProfileSummary(targets, latestWeightKg)
+  summary.innerHTML = formatCalorieProfileSummaryWithDeficit(targets, latestWeightKg, deficitKcal)
 }
 
 function updateProfileTargetInputs(targets) {
   if (!targets) return
   const restInput = document.getElementById('t-cal-rest')
   if (restInput) restInput.value = targets.rest
+  const macros = recommendMacros(targets.rest)
+  const proInput = document.getElementById('t-protein')
+  const carInput = document.getElementById('t-carbs')
+  const fatInput = document.getElementById('t-fat')
+  if (proInput) proInput.value = macros.protein
+  if (carInput) carInput.value = macros.carbs
+  if (fatInput) fatInput.value = macros.fat
+}
+
+function setTargetsReadonly(isReadonly) {
+  const targetGrid = document.querySelector('.targets-grid')
+  targetGrid?.classList.toggle('is-readonly', !!isReadonly)
+  ;['t-cal-rest', 't-protein', 't-carbs', 't-fat'].forEach(id => {
+    const input = document.getElementById(id)
+    if (input) input.disabled = !!isReadonly
+  })
+  const saveBtn = document.getElementById('settings-save-targets-btn')
+  if (saveBtn) saveBtn.style.display = isReadonly ? 'none' : ''
 }
 
 export async function renderSettings() {
@@ -102,6 +147,12 @@ export async function renderSettings() {
   }
 
   const latestWeightKg = data?.weights?.[0]?.kg || null
+  const bmrEnabledKey = `tracker-use-bmr:${state.currentUser.id}`
+  const bmrDeficitKey = `tracker-bmr-deficit:${state.currentUser.id}`
+  const useBmr = localStorage.getItem(bmrEnabledKey) !== 'false'
+  const rawDeficit = Number(localStorage.getItem(bmrDeficitKey) || 0)
+  const bmrDeficit = Number.isFinite(rawDeficit) && rawDeficit >= 0 ? Math.round(rawDeficit) : 0
+
   const calorieProfile = {
     age: settingsRow?.age_years ?? '',
     sex: settingsRow?.sex ?? CALORIE_PROFILE_DEFAULTS.sex,
@@ -111,7 +162,7 @@ export async function renderSettings() {
   }
   const profileHasValues = calorieProfile.age || calorieProfile.height_cm || calorieProfile.weight_kg
   const estimatedProfile = profileHasValues
-    ? hydrateCalorieTargets(calorieProfile, latestWeightKg)
+    ? computeCalorieTargets(calorieProfile, latestWeightKg)
     : null
 
   const profileAge = calorieProfile.age || ''
@@ -169,6 +220,15 @@ export async function renderSettings() {
 
     ${section('targets', 'Daily Targets', `
       <p class="setup-note">Changes apply immediately and sync across sessions.</p>
+
+      <div id="settings-bmr-calc-section">
+        <div class="toggle-row" style="margin-bottom:8px">
+          <div class="toggle-row-label">Use BMR-based calorie target</div>
+          <label class="toggle-switch" for="settings-use-bmr-checkbox">
+            <input type="checkbox" id="settings-use-bmr-checkbox" ${useBmr ? 'checked' : ''}>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
       <div class="targets-grid">
         <div class="form-field">
           <label class="form-label" for="t-cal-rest">Daily base target (kcal)</label>
@@ -187,7 +247,51 @@ export async function renderSettings() {
           <input class="form-input" id="t-fat" type="number" inputmode="numeric" value="${TARGETS.fat}">
         </div>
       </div>
-      <button class="btn-primary" id="settings-save-targets-btn" style="margin-top:4px">Save Targets</button>
+      <button class="btn-primary" id="settings-save-targets-btn" style="margin-top:4px;display:${useBmr ? 'none' : ''}">Save Targets</button>
+        <div id="settings-bmr-details" style="display:${useBmr ? 'block' : 'none'}">
+          <div class="settings-profile-summary" id="settings-profile-summary" style="margin-top:6px">
+            ${formatCalorieProfileSummaryWithDeficit(estimatedProfile, latestWeightKg, bmrDeficit)}
+          </div>
+          <div class="profile-grid">
+            <div class="form-field">
+              <label class="form-label" for="profile-age">Age (years)</label>
+              <input class="form-input" id="profile-age" type="number" inputmode="numeric" min="13" max="120" value="${profileAge}">
+            </div>
+            <div class="form-field">
+              <label class="form-label" for="profile-sex">Sex</label>
+              <select class="form-input" id="profile-sex">
+                <option value="female" ${profileSex === 'female' ? 'selected' : ''}>Female</option>
+                <option value="male" ${profileSex === 'male' ? 'selected' : ''}>Male</option>
+                <option value="other" ${profileSex === 'other' ? 'selected' : ''}>Other / prefer not to say</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label class="form-label" for="profile-height-cm">Height (cm)</label>
+              <input class="form-input" id="profile-height-cm" type="number" inputmode="numeric" min="100" max="250" value="${profileHeight}">
+            </div>
+            <div class="form-field">
+              <label class="form-label" for="profile-weight-kg">Weight (kg)</label>
+              <input class="form-input" id="profile-weight-kg" type="number" inputmode="decimal" min="25" max="300" step="0.1" value="${profileWeight}">
+            </div>
+            <div class="form-field">
+              <label class="form-label" for="profile-activity-level">Daily movement</label>
+              <select class="form-input" id="profile-activity-level">
+                <option value="sedentary" ${profileActivity === 'sedentary' ? 'selected' : ''}>Sedentary</option>
+                <option value="light" ${profileActivity === 'light' ? 'selected' : ''}>Light</option>
+                <option value="moderate" ${profileActivity === 'moderate' ? 'selected' : ''}>Moderate</option>
+                <option value="active" ${profileActivity === 'active' ? 'selected' : ''}>Active</option>
+                <option value="very_active" ${profileActivity === 'very_active' ? 'selected' : ''}>Very active</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label class="form-label" for="profile-deficit-kcal">Deficit (kcal/day)</label>
+              <input class="form-input" id="profile-deficit-kcal" type="number" inputmode="numeric" min="0" max="1500" step="10" value="${bmrDeficit}">
+            </div>
+          </div>
+          <p class="settings-profile-note">This estimate includes everyday movement, so it behaves more like Fitbit's total calorie burn than workout-only calories.</p>
+          <button class="btn-primary" id="settings-save-profile-btn" style="margin-top:4px">Save BMR Settings</button>
+        </div>
+      </div>
     `)}
 
     ${section('conflicts', 'Activity Conflicts', `
@@ -216,10 +320,11 @@ export async function renderSettings() {
         <p class="setup-note">
           Connect your Strava account to automatically sync activities.
         </p>
-        <div style="margin-bottom:16px">
-          <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--tx2);cursor:pointer">
+        <div class="toggle-row" style="margin-bottom:4px">
+          <div class="toggle-row-label" style="font-size:13px">Use custom API credentials (self-hosted)</div>
+          <label class="toggle-switch">
             <input type="checkbox" id="strava-custom-cb" onchange="document.getElementById('strava-custom-fields').style.display = this.checked ? 'block' : 'none'">
-            Use custom API credentials (self-hosted)
+            <span class="toggle-slider"></span>
           </label>
         </div>
         <div id="strava-custom-fields" style="display:none;margin-bottom:16px;padding:12px;background:var(--track);border-radius:8px">
@@ -254,35 +359,35 @@ export async function renderSettings() {
         <button id="remove-strava-btn" class="link-btn" style="margin-top:12px;color:var(--danger);display:block">Remove all synced activities</button>
         <div class="toggle-row" style="margin-top:14px">
           <div>
-            <div style="font-size:14px;font-weight:500;color:var(--tx)">Auto push to Strava</div>
-            <div style="font-size:12px;color:var(--tx3);margin-top:2px">Automatically push new logged activities to Strava</div>
+            <div class="toggle-row-label">Auto push to Strava</div>
+            <div class="toggle-row-sub">Automatically push new logged activities to Strava</div>
           </div>
           <label class="toggle-switch">
             <input type="checkbox" id="strava-auto-push-toggle" ${stravaAutoPushEnabled() ? 'checked' : ''}>
             <span class="toggle-slider"></span>
           </label>
         </div>
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0">
+        <div class="toggle-row">
           <div>
-            <div style="font-size:14px;font-weight:500">Sync weight</div>
-            <div style="font-size:12px;color:var(--tx3);margin-top:2px">Update Strava athlete weight when you log a weight entry</div>
+            <div class="toggle-row-label">Sync weight</div>
+            <div class="toggle-row-sub">Update Strava athlete weight when you log a weight entry</div>
           </div>
           <label class="toggle-switch">
             <input type="checkbox" id="strava-sync-weight-toggle" ${stravaWeightSyncEnabled() ? 'checked' : ''}>
             <span class="toggle-slider"></span>
           </label>
         </div>
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0">
+        <div class="toggle-row">
           <div>
-            <div style="font-size:14px;font-weight:500">Spoof calories via HR</div>
-            <div style="font-size:12px;color:var(--tx3);margin-top:2px;line-height:1.5">
+            <div class="toggle-row-label">Spoof calories via HR</div>
+            <div class="toggle-row-sub" style="line-height:1.5">
               Embeds synthetic heart rate data in the uploaded TCX file so Strava calculates calories from it.
               Uses the Keytel formula with your age, weight, and sex from your profile to back-calculate
               the average HR that would produce your logged calories. Results are approximate.
               Requires age, sex, and weight set in your profile.
             </div>
           </div>
-          <label class="toggle-switch" style="flex-shrink:0">
+          <label class="toggle-switch">
             <input type="checkbox" id="strava-spoof-calories-toggle" ${stravaSpoofCaloriesEnabled() ? 'checked' : ''}>
             <span class="toggle-slider"></span>
           </label>
@@ -295,10 +400,11 @@ export async function renderSettings() {
         <p class="setup-note">
           Connect your Google Health account to sync activities.
         </p>
-        <div style="margin-bottom:16px">
-          <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--tx2);cursor:pointer">
+        <div class="toggle-row" style="margin-bottom:4px">
+          <div class="toggle-row-label" style="font-size:13px">Use custom API credentials (self-hosted)</div>
+          <label class="toggle-switch">
             <input type="checkbox" id="gh-custom-cb" onchange="document.getElementById('gh-custom-fields').style.display = this.checked ? 'block' : 'none'">
-            Use custom API credentials (self-hosted)
+            <span class="toggle-slider"></span>
           </label>
         </div>
         <div id="gh-custom-fields" style="display:none;margin-bottom:16px;padding:12px;background:var(--track);border-radius:8px">
@@ -336,46 +442,9 @@ export async function renderSettings() {
     `)}
 
     ${section('account', 'Account', `
-      <p class="setup-note">${state.currentUser.email || state.currentUser.user_metadata?.user_name || 'GitHub user'}</p>
-      <p class="setup-note">Body metrics sync through your account. API keys below stay on this browser only.</p>
-      <div class="settings-profile-summary" id="settings-profile-summary">
-        ${formatCalorieProfileSummary(estimatedProfile, latestWeightKg)}
-      </div>
-      <div class="profile-grid">
-        <div class="form-field">
-          <label class="form-label" for="profile-age">Age (years)</label>
-          <input class="form-input" id="profile-age" type="number" inputmode="numeric" min="13" max="120" value="${profileAge}">
-        </div>
-        <div class="form-field">
-          <label class="form-label" for="profile-sex">Sex</label>
-          <select class="form-input" id="profile-sex">
-            <option value="female" ${profileSex === 'female' ? 'selected' : ''}>Female</option>
-            <option value="male" ${profileSex === 'male' ? 'selected' : ''}>Male</option>
-            <option value="other" ${profileSex === 'other' ? 'selected' : ''}>Other / prefer not to say</option>
-          </select>
-        </div>
-        <div class="form-field">
-          <label class="form-label" for="profile-height-cm">Height (cm)</label>
-          <input class="form-input" id="profile-height-cm" type="number" inputmode="numeric" min="100" max="250" value="${profileHeight}">
-        </div>
-        <div class="form-field">
-          <label class="form-label" for="profile-weight-kg">Weight (kg)</label>
-          <input class="form-input" id="profile-weight-kg" type="number" inputmode="decimal" min="25" max="300" step="0.1" value="${profileWeight}">
-        </div>
-        <div class="form-field">
-          <label class="form-label" for="profile-activity-level">Daily movement</label>
-          <select class="form-input" id="profile-activity-level">
-            <option value="sedentary" ${profileActivity === 'sedentary' ? 'selected' : ''}>Sedentary</option>
-            <option value="light" ${profileActivity === 'light' ? 'selected' : ''}>Light</option>
-            <option value="moderate" ${profileActivity === 'moderate' ? 'selected' : ''}>Moderate</option>
-            <option value="active" ${profileActivity === 'active' ? 'selected' : ''}>Active</option>
-            <option value="very_active" ${profileActivity === 'very_active' ? 'selected' : ''}>Very active</option>
-          </select>
-        </div>
-      </div>
-      <p class="settings-profile-note">This estimate includes everyday movement, so it behaves more like Fitbit's total calorie burn than workout-only calories.</p>
-      <button class="btn-primary" id="settings-save-profile-btn" style="margin-top:4px">Save Metrics</button>
-      <button id="settings-signout-btn" style="margin-top:20px;width:100%;padding:13px;border:1px solid var(--border);border-radius:12px;background:none;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--danger);cursor:pointer;font-weight:500;">Sign out</button>
+      <p class="setup-note">Signed in as ${state.currentUser.email || state.currentUser.user_metadata?.user_name || 'GitHub user'} via Supabase Auth. Your data is stored securely in a private Supabase database and synced across devices.</p>
+      <button id="settings-tutorial-btn" style="margin-top:16px;width:100%;padding:13px;border:1px solid var(--border);border-radius:12px;background:none;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--tx2);cursor:pointer;font-weight:500;">Show tutorial again</button>
+      <button id="settings-signout-btn" style="margin-top:10px;width:100%;padding:13px;border:1px solid var(--border);border-radius:12px;background:none;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--danger);cursor:pointer;font-weight:500;">Sign out</button>
     `)}
 
     <div style="text-align:center; margin-top:32px; margin-bottom:16px; font-size:12px; color:var(--tx3); line-height:1.6">
@@ -389,12 +458,73 @@ export async function renderSettings() {
   const conflictPreference = document.getElementById('conflict-preference')
   if (conflictPreference) conflictPreference.value = getWorkoutConflictPreference()
 
-  setCalorieProfileSummary(estimatedProfile, latestWeightKg)
-  updateProfileTargetInputs(estimatedProfile)
+  const useBmrCheckbox = document.getElementById('settings-use-bmr-checkbox')
+  const deficitInput = document.getElementById('profile-deficit-kcal')
+
+  const getEstimatedFromInputs = () => {
+    const profile = {
+      age: document.getElementById('profile-age')?.value,
+      sex: document.getElementById('profile-sex')?.value,
+      height_cm: document.getElementById('profile-height-cm')?.value,
+      weight_kg: document.getElementById('profile-weight-kg')?.value || latestWeightKg || '',
+      activity_level: document.getElementById('profile-activity-level')?.value,
+    }
+    return computeCalorieTargets(profile, latestWeightKg)
+  }
+
+  const getDeficitValue = () => Math.max(0, parseInt(deficitInput?.value, 10) || 0)
+
+  const applyEstimatedToTargets = (estimated) => {
+    if (!estimated) return
+    const adjusted = {
+      ...estimated,
+      rest: withDeficit(estimated.rest, getDeficitValue()),
+    }
+    TARGETS.calories.rest = adjusted.rest
+    TARGETS.calories.bmr = estimated.bmr
+    const macros = recommendMacros(adjusted.rest)
+    TARGETS.protein = macros.protein
+    TARGETS.carbs = macros.carbs
+    TARGETS.fat = macros.fat
+    updateProfileTargetInputs(adjusted)
+    setCalorieProfileSummary(estimated, latestWeightKg, getDeficitValue())
+  }
+
+  const bmrDetails = document.getElementById('settings-bmr-details')
+
+  const syncBmrUiState = () => {
+    const enabled = !!useBmrCheckbox?.checked
+    if (bmrDetails) bmrDetails.style.display = enabled ? 'block' : 'none'
+    setTargetsReadonly(enabled)
+    localStorage.setItem(bmrEnabledKey, enabled ? 'true' : 'false')
+    if (!enabled) return
+    applyEstimatedToTargets(getEstimatedFromInputs() || estimatedProfile)
+  }
+
+  setTargetsReadonly(useBmr)
+  setCalorieProfileSummary(estimatedProfile, latestWeightKg, bmrDeficit)
+  if (useBmr && estimatedProfile) {
+    applyEstimatedToTargets(estimatedProfile)
+  }
 
   // Populate Strava + Google Health section state
   updateStravaSettingsSection()
   updateGoogleHealthSettingsSection()
+
+  useBmrCheckbox?.addEventListener('change', syncBmrUiState)
+  deficitInput?.addEventListener('input', () => {
+    const value = getDeficitValue()
+    localStorage.setItem(bmrDeficitKey, String(value))
+    if (useBmrCheckbox?.checked) applyEstimatedToTargets(getEstimatedFromInputs())
+  })
+  ;['profile-age', 'profile-sex', 'profile-height-cm', 'profile-weight-kg', 'profile-activity-level'].forEach(id => {
+    document.getElementById(id)?.addEventListener('input', () => {
+      if (useBmrCheckbox?.checked) applyEstimatedToTargets(getEstimatedFromInputs())
+    })
+    document.getElementById(id)?.addEventListener('change', () => {
+      if (useBmrCheckbox?.checked) applyEstimatedToTargets(getEstimatedFromInputs())
+    })
+  })
 
   document.getElementById('settings-save-targets-btn').addEventListener('click', async () => {
     const calRest = parseInt(document.getElementById('t-cal-rest').value) || TARGETS.calories.rest
@@ -417,6 +547,11 @@ export async function renderSettings() {
   })
 
   document.getElementById('settings-save-profile-btn')?.addEventListener('click', async () => {
+    const useBmrNow = !!useBmrCheckbox?.checked
+    const deficitNow = getDeficitValue()
+    localStorage.setItem(bmrEnabledKey, useBmrNow ? 'true' : 'false')
+    localStorage.setItem(bmrDeficitKey, String(deficitNow))
+
     const profile = {
       age_years: document.getElementById('profile-age').value,
       sex: document.getElementById('profile-sex').value,
@@ -434,18 +569,23 @@ export async function renderSettings() {
       activity_level: profile.activity_level,
     }, latestWeightKg)
     if (!estimated) {
-      showToast('❌ Enter age, height, and weight to calculate metrics')
+      showToast('❌ Enter age, height, and weight to calculate BMR')
       return
     }
 
-    TARGETS.calories.rest = estimated.rest
+    const adjustedRest = withDeficit(estimated.rest, deficitNow)
+    TARGETS.calories.rest = adjustedRest
     TARGETS.calories.bmr = estimated.bmr
-    updateProfileTargetInputs(estimated)
-    setCalorieProfileSummary(estimated, latestWeightKg)
+    const savedMacros = recommendMacros(adjustedRest)
+    TARGETS.protein = savedMacros.protein
+    TARGETS.carbs = savedMacros.carbs
+    TARGETS.fat = savedMacros.fat
+    updateProfileTargetInputs({ ...estimated, rest: adjustedRest })
+    setCalorieProfileSummary(estimated, latestWeightKg, deficitNow)
 
     try {
       await db.saveSettings({
-        cal_rest: estimated.rest,
+        cal_rest: useBmrNow ? adjustedRest : TARGETS.calories.rest,
         protein_g: TARGETS.protein,
         carbs_g: TARGETS.carbs,
         fat_g: TARGETS.fat,
@@ -455,7 +595,7 @@ export async function renderSettings() {
         weight_kg: resolvedWeight,
         activity_level: profile.activity_level,
       })
-      showToast('✅ Metrics saved')
+      showToast('✅ BMR settings saved')
     } catch (e) {
       showToast('❌ ' + e.message)
     }
@@ -528,6 +668,11 @@ export async function renderSettings() {
     } catch (e) { showToast('❌ ' + e.message) }
   })
 
+  document.getElementById('settings-tutorial-btn')?.addEventListener('click', () => {
+    closeSheets()
+    showTutorial()
+  })
+
   document.getElementById('settings-signout-btn').addEventListener('click', async () => {
     if (!confirm('Sign out?')) return
     closeSheets()
@@ -536,7 +681,9 @@ export async function renderSettings() {
 }
 
 export function openPresetSheet(id) {
+  closeSheets()
   state.pendingEditPresetId = id
+  state.returnToSheetId = 'settings-sheet'
   const m = id ? (state.mealsCache || []).find(x => x.id === id) : null
   document.getElementById('meal-preset-title').textContent = m ? 'Edit Meal' : 'New Meal'
   document.getElementById('mp-name').value = m?.name || ''
@@ -562,7 +709,9 @@ export async function deletePreset(id) {
 }
 
 export function openWorkoutPresetSheet(id) {
+  closeSheets()
   state.pendingEditWorkoutPresetId = id
+  state.returnToSheetId = 'settings-sheet'
   const w = id ? (state.workoutPresetsCache || []).find(x => x.id === id) : null
   document.getElementById('wps-title').textContent = w ? 'Edit Activity' : 'New Activity'
   document.getElementById('wps-name').value = w?.name || ''

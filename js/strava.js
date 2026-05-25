@@ -346,7 +346,7 @@ function targetHrForCalories(calories, durationMin, weightKg, ageYears, sex) {
 }
 
 function buildTcx(entry, startIso, sportType, targetHr) {
-  const tcxSport = ['Run', 'Bike'].includes(sportType) ? sportType : 'Other'
+  const tcxSport = sportType === 'Run' ? 'Running' : sportType === 'Ride' ? 'Biking' : 'Other'
   const elapsedSec = entry.duration_min ? Math.round(entry.duration_min * 60) : 0
   const distanceMeters = entry.distance_km ? entry.distance_km * 1000 : 0
   const avgHr = targetHr || (entry.heart_rate_avg ? Math.round(entry.heart_rate_avg) : null)
@@ -397,22 +397,24 @@ export async function pushActivityToStrava(entry) {
   if (!stravaIsConnected()) throw new Error('Strava not connected')
 
   const token = await getValidAccessToken()
-
   const sportType = ACTIVITY_TYPE_TO_STRAVA[(entry.activity_type || '').toLowerCase()] || 'Workout'
 
   const startMs = parseWorkoutStart(entry.date, entry.time)
-  // TCX requires UTC ISO timestamps — use the real UTC time from startMs
+  const pad = n => String(n).padStart(2, '0')
+  const toLocalIso = ms => {
+    const d = new Date(ms)
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+  }
   let startIso
   if (startMs) {
-    startIso = new Date(startMs).toISOString().replace(/\.\d+Z$/, 'Z')
+    startIso = toLocalIso(startMs)
   } else if (entry.date) {
-    startIso = new Date(entry.date + 'T00:00:00').toISOString().replace(/\.\d+Z$/, 'Z')
+    startIso = `${entry.date}T00:00:00`
   } else {
-    startIso = new Date().toISOString().replace(/\.\d+Z$/, 'Z')
+    startIso = toLocalIso(Date.now())
   }
 
-  const description = 'Logged via MyTracker — https://github.com/gonespral/my-tracker'
-
+  // Use TCX file upload only when calorie spoofing is enabled (requires synthetic HR)
   let targetHr = null
   if (stravaSpoofCaloriesEnabled() && entry.calories_burned && entry.duration_min) {
     const profile = await db.loadSettings().catch(() => null)
@@ -423,15 +425,66 @@ export async function pushActivityToStrava(entry) {
     if (targetHr) console.log('[Strava push] synthetic HR for calories:', targetHr)
   }
 
+  const description = [
+    'Logged via MyTracker: https://github.com/gonespral/my-tracker',
+    targetHr ? 'Calorie spoofing enabled.' : null,
+  ].filter(Boolean).join('\n')
+
+  if (targetHr) {
+    return pushViaTcx({ entry, token, sportType, startIso, targetHr, description })
+  }
+
+  // Default: manual activity creation — no file upload, no processing errors
+  console.log('[Strava push] manual activity, start:', startIso, 'sport:', sportType)
+  const body = {
+    name: entry.description || 'Workout',
+    sport_type: sportType,
+    start_date_local: startIso,
+    elapsed_time: entry.duration_min ? Math.round(entry.duration_min * 60) : 60,
+    description,
+  }
+  if (entry.distance_km) body.distance = entry.distance_km * 1000
+
+  const resp = await fetch('https://www.strava.com/api/v3/activities', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+
+  if (resp.status === 401) { disconnectStrava(true); throw new Error('Session expired — please reconnect Strava') }
+  if (resp.status === 403) throw new Error('Write permission missing — reconnect Strava to enable pushing')
+  if (!resp.ok) {
+    const raw = await resp.text().catch(() => '')
+    let msg = `${resp.status}`
+    try { const j = JSON.parse(raw); msg = j.message || j.error || JSON.stringify(j.errors) || msg } catch (_) {}
+    throw new Error(`Strava: ${msg}`)
+  }
+
+  const activity = await resp.json()
+  if (!activity.id) throw new Error('Strava: no activity ID returned')
+
+  if (entry.calories_burned) {
+    await fetch(`https://www.strava.com/api/v3/activities/${activity.id}`, {
+      method: 'PUT',
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ calories: Math.round(entry.calories_burned) }),
+    }).catch(() => {})
+  }
+
+  return { id: activity.id }
+}
+
+async function pushViaTcx({ entry, token, sportType, startIso, targetHr, description }) {
   const tcx = buildTcx(entry, startIso, sportType, targetHr)
   const form = new FormData()
-  form.append('file', new Blob([tcx], { type: 'application/octet-stream' }), 'activity.tcx')
+  const filename = `activity-${entry.id || startIso.replace(/[:.]/g, '-')}.tcx`
+  form.append('file', new Blob([tcx], { type: 'application/octet-stream' }), filename)
   form.append('data_type', 'tcx')
   form.append('name', entry.description || 'Workout')
   form.append('sport_type', sportType)
   form.append('description', description)
 
-  console.log('[Strava push] TCX upload, start:', startIso, 'calories:', entry.calories_burned)
+  console.log('[Strava push] TCX upload, start:', startIso, 'hr:', targetHr)
   const uploadResp = await fetch('https://www.strava.com/api/v3/uploads', {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${token}` },
@@ -442,7 +495,6 @@ export async function pushActivityToStrava(entry) {
   if (uploadResp.status === 403) throw new Error('Write permission missing — reconnect Strava to enable pushing')
   if (!uploadResp.ok) {
     const raw = await uploadResp.text().catch(() => '')
-    console.error('Strava upload failed', uploadResp.status, raw)
     let msg = `${uploadResp.status}`
     try { const j = JSON.parse(raw); msg = j.message || j.error || JSON.stringify(j.errors) || msg } catch (_) {}
     throw new Error(`Strava: ${msg}`)
@@ -451,7 +503,6 @@ export async function pushActivityToStrava(entry) {
   const upload = await uploadResp.json()
   console.log('[Strava upload response]', upload)
 
-  // Poll until Strava finishes processing and returns an activity_id
   let activityId = upload.activity_id
   const uploadId = upload.id || upload.id_str
   if (!activityId && uploadId) {
@@ -464,10 +515,12 @@ export async function pushActivityToStrava(entry) {
       const status = await poll.json()
       console.log('[Strava upload poll]', status)
       if (status.error) throw new Error(`Strava upload error: ${status.error}`)
+      if (status.status && /error/i.test(status.status)) throw new Error(`Strava: ${status.status}`)
       if (status.activity_id) { activityId = status.activity_id; break }
     }
   }
 
+  if (!activityId) throw new Error('Strava: upload timed out or failed to process')
   return { id: activityId }
 }
 

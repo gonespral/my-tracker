@@ -342,17 +342,18 @@ export function mealMacroAvgHTML(data, nDays = 30) {
 
   const cols = averages.map(row => {
     const macrosSummary = `P${fmt(row.avg.protein)} · C${fmt(row.avg.carbs)} · F${fmt(row.avg.fat)}`
+    const barH = Math.round((row.totalMacros / maxStack) * 90)
     const segs = segments.map((seg, idx) => {
       const val = row.avg[seg.key]
-      const pct = val > 0 ? Math.max((val / maxStack) * 100, 2) : 0
-      const radius = idx === 0 ? 'border-radius:0 0 10px 10px;' : idx === segments.length - 1 ? 'border-radius:10px 10px 0 0;' : ''
-      return `<div class="meal-macro-seg meal-macro-${seg.key}" title="${seg.label} ${fmt(val)}g" style="height:${pct}%;background:${seg.color};${radius}"></div>`
+      if (val <= 0) return ''
+      const radius = idx === 0 ? 'border-radius:0 0 8px 8px;' : idx === segments.length - 1 ? 'border-radius:8px 8px 0 0;' : ''
+      return `<div class="meal-macro-seg meal-macro-${seg.key}" title="${seg.label} ${fmt(val)}g" style="flex:${val};background:${seg.color};${radius}"></div>`
     }).join('')
 
     return `
       <div class="meal-macro-col">
         <div class="meal-macro-kcal">${fmt(row.avg.calories)} kcal</div>
-        <div class="meal-macro-bar">${segs}</div>
+        <div class="meal-macro-bar" style="height:${barH}px">${segs}</div>
         <div class="meal-macro-label">${row.label}</div>
         <div class="meal-macro-detail">${macrosSummary}</div>
       </div>`
