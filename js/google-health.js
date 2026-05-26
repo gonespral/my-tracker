@@ -3,6 +3,7 @@ import { db, supabase } from './db.js'
 import { dateStr, nowTime } from './utils.js'
 import { showToast } from './ui.js'
 import { GOOGLE_HEALTH_CLIENT_ID as DEFAULT_CLIENT_ID, EDGE_FUNCTION_URL } from './config.js'
+import { stravaAutoPushGoogleEnabled, stravaIsConnected, pushActivityToStrava } from './strava.js'
 
 const GH_CUSTOM_FLAG = 'google-health-use-custom'
 const GH_CLIENT_ID = 'google-health-client-id'
@@ -307,7 +308,14 @@ export async function syncGoogleHealth({ silent = false, onComplete = null } = {
       .map(mapDataPoint)
       .filter(e => e.date)
 
-    if (toInsert.length > 0) await db.insertWorkouts(toInsert)
+    if (toInsert.length > 0) {
+      await db.insertWorkouts(toInsert)
+      if (stravaAutoPushGoogleEnabled() && stravaIsConnected()) {
+        for (const entry of toInsert) {
+          pushActivityToStrava(entry).catch(err => console.warn('[Strava auto-push]', err.message || err))
+        }
+      }
+    }
 
     localStorage.setItem(GH_LAST_SYNC, String(Date.now()))
     updateGoogleHealthSettingsSection()
