@@ -1,5 +1,5 @@
 import { state } from './state.js'
-import { db, supabase } from './db.js'
+import { db, supabase, parseWorkoutStart } from './db.js'
 import { dateStr, nowTime } from './utils.js'
 import { showToast } from './ui.js'
 import { GOOGLE_HEALTH_CLIENT_ID as DEFAULT_CLIENT_ID, EDGE_FUNCTION_URL } from './config.js'
@@ -20,9 +20,45 @@ export const googleHealthCustomId = () => localStorage.getItem(GH_CLIENT_ID) || 
 export const googleHealthCustomSecret = () => localStorage.getItem(GH_CLIENT_SECRET) || ''
 export const googleHealthClientId = () => googleHealthUsesCustom() ? googleHealthCustomId() : DEFAULT_CLIENT_ID
 
+export const ghAutoPushEnabled = () => localStorage.getItem('google-health-auto-push') === '1'
+export const ghSyncPaused = () => localStorage.getItem('google-health-sync-paused') === '1'
+
 export function googleHealthIsConnected() {
   if (googleHealthUsesCustom()) return !!localStorage.getItem(GH_REFRESH_TOKEN)
   return localStorage.getItem(GH_CONNECTED) === 'true'
+}
+
+// Only values confirmed valid for write by the Google Health API v4
+const ACTIVITY_TYPE_TO_GH = {
+  run:    'RUNNING',
+  walk:   'WALKING',
+  cycle:  'BIKING',
+  swim:   'SWIMMING',
+  row:    'ROWING',
+  yoga:   'YOGA',
+  lift:   'STRENGTH_TRAINING',
+  hiit:   'HIIT',
+  climb:  'ROCK_CLIMBING',
+  box:    'WORKOUT',
+  tennis: 'WORKOUT',
+  ball:   'WORKOUT',
+}
+
+// Strava sport_type → Google Health exercise type
+const SPORT_TYPE_TO_GH = {
+  Run:              'RUNNING',
+  Walk:             'WALKING',
+  Hike:             'HIKING',
+  Ride:             'BIKING',
+  MountainBikeRide: 'BIKING',
+  Swim:             'SWIMMING',
+  Rowing:           'ROWING',
+  Yoga:             'YOGA',
+  Pilates:          'PILATES',
+  WeightTraining:   'STRENGTH_TRAINING',
+  Crossfit:         'HIIT',
+  Elliptical:       'WORKOUT',
+  RockClimbing:     'ROCK_CLIMBING',
 }
 
 const GOOGLE_SPORT_MAP = {
@@ -90,7 +126,12 @@ export async function handleGoogleHealthCallback() {
 
   history.replaceState(null, '', location.pathname + location.hash)
 
-  if (!code) return
+  if (!code) {
+    const error = params.get('error')
+    const desc  = params.get('error_description')
+    if (error) showToast(`❌ Google Health: ${desc || error}`)
+    return
+  }
 
   showToast('🔄 Connecting Google Health…')
 
@@ -258,6 +299,7 @@ function mapDataPoint(dp) {
 export async function syncGoogleHealth({ silent = false, onComplete = null } = {}) {
   if (!googleHealthIsConnected()) return
   if (!state.currentUser) return
+  if (ghSyncPaused()) { if (!silent) showToast('⏸ Google Health sync is paused'); return }
 
   let token
   try {
@@ -353,11 +395,59 @@ export function connectGoogleHealth() {
   url.searchParams.set('client_id',     clientId)
   url.searchParams.set('redirect_uri',  redirect)
   url.searchParams.set('response_type', 'code')
-  url.searchParams.set('scope',         'https://www.googleapis.com/auth/googlehealth.activity_and_fitness.readonly')
+  url.searchParams.set('scope',         'https://www.googleapis.com/auth/googlehealth.activity_and_fitness.readonly https://www.googleapis.com/auth/googlehealth.activity_and_fitness')
   url.searchParams.set('access_type',   'offline')
   url.searchParams.set('prompt',        'consent')
   url.searchParams.set('state',         'google-health-oauth')
   location.href = url.toString()
+}
+
+export async function pushActivityToGoogleHealth(entry) {
+  if (!googleHealthIsConnected()) throw new Error('Google Health not connected')
+  const token = await getValidAccessToken()
+  const ghType = ACTIVITY_TYPE_TO_GH[entry.activity_type]
+    ?? SPORT_TYPE_TO_GH[entry.sport_type]
+    ?? 'WORKOUT'
+  const startMs = parseWorkoutStart(entry.date, entry.time)
+  const durationMs = (entry.duration_min ?? 0) * 60_000
+  const startTime = new Date(startMs).toISOString()
+  const endTime   = new Date(startMs + durationMs).toISOString()
+  const metrics = {}
+  if (entry.calories_burned) metrics.caloriesKcal = entry.calories_burned
+  if (entry.distance_km)     metrics.distanceKm   = entry.distance_km
+  const body = {
+    exercise: {
+      interval: { startTime, endTime },
+      exerciseType: ghType,
+      ...(Object.keys(metrics).length ? { metricsSummary: metrics } : {}),
+    }
+  }
+  console.log('[GH push] body:', JSON.stringify(body, null, 2))
+
+  const resp = await fetch(
+    'https://health.googleapis.com/v4/users/me/dataTypes/exercise/dataPoints',
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify(body),
+    }
+  )
+  if (resp.status === 401) {
+    disconnectGoogleHealth(true)
+    throw new Error('Session expired — please reconnect Google Health')
+  }
+  if (resp.status === 403) {
+    const errBody = await resp.json().catch(() => ({}))
+    throw new Error(errBody.error?.message ?? 'Push not permitted (403) — check your Google Health account has Fitbit linked')
+  }
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({}))
+    throw new Error(err.error?.message ?? `Push failed (${resp.status})`)
+  }
 }
 
 export async function disconnectGoogleHealth(silent = false) {

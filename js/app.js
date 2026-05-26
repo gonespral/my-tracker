@@ -9,8 +9,8 @@ import { renderToday, openFoodSheet, openFoodSheetWithPreset, openWorkoutSheet, 
 import { renderNutrition } from './tabs/nutrition.js'
 import { renderWorkouts } from './tabs/workouts.js'
 import { renderSettings, openPresetSheet, deletePreset, openWorkoutPresetSheet, deleteWorkoutPreset } from './tabs/settings.js'
-import { handleStravaCallback, syncStrava, stravaIsConnected, stravaAutoPushEnabled, pushActivityToStrava } from './strava.js'
-import { handleGoogleHealthCallback, syncGoogleHealth, googleHealthIsConnected } from './google-health.js'
+import { handleStravaCallback, syncStrava, stravaIsConnected, pushActivityToStrava, stravaAutoPushEnabled } from './strava.js'
+import { handleGoogleHealthCallback, syncGoogleHealth, googleHealthIsConnected, pushActivityToGoogleHealth, ghAutoPushEnabled } from './google-health.js'
 import { showTutorialIfNew } from './tutorial.js'
 
 
@@ -109,6 +109,20 @@ document.addEventListener('click', async (e) => {
         await pushActivityToStrava(entry)
         showToast('✅ Pushed to Strava')
         syncStrava({ silent: true, onComplete: renderActive }).catch(e => console.warn('Strava sync:', e))
+      }
+      catch (err) { showToast('❌ ' + err.message) }
+      break
+    }
+
+    case 'push-to-google-health': {
+      closeMenus()
+      const entry = Object.values(state.dbCache?.workouts || {}).flat().find(e => e.id === id)
+      if (!entry) { showToast('❌ Activity not found'); break }
+      if (!entry.duration_min) { showToast('❌ Set a duration before pushing to Google Health'); break }
+      showToast('🔄 Pushing to Google Health…')
+      try {
+        await pushActivityToGoogleHealth(entry)
+        showToast('✅ Pushed to Google Health')
       }
       catch (err) { showToast('❌ ' + err.message) }
       break
@@ -698,10 +712,14 @@ async function initApp() {
           time: timeIso
         })
         showToast(`${{ low: '😴', medium: '💪', high: '🔥' }[intensity]} Logged ${desc}`)
-        if (stravaAutoPushEnabled() && stravaIsConnected()) {
-          pushActivityToStrava({ description: desc, activity_type: activityType, calories_burned: calsBurned, duration_min: durationMin, distance_km: distanceKm, heart_rate_avg: heartRate, time: timeIso })
+        const autoPushEntry = { description: desc, activity_type: activityType, date: dateVal, time: timeIso, duration_min: durationMin, calories_burned: calsBurned, distance_km: distanceKm, heart_rate_avg: heartRate }
+        if (stravaAutoPushEnabled() && stravaIsConnected() && durationMin) {
+          pushActivityToStrava(autoPushEntry)
             .then(() => showToast('✅ Pushed to Strava'))
             .catch(err => showToast('⚠️ Strava push failed: ' + (err.message || err)))
+        }
+        if (ghAutoPushEnabled() && googleHealthIsConnected() && durationMin) {
+          pushActivityToGoogleHealth(autoPushEntry).catch(e => console.warn('GH auto-push:', e))
         }
       }
       await renderActive()
