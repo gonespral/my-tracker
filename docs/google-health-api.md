@@ -28,8 +28,9 @@ Full prefix: `https://www.googleapis.com/auth/`
 
 | Scope suffix | Permission |
 |---|---|
-| `googlehealth.activity_and_fitness` | Read + **write** activity & fitness data to Fitbit app |
-| `googlehealth.activity_and_fitness.readonly` | Read only — current scope used by this app |
+| `googlehealth.activity_and_fitness` | Read activity & fitness data |
+| `googlehealth.activity_and_fitness_writeonly` | **Write** activity & fitness data — required for `create`/`update`/`batchDelete` on exercise dataPoints. NOT listed in public docs but confirmed required by the API (2026-05-27). Uses underscore, not dot. |
+| `googlehealth.activity_and_fitness.readonly` | Read only (explicit readonly variant) |
 | `googlehealth.health_metrics_and_measurements` | Read + write health metrics (weight, heart rate, etc.) |
 | `googlehealth.health_metrics_and_measurements.readonly` | Read only |
 | `googlehealth.nutrition` | Read + write nutrition/hydration data |

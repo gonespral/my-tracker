@@ -530,6 +530,8 @@ export const db = {
       height_cm: s.height_cm ?? current?.height_cm ?? null,
       weight_kg: s.weight_kg ?? current?.weight_kg ?? null,
       activity_level: s.activity_level ?? current?.activity_level ?? null,
+      tdee_source: s.tdee_source !== undefined ? s.tdee_source : (current?.tdee_source ?? null),
+      tdee_calibrated_at: s.tdee_calibrated_at !== undefined ? s.tdee_calibrated_at : (current?.tdee_calibrated_at ?? null),
       updated_at: new Date().toISOString(),
     }, { onConflict: 'user_id' })
     if (error) throw error

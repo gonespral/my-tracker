@@ -66,16 +66,19 @@ CREATE TABLE public.workout_presets (
 
 CREATE TABLE public.user_settings (
     user_id        UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
-    cal_rest       NUMERIC CHECK (cal_rest > 0),
-    protein_g      NUMERIC CHECK (protein_g >= 0),
-    carbs_g        NUMERIC CHECK (carbs_g >= 0),
-    fat_g          NUMERIC CHECK (fat_g >= 0),
-    age_years      INTEGER CHECK (age_years >= 0),
-    sex            TEXT CHECK (sex IN ('female', 'male', 'other')),
-    height_cm      NUMERIC CHECK (height_cm > 0),
-    weight_kg      NUMERIC CHECK (weight_kg > 0),
-    activity_level TEXT CHECK (activity_level IN ('sedentary', 'light', 'moderate', 'active', 'very_active')),
-    updated_at     TIMESTAMPTZ DEFAULT now()
+    cal_rest            NUMERIC CHECK (cal_rest > 0),
+    cal_training        NUMERIC CHECK (cal_training > 0),
+    protein_g           NUMERIC CHECK (protein_g >= 0),
+    carbs_g             NUMERIC CHECK (carbs_g >= 0),
+    fat_g               NUMERIC CHECK (fat_g >= 0),
+    age_years           INTEGER CHECK (age_years >= 0),
+    sex                 TEXT CHECK (sex IN ('female', 'male', 'other')),
+    height_cm           NUMERIC CHECK (height_cm > 0),
+    weight_kg           NUMERIC CHECK (weight_kg > 0),
+    activity_level      TEXT CHECK (activity_level IN ('sedentary', 'light', 'moderate', 'active', 'very_active')),
+    tdee_source         TEXT CHECK (tdee_source IN ('google-health')),
+    tdee_calibrated_at  TIMESTAMPTZ,
+    updated_at          TIMESTAMPTZ DEFAULT now()
 );
 
 CREATE TABLE public.user_integrations (

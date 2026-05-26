@@ -22,6 +22,7 @@ export const googleHealthClientId = () => googleHealthUsesCustom() ? googleHealt
 
 export const ghAutoPushEnabled = () => localStorage.getItem('google-health-auto-push') === '1'
 export const ghSyncPaused = () => localStorage.getItem('google-health-sync-paused') === '1'
+export const ghPushStravaImports = () => localStorage.getItem('gh-push-strava') === '1'
 
 export function googleHealthIsConnected() {
   if (googleHealthUsesCustom()) return !!localStorage.getItem(GH_REFRESH_TOKEN)
@@ -361,6 +362,11 @@ export async function syncGoogleHealth({ silent = false, onComplete = null } = {
 
     localStorage.setItem(GH_LAST_SYNC, String(Date.now()))
     updateGoogleHealthSettingsSection()
+
+    // Auto-recalibrate TDEE targets if user has opted in
+    const settings = await db.loadSettings().catch(() => null)
+    if (settings?.tdee_source === 'google-health') calibrateTDEETargets({ silent: true })
+
     onComplete?.()
 
     if (!silent) showToast(`✅ Google Health: ${toInsert.length} new activit${toInsert.length !== 1 ? 'ies' : 'y'} added`)
@@ -395,7 +401,7 @@ export function connectGoogleHealth() {
   url.searchParams.set('client_id',     clientId)
   url.searchParams.set('redirect_uri',  redirect)
   url.searchParams.set('response_type', 'code')
-  url.searchParams.set('scope',         'https://www.googleapis.com/auth/googlehealth.activity_and_fitness')
+  url.searchParams.set('scope',         'https://www.googleapis.com/auth/googlehealth.activity_and_fitness https://www.googleapis.com/auth/googlehealth.activity_and_fitness_writeonly')
   url.searchParams.set('access_type',   'offline')
   url.searchParams.set('prompt',        'consent')
   url.searchParams.set('state',         'google-health-oauth')
@@ -421,6 +427,10 @@ export async function pushActivityToGoogleHealth(entry) {
       ...(Object.keys(metrics).length ? { metricsSummary: metrics } : {}),
     }
   }
+  // Log token scopes for diagnosing 403 scope errors
+  fetch('https://oauth2.googleapis.com/tokeninfo?access_token=' + token)
+    .then(r => r.json()).then(info => console.log('[GH token scopes]', info.scope, 'exp:', info.exp))
+    .catch(() => {})
   console.log('[GH push] body:', JSON.stringify(body, null, 2))
 
   const resp = await fetch(
@@ -441,12 +451,101 @@ export async function pushActivityToGoogleHealth(entry) {
   }
   if (resp.status === 403) {
     const errBody = await resp.json().catch(() => ({}))
-    const msg = errBody.error?.message || errBody.error?.status || 'PERMISSION_DENIED'
-    throw new Error(`Push blocked (403 ${msg}) — disconnect and reconnect Google Health in Settings to grant push permissions`)
+    console.error('[GH push 403 full response]', JSON.stringify(errBody, null, 2))
+    const status = errBody.error?.status || 'PERMISSION_DENIED'
+    const msg = errBody.error?.message || status
+    const details = errBody.error?.details?.map(d => d.reason || d.type).filter(Boolean).join(', ')
+    throw new Error(`403 ${status}${details ? ` (${details})` : ''}: ${msg}`)
   }
   if (!resp.ok) {
     const err = await resp.json().catch(() => ({}))
     throw new Error(err.error?.message ?? `Push failed (${resp.status})`)
+  }
+}
+
+async function fetchDailyTDEE(token, days = 90) {
+  const end = new Date()
+  const start = new Date()
+  start.setDate(start.getDate() - days)
+  const resp = await fetch(
+    'https://health.googleapis.com/v4/users/me/dataTypes/total-calories:dailyRollUp',
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({ startTime: start.toISOString(), endTime: end.toISOString() }),
+    }
+  )
+  if (!resp.ok) throw new Error(`TDEE fetch failed (${resp.status})`)
+  const data = await resp.json()
+  // Normalise whatever shape the API returns into [{date, kcal}]
+  const points = data.rollUps ?? data.dataPoints ?? data.rollups ?? []
+  return points.map(p => {
+    const raw = p.value ?? p.totalCalories?.value ?? p.calories?.value ?? p.caloriesKcal ?? null
+    const kcal = raw != null ? parseFloat(raw) : null
+    const ts = p.startTime ?? p.interval?.startTime ?? p.date ?? null
+    const date = ts ? ts.slice(0, 10) : null
+    return { date, kcal }
+  }).filter(p => p.date && p.kcal != null && p.kcal > 800 && p.kcal < 8000)
+}
+
+export async function calibrateTDEETargets({ silent = false } = {}) {
+  if (!googleHealthIsConnected()) return
+  if (!state.currentUser) return
+  let token
+  try { token = await getValidAccessToken() } catch { return }
+
+  let points
+  try {
+    points = await fetchDailyTDEE(token, 90)
+  } catch (e) {
+    if (!silent) showToast('❌ TDEE fetch: ' + e.message)
+    return
+  }
+
+  if (points.length < 7) {
+    if (!silent) showToast('Not enough Google Health data to calibrate (need at least 7 days)')
+    return
+  }
+
+  // Load workout dates to split rest vs training days
+  let workoutDates = new Set()
+  try {
+    const data = state.dbCache ?? await db.load()
+    ;(data?.workouts ?? []).forEach(w => workoutDates.add(w.date))
+  } catch { /* non-fatal */ }
+
+  const restPoints     = points.filter(p => !workoutDates.has(p.date))
+  const trainingPoints = points.filter(p =>  workoutDates.has(p.date))
+
+  const avg = arr => arr.length ? Math.round(arr.reduce((s, p) => s + p.kcal, 0) / arr.length) : null
+
+  const calRest     = avg(restPoints)
+  const calTraining = trainingPoints.length >= 3 ? avg(trainingPoints) : null
+
+  if (!calRest) {
+    if (!silent) showToast('Not enough rest-day data to calibrate')
+    return
+  }
+
+  try {
+    await db.saveSettings({
+      cal_rest:           calRest,
+      cal_training:       calTraining ?? calRest,
+      tdee_source:        'google-health',
+      tdee_calibrated_at: new Date().toISOString(),
+    })
+    // Apply immediately
+    const { TARGETS } = await import('./config.js')
+    TARGETS.calories.rest     = calRest
+    TARGETS.calories.training = calTraining ?? calRest
+    if (!silent) showToast(`✅ Calorie targets updated from Google Health (rest ${calRest} kcal${calTraining ? `, training ${calTraining} kcal` : ''})`)
+    updateGoogleHealthSettingsSection()
+  } catch (e) {
+    if (!silent) showToast('❌ Calibration save failed: ' + e.message)
   }
 }
 

@@ -107,16 +107,12 @@ export function weekChartHTML(data) {
     const x  = PL + i * bStep + (bStep - bW) / 2
     const y  = PT + cH - bH
     const pct = d.cals / d.target
-    const fill = d.isToday
-      ? 'var(--accent)'
-      : d.cals === 0 ? 'var(--track)'
-      : pct > 1.05 ? 'var(--danger)'
-      : pct > 0.85 ? 'var(--warn)'
-      : 'var(--accent-2)'
-    const labelFill = d.isToday ? 'var(--accent)' : 'var(--tx3)'
+    const fill = d.cals === 0 ? 'var(--track)' : pct > 1.05 ? 'var(--danger)' : 'var(--accent)'
+    const opacity = d.cals === 0 ? '1' : pct > 1.05 ? '0.9' : Math.max(0.15, Math.min(pct, 1)).toFixed(2)
+    const labelFill = d.isToday ? 'var(--tx)' : 'var(--tx3)'
     return `
       <rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bW.toFixed(1)}" height="${bH.toFixed(1)}"
-        fill="${fill}" rx="4" opacity="${d.isToday ? '1' : '0.75'}"/>
+        fill="${fill}" rx="4" opacity="${opacity}"/>
       <text x="${(x+bW/2).toFixed(1)}" y="${(H-6).toFixed(1)}" text-anchor="middle"
         font-size="9" fill="${labelFill}" font-weight="${d.isToday ? '700' : '400'}">${d.label}</text>
       ${d.cals > 0

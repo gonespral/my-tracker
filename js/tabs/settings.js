@@ -13,7 +13,7 @@ import { supabase, db, getWorkoutConflictPreference, setWorkoutConflictPreferenc
 import { fmt, round, cap } from '../utils.js'
 import { openSheet, showToast, closeMenus, closeSheets } from '../ui.js'
 import { connectStrava, disconnectStrava, syncStrava, updateStravaSettingsSection, stravaAutoPushEnabled, stravaAutoPushGoogleEnabled, stravaSyncPaused, stravaWeightSyncEnabled, setStravaWeightSync, stravaSpoofCaloriesEnabled, setStravaSpoofCalories } from '../strava.js'
-import { connectGoogleHealth, disconnectGoogleHealth, syncGoogleHealth, updateGoogleHealthSettingsSection, ghAutoPushEnabled, ghSyncPaused } from '../google-health.js'
+import { connectGoogleHealth, disconnectGoogleHealth, syncGoogleHealth, updateGoogleHealthSettingsSection, ghAutoPushEnabled, ghSyncPaused, ghPushStravaImports, calibrateTDEETargets, googleHealthIsConnected } from '../google-health.js'
 import { materialIcon } from '../icons.js'
 import { showTutorial } from '../tutorial.js'
 
@@ -101,6 +101,20 @@ function updateProfileTargetInputs(targets) {
   if (fatInput) fatInput.value = macros.fat
 }
 
+function sourcePills(sources, hidden = false) {
+  const style = 'margin-top:10px;width:100%;' + (hidden ? 'display:none' : '')
+  return '<div class="push-source-pills" style="' + style + '">'
+    + '<span style="font-size:11px;color:var(--tx3);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:6px">Push from</span>'
+    + '<div style="display:flex;flex-wrap:wrap;gap:6px">'
+    + sources.map(s =>
+        '<label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--tx2);cursor:pointer;padding:4px 10px;border-radius:20px;border:1px solid var(--border);background:' + (s.checked ? 'var(--track)' : 'transparent') + '">'
+        + '<input type="checkbox" data-source-key="' + s.key + '" style="accent-color:var(--accent);width:12px;height:12px"' + (s.checked ? ' checked' : '') + '>'
+        + s.label
+        + '</label>'
+      ).join('')
+    + '</div></div>'
+}
+
 function setTargetsReadonly(isReadonly) {
   const targetGrid = document.querySelector('.targets-grid')
   targetGrid?.classList.toggle('is-readonly', !!isReadonly)
@@ -153,7 +167,8 @@ export async function renderSettings() {
   const latestWeightKg = data?.weights?.[0]?.kg || null
   const bmrEnabledKey = `tracker-use-bmr:${state.currentUser.id}`
   const bmrDeficitKey = `tracker-bmr-deficit:${state.currentUser.id}`
-  const useBmr = localStorage.getItem(bmrEnabledKey) !== 'false'
+  const useGHCalibration = settingsRow?.tdee_source === 'google-health'
+  const useBmr = !useGHCalibration && localStorage.getItem(bmrEnabledKey) !== 'false'
   const rawDeficit = Number(localStorage.getItem(bmrDeficitKey) || 0)
   const bmrDeficit = Number.isFinite(rawDeficit) && rawDeficit >= 0 ? Math.round(rawDeficit) : 0
 
@@ -210,6 +225,9 @@ export async function renderSettings() {
 
   const apiKey = localStorage.getItem('tracker-anthropic-key') || ''
 
+  const tdeeAt = settingsRow?.tdee_calibrated_at ?? null
+  const tdeeCalibratedLabel = tdeeAt ? 'Last updated ' + new Date(tdeeAt).toLocaleDateString() + ' · auto-updates on sync' : 'Never calibrated · will run on save'
+
   panel.innerHTML = `<div class="tab-inner">
 
     ${section('meals', 'Saved Meals', `
@@ -233,6 +251,17 @@ export async function renderSettings() {
             <span class="toggle-slider"></span>
           </label>
         </div>
+        ${googleHealthIsConnected() ? `
+        <div class="toggle-row" style="margin-bottom:8px">
+          <div>
+            <div class="toggle-row-label">Calibrate from Google Health</div>
+            <div class="toggle-row-sub">${useGHCalibration ? tdeeCalibratedLabel : 'Use measured TDEE instead of BMR'}</div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="tdee-gh-toggle" ${useGHCalibration ? 'checked' : ''}>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>` : ''}
       <div class="targets-grid">
         <div class="form-field">
           <label class="form-label" for="t-cal-rest">Daily base target (kcal)</label>
@@ -251,7 +280,11 @@ export async function renderSettings() {
           <input class="form-input" id="t-fat" type="number" inputmode="numeric" value="${TARGETS.fat}">
         </div>
       </div>
-      <button class="btn-primary" id="settings-save-targets-btn" style="margin-top:4px;display:${useBmr ? 'none' : ''}">Save Targets</button>
+      <button class="btn-primary" id="settings-save-targets-btn" style="margin-top:4px;display:${useBmr || useGHCalibration ? 'none' : ''}">Save Targets</button>
+      <button class="btn-primary" id="tdee-calibrate-btn" style="margin-top:4px;display:${useGHCalibration ? '' : 'none'}">
+        ${materialIcon('monitor_heart', 14, { style: 'vertical-align:-2px;flex-shrink:0;color:white' })}
+        Calibrate Now
+      </button>
         <div id="settings-bmr-details" style="display:${useBmr ? 'block' : 'none'}">
           <div class="settings-profile-summary" id="settings-profile-summary" style="margin-top:6px">
             ${formatCalorieProfileSummaryWithDeficit(estimatedProfile, latestWeightKg, bmrDeficit)}
@@ -292,10 +325,11 @@ export async function renderSettings() {
               <input class="form-input" id="profile-deficit-kcal" type="number" inputmode="numeric" min="0" max="1500" step="10" value="${bmrDeficit}">
             </div>
           </div>
-          <p class="settings-profile-note">This estimate includes everyday movement, so it behaves more like Fitbit's total calorie burn than workout-only calories.</p>
+          <p class="settings-profile-note">This estimate includes everyday movement, so it behaves more like Google Health's total calorie burn than workout-only calories.</p>
           <button class="btn-primary" id="settings-save-profile-btn" style="margin-top:4px">Save BMR Settings</button>
         </div>
       </div>
+
     `)}
 
     ${section('conflicts', 'Activity Conflicts', `
@@ -323,6 +357,7 @@ export async function renderSettings() {
       <div id="strava-disconnected-ui">
         <p class="setup-note">
           Connect your Strava account to automatically sync activities.
+          By default, OAuth tokens are stored server-side in Supabase — nothing sensitive is saved in your browser.
         </p>
         <div class="toggle-row" style="margin-bottom:4px">
           <div class="toggle-row-label" style="font-size:13px">Use custom API credentials (self-hosted)</div>
@@ -334,7 +369,7 @@ export async function renderSettings() {
         <div id="strava-custom-fields" style="display:none;margin-bottom:16px;padding:12px;background:var(--track);border-radius:8px">
           <p class="setup-note" style="margin-top:0">
             Connect your <a href="https://www.strava.com/settings/api" target="_blank">Strava API app</a>.
-            Credentials are stored locally on this device only.
+            Your client ID, client secret, and OAuth tokens are stored in your browser's <code>localStorage</code> — they never leave this device.
           </p>
           <div class="form-field">
             <label class="form-label" for="strava-cid-input">Client ID</label>
@@ -370,25 +405,21 @@ export async function renderSettings() {
             <span class="toggle-slider"></span>
           </label>
         </div>
-        <div class="toggle-row">
-          <div>
-            <div class="toggle-row-label">Auto push manual activities</div>
-            <div class="toggle-row-sub">Automatically push manually logged activities to Strava</div>
+        <div class="toggle-row" style="flex-wrap:wrap;gap:0">
+          <div style="display:flex;align-items:center;justify-content:space-between;width:100%">
+            <div>
+              <div class="toggle-row-label">Auto push to Strava</div>
+              <div class="toggle-row-sub">Automatically push activities to Strava</div>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="strava-auto-push-master" ${stravaAutoPushEnabled() || stravaAutoPushGoogleEnabled() ? 'checked' : ''}>
+              <span class="toggle-slider"></span>
+            </label>
           </div>
-          <label class="toggle-switch">
-            <input type="checkbox" id="strava-auto-push-toggle" ${stravaAutoPushEnabled() ? 'checked' : ''}>
-            <span class="toggle-slider"></span>
-          </label>
-        </div>
-        <div class="toggle-row">
-          <div>
-            <div class="toggle-row-label">Auto push Google Health imports</div>
-            <div class="toggle-row-sub">Automatically push Google Health synced activities to Strava</div>
-          </div>
-          <label class="toggle-switch">
-            <input type="checkbox" id="strava-auto-push-google-toggle" ${stravaAutoPushGoogleEnabled() ? 'checked' : ''}>
-            <span class="toggle-slider"></span>
-          </label>
+          ${sourcePills([
+            { key: 'manual',        label: 'Manual entries',        checked: stravaAutoPushEnabled() },
+            { key: 'google-health', label: 'Google Health imports', checked: stravaAutoPushGoogleEnabled() },
+          ], !stravaAutoPushEnabled() && !stravaAutoPushGoogleEnabled())}
         </div>
         <div class="toggle-row">
           <div>
@@ -403,12 +434,7 @@ export async function renderSettings() {
         <div class="toggle-row">
           <div>
             <div class="toggle-row-label">Spoof calories via HR</div>
-            <div class="toggle-row-sub" style="line-height:1.5">
-              Embeds synthetic heart rate data in the uploaded TCX file so Strava calculates calories from it.
-              Uses the Keytel formula with your age, weight, and sex from your profile to back-calculate
-              the average HR that would produce your logged calories. Results are approximate.
-              Requires age, sex, and weight set in your profile.
-            </div>
+            <div class="toggle-row-sub" style="line-height:1.5">Embeds synthetic heart rate data in the uploaded TCX file so Strava calculates calories from it. Uses the Keytel formula with your age, weight, and sex from your profile to back-calculate the average HR that would produce your logged calories. Results are approximate. Requires age, sex, and weight set in your profile.</div>
           </div>
           <label class="toggle-switch">
             <input type="checkbox" id="strava-spoof-calories-toggle" ${stravaSpoofCaloriesEnabled() ? 'checked' : ''}>
@@ -423,6 +449,7 @@ export async function renderSettings() {
       <div id="gh-disconnected-ui">
         <p class="setup-note">
           Connect your Google Health account to sync activities.
+          By default, OAuth tokens are stored server-side in Supabase — nothing sensitive is saved in your browser.
         </p>
         <div class="toggle-row" style="margin-bottom:4px">
           <div class="toggle-row-label" style="font-size:13px">Use custom API credentials (self-hosted)</div>
@@ -434,6 +461,9 @@ export async function renderSettings() {
         <div id="gh-custom-fields" style="display:none;margin-bottom:16px;padding:12px;background:var(--track);border-radius:8px">
           <p class="setup-note" style="margin-top:0">
             Sync activities via the <a href="https://console.cloud.google.com/apis/api/health.googleapis.com/" target="_blank">Google Health API Console</a>.
+            Your client ID, client secret, and OAuth tokens are stored in your browser's <code>localStorage</code> — they never leave this device.
+          </p>
+          <p class="setup-note" style="margin-top:0">
             Create an OAuth 2.0 credential with redirect URI:
             <code style="font-size:11px;background:var(--bg);padding:1px 4px;border-radius:4px;word-break:break-all;display:inline-block;max-width:100%">${location.origin + location.pathname}</code>
           </p>
@@ -471,15 +501,21 @@ export async function renderSettings() {
             <span class="toggle-slider"></span>
           </label>
         </div>
-        <div class="toggle-row">
-          <div>
-            <div class="toggle-row-label">Auto push to Google Health</div>
-            <div class="toggle-row-sub">Automatically push new logged activities to Google Health</div>
+        <div class="toggle-row" style="flex-wrap:wrap;gap:0">
+          <div style="display:flex;align-items:center;justify-content:space-between;width:100%">
+            <div>
+              <div class="toggle-row-label">Auto push to Google Health</div>
+              <div class="toggle-row-sub">Automatically push activities to Google Health</div>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="gh-auto-push-master" ${ghAutoPushEnabled() || ghPushStravaImports() ? 'checked' : ''}>
+              <span class="toggle-slider"></span>
+            </label>
           </div>
-          <label class="toggle-switch">
-            <input type="checkbox" id="gh-auto-push-toggle" ${ghAutoPushEnabled() ? 'checked' : ''}>
-            <span class="toggle-slider"></span>
-          </label>
+          ${sourcePills([
+            { key: 'manual', label: 'Manual entries',  checked: ghAutoPushEnabled() },
+            { key: 'strava', label: 'Strava imports',  checked: ghPushStravaImports() },
+          ], !ghAutoPushEnabled() && !ghPushStravaImports())}
         </div>
         <button id="remove-gh-btn" class="link-btn" style="margin-top:14px;color:var(--danger);display:block">Remove all synced activities</button>
       </div>
@@ -540,14 +576,24 @@ export async function renderSettings() {
 
   const syncBmrUiState = () => {
     const enabled = !!useBmrCheckbox?.checked
+    if (enabled) {
+      // turn off GH calibration if active
+      const ghToggle = document.getElementById('tdee-gh-toggle')
+      if (ghToggle?.checked) {
+        ghToggle.checked = false
+        db.saveSettings({ tdee_source: null, tdee_calibrated_at: null }).catch(() => {})
+        document.getElementById('tdee-calibrate-btn').style.display = 'none'
+      }
+    }
     if (bmrDetails) bmrDetails.style.display = enabled ? 'block' : 'none'
     setTargetsReadonly(enabled)
+    document.getElementById('settings-save-targets-btn').style.display = enabled ? 'none' : ''
     localStorage.setItem(bmrEnabledKey, enabled ? 'true' : 'false')
     if (!enabled) return
     applyEstimatedToTargets(getEstimatedFromInputs() || estimatedProfile)
   }
 
-  setTargetsReadonly(useBmr)
+  setTargetsReadonly(useBmr || useGHCalibration)
   setCalorieProfileSummary(estimatedProfile, latestWeightKg, bmrDeficit)
   if (useBmr && estimatedProfile) {
     applyEstimatedToTargets(estimatedProfile)
@@ -668,11 +714,6 @@ export async function renderSettings() {
     showToast(e.target.checked ? '⏸ Strava sync paused' : '▶ Strava sync resumed')
   })
 
-  document.getElementById('strava-auto-push-toggle')?.addEventListener('change', e => {
-    localStorage.setItem('strava-auto-push', e.target.checked ? 'true' : 'false')
-    showToast(e.target.checked ? '✅ Auto push enabled' : 'Auto push disabled')
-  })
-
   document.getElementById('strava-auto-push-google-toggle')?.addEventListener('change', e => {
     localStorage.setItem('strava-auto-push-google', e.target.checked ? 'true' : 'false')
     showToast(e.target.checked ? '✅ Google Health auto push enabled' : 'Google Health auto push disabled')
@@ -706,6 +747,31 @@ export async function renderSettings() {
     } catch (e) { showToast('❌ ' + e.message) }
   })
 
+  document.getElementById('tdee-gh-toggle')?.addEventListener('change', async e => {
+    if (e.target.checked) {
+      const bmrCb = document.getElementById('settings-use-bmr-checkbox')
+      if (bmrCb) bmrCb.checked = false
+      localStorage.setItem(bmrEnabledKey, 'false')
+      document.getElementById('settings-bmr-details').style.display = 'none'
+      setTargetsReadonly(true)
+      document.getElementById('settings-save-targets-btn').style.display = 'none'
+      document.getElementById('tdee-calibrate-btn').style.display = ''
+      await db.saveSettings({ tdee_source: 'google-health' }).catch(() => {})
+    } else {
+      try {
+        await db.saveSettings({ tdee_source: null, tdee_calibrated_at: null })
+        setTargetsReadonly(false)
+        document.getElementById('settings-save-targets-btn').style.display = ''
+        document.getElementById('tdee-calibrate-btn').style.display = 'none'
+      } catch (e) { showToast('❌ ' + e.message) }
+    }
+  })
+
+  document.getElementById('tdee-calibrate-btn')?.addEventListener('click', async () => {
+    await calibrateTDEETargets({ silent: false })
+    renderSettings()
+  })
+
   document.getElementById('connect-gh-btn').addEventListener('click', connectGoogleHealth)
 
   document.getElementById('disconnect-gh-btn')?.addEventListener('click', disconnectGoogleHealth)
@@ -729,9 +795,65 @@ export async function renderSettings() {
     showToast(e.target.checked ? '⏸ Google Health sync paused' : '▶ Google Health sync resumed')
   })
 
-  document.getElementById('gh-auto-push-toggle')?.addEventListener('change', e => {
-    localStorage.setItem('google-health-auto-push', e.target.checked ? '1' : '0')
-    showToast(e.target.checked ? '✅ Auto push enabled' : 'Auto push disabled')
+  // Strava master push toggle
+  document.getElementById('strava-auto-push-master')?.addEventListener('change', e => {
+    const pills = e.target.closest('.toggle-row')?.querySelector('.push-source-pills')
+    if (e.target.checked) {
+      if (!stravaAutoPushEnabled() && !stravaAutoPushGoogleEnabled()) {
+        localStorage.setItem('strava-auto-push', 'true')
+        const manualCb = pills?.querySelector('[data-source-key="manual"]')
+        if (manualCb) { manualCb.checked = true; manualCb.closest('label').style.background = 'var(--track)' }
+      }
+      if (pills) pills.style.display = ''
+    } else {
+      localStorage.setItem('strava-auto-push', 'false')
+      localStorage.setItem('strava-auto-push-google', 'false')
+      pills?.querySelectorAll('[data-source-key]').forEach(cb => { cb.checked = false; cb.closest('label').style.background = 'transparent' })
+      if (pills) pills.style.display = 'none'
+    }
+  })
+
+  document.querySelector('[data-source-key="manual"][id]')  // handled below via delegation
+
+  // Strava source pill changes
+  document.getElementById('strava-connected-ui')?.querySelectorAll('[data-source-key]').forEach(cb => {
+    cb.addEventListener('change', () => {
+      if (cb.dataset.sourceKey === 'manual') localStorage.setItem('strava-auto-push', cb.checked ? 'true' : 'false')
+      if (cb.dataset.sourceKey === 'google-health') localStorage.setItem('strava-auto-push-google', cb.checked ? 'true' : 'false')
+      cb.closest('label').style.background = cb.checked ? 'var(--track)' : 'transparent'
+      // Sync master toggle
+      const master = document.getElementById('strava-auto-push-master')
+      if (master) master.checked = stravaAutoPushEnabled() || stravaAutoPushGoogleEnabled()
+    })
+  })
+
+  // GH master push toggle
+  document.getElementById('gh-auto-push-master')?.addEventListener('change', e => {
+    const pills = e.target.closest('.toggle-row')?.querySelector('.push-source-pills')
+    if (e.target.checked) {
+      if (!ghAutoPushEnabled() && !ghPushStravaImports()) {
+        localStorage.setItem('google-health-auto-push', '1')
+        const manualCb = pills?.querySelector('[data-source-key="manual"]')
+        if (manualCb) { manualCb.checked = true; manualCb.closest('label').style.background = 'var(--track)' }
+      }
+      if (pills) pills.style.display = ''
+    } else {
+      localStorage.setItem('google-health-auto-push', '0')
+      localStorage.setItem('gh-push-strava', '0')
+      pills?.querySelectorAll('[data-source-key]').forEach(cb => { cb.checked = false; cb.closest('label').style.background = 'transparent' })
+      if (pills) pills.style.display = 'none'
+    }
+  })
+
+  // GH source pill changes
+  document.getElementById('gh-connected-ui')?.querySelectorAll('[data-source-key]').forEach(cb => {
+    cb.addEventListener('change', () => {
+      if (cb.dataset.sourceKey === 'manual') localStorage.setItem('google-health-auto-push', cb.checked ? '1' : '0')
+      if (cb.dataset.sourceKey === 'strava') localStorage.setItem('gh-push-strava', cb.checked ? '1' : '0')
+      cb.closest('label').style.background = cb.checked ? 'var(--track)' : 'transparent'
+      const master = document.getElementById('gh-auto-push-master')
+      if (master) master.checked = ghAutoPushEnabled() || ghPushStravaImports()
+    })
   })
 
   document.getElementById('settings-tutorial-btn')?.addEventListener('click', () => {

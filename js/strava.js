@@ -274,6 +274,13 @@ export async function syncStrava({ silent = false, onComplete = null } = {}) {
 
         await db.insertWorkouts(toInsert)
         showToast(`✅ Synced ${toInsert.length} new activit${toInsert.length === 1 ? 'y' : 'ies'}`)
+        if (localStorage.getItem('gh-push-strava') === '1' && localStorage.getItem('google-health-connected') === 'true') {
+          import('./google-health.js').then(({ pushActivityToGoogleHealth }) => {
+            for (const entry of toInsert) {
+              pushActivityToGoogleHealth(entry).catch(err => console.warn('[GH auto-push from Strava]', err.message || err))
+            }
+          })
+        }
       } else {
         if (!silent) showToast('✅ Strava: already up to date')
       }
@@ -323,6 +330,7 @@ export function connectStrava() {
 export const stravaAutoPushEnabled = () => localStorage.getItem('strava-auto-push') === 'true'
 export const stravaAutoPushGoogleEnabled = () => localStorage.getItem('strava-auto-push-google') === 'true'
 export const stravaSyncPaused = () => localStorage.getItem('strava-sync-paused') === '1'
+
 
 // Only sport_type values accepted by Strava's API — combat sports and others
 // not in Strava's enum fall through to the 'Workout' default below.
@@ -398,7 +406,6 @@ ${trackpoints.join('\n')}
 
 export async function pushActivityToStrava(entry) {
   if (!stravaIsConnected()) throw new Error('Strava not connected')
-
   const token = await getValidAccessToken()
   const sportType = ACTIVITY_TYPE_TO_STRAVA[(entry.activity_type || '').toLowerCase()] || 'Workout'
 
