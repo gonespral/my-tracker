@@ -239,7 +239,7 @@ export async function fetchDailyWisdom() {
 
   const today = dateStr()
   const cacheKey = `tracker-wisdom-${state.currentUser.id}-${today}`
-  const cached = sessionStorage.getItem(cacheKey)
+  const cached = localStorage.getItem(cacheKey)
   if (cached) return cached
 
   const data = await db.load()
@@ -312,7 +312,7 @@ Rules: one sentence, no markdown, no em dashes, no emojis, no lists, strictly in
     if (!r.ok) return null
     const msg = await r.json()
     const text = msg.content.find(b => b.type === 'text')?.text?.trim() || null
-    if (text) sessionStorage.setItem(cacheKey, text)
+    if (text) localStorage.setItem(cacheKey, text)
     return text
   } catch (_) { return null }
 }
