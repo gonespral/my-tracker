@@ -12,8 +12,8 @@ import { state } from '../state.js'
 import { supabase, db, getWorkoutConflictPreference, setWorkoutConflictPreference } from '../db.js'
 import { fmt, round, cap } from '../utils.js'
 import { openSheet, showToast, closeMenus, closeSheets } from '../ui.js'
-import { connectStrava, disconnectStrava, syncStrava, updateStravaSettingsSection, stravaAutoPushEnabled, stravaWeightSyncEnabled, setStravaWeightSync, stravaSpoofCaloriesEnabled, setStravaSpoofCalories } from '../strava.js'
-import { connectGoogleHealth, disconnectGoogleHealth, syncGoogleHealth, updateGoogleHealthSettingsSection } from '../google-health.js'
+import { connectStrava, disconnectStrava, syncStrava, updateStravaSettingsSection, stravaAutoPushEnabled, stravaSyncPaused, stravaWeightSyncEnabled, setStravaWeightSync, stravaSpoofCaloriesEnabled, setStravaSpoofCalories } from '../strava.js'
+import { connectGoogleHealth, disconnectGoogleHealth, syncGoogleHealth, updateGoogleHealthSettingsSection, ghAutoPushEnabled, ghSyncPaused } from '../google-health.js'
 import { materialIcon } from '../icons.js'
 import { showTutorial } from '../tutorial.js'
 
@@ -360,8 +360,17 @@ export async function renderSettings() {
           ${materialIcon('sync', 14, { style: 'vertical-align:-2px;flex-shrink:0;color:white' })}
           Force Sync Now
         </button>
-        <button id="remove-strava-btn" class="link-btn" style="margin-top:12px;color:var(--danger);display:block">Remove all synced activities</button>
         <div class="toggle-row" style="margin-top:14px">
+          <div>
+            <div class="toggle-row-label">Pause sync</div>
+            <div class="toggle-row-sub">Stop importing new activities from Strava</div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="strava-pause-sync-toggle" ${stravaSyncPaused() ? 'checked' : ''}>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="toggle-row">
           <div>
             <div class="toggle-row-label">Auto push to Strava</div>
             <div class="toggle-row-sub">Automatically push new logged activities to Strava</div>
@@ -396,6 +405,7 @@ export async function renderSettings() {
             <span class="toggle-slider"></span>
           </label>
         </div>
+        <button id="remove-strava-btn" class="link-btn" style="margin-top:14px;color:var(--danger);display:block">Remove all synced activities</button>
       </div>
     `)}
 
@@ -441,7 +451,27 @@ export async function renderSettings() {
           ${materialIcon('sync', 14, { style: 'vertical-align:-2px;flex-shrink:0;color:white' })}
           Force Sync Now
         </button>
-        <button id="remove-gh-btn" class="link-btn" style="margin-top:12px;color:var(--danger);display:block">Remove all Google Health-synced activities</button>
+        <div class="toggle-row" style="margin-top:14px">
+          <div>
+            <div class="toggle-row-label">Pause sync</div>
+            <div class="toggle-row-sub">Stop importing new activities from Google Health</div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="gh-pause-sync-toggle" ${ghSyncPaused() ? 'checked' : ''}>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="toggle-row">
+          <div>
+            <div class="toggle-row-label">Auto push to Google Health</div>
+            <div class="toggle-row-sub">Automatically push new logged activities to Google Health</div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="gh-auto-push-toggle" ${ghAutoPushEnabled() ? 'checked' : ''}>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <button id="remove-gh-btn" class="link-btn" style="margin-top:14px;color:var(--danger);display:block">Remove all synced activities</button>
       </div>
     `)}
 
@@ -621,6 +651,11 @@ export async function renderSettings() {
     showToast('✅ Default activity source updated')
   })
 
+  document.getElementById('strava-pause-sync-toggle')?.addEventListener('change', e => {
+    localStorage.setItem('strava-sync-paused', e.target.checked ? '1' : '0')
+    showToast(e.target.checked ? '⏸ Strava sync paused' : '▶ Strava sync resumed')
+  })
+
   document.getElementById('strava-auto-push-toggle')?.addEventListener('change', e => {
     localStorage.setItem('strava-auto-push', e.target.checked ? 'true' : 'false')
     showToast(e.target.checked ? '✅ Auto push enabled' : 'Auto push disabled')
@@ -670,6 +705,16 @@ export async function renderSettings() {
       showToast('🗑️ Google Health activities removed')
       closeSheets()
     } catch (e) { showToast('❌ ' + e.message) }
+  })
+
+  document.getElementById('gh-pause-sync-toggle')?.addEventListener('change', e => {
+    localStorage.setItem('google-health-sync-paused', e.target.checked ? '1' : '0')
+    showToast(e.target.checked ? '⏸ Google Health sync paused' : '▶ Google Health sync resumed')
+  })
+
+  document.getElementById('gh-auto-push-toggle')?.addEventListener('change', e => {
+    localStorage.setItem('google-health-auto-push', e.target.checked ? '1' : '0')
+    showToast(e.target.checked ? '✅ Auto push enabled' : 'Auto push disabled')
   })
 
   document.getElementById('settings-tutorial-btn')?.addEventListener('click', () => {

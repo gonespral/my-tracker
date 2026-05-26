@@ -216,6 +216,7 @@ function mapActivity(act) {
 
 export async function syncStrava({ silent = false, onComplete = null } = {}) {
   if (!stravaIsConnected()) return
+  if (stravaSyncPaused()) { if (!silent) showToast('⏸ Strava sync is paused'); return }
   if (!silent) showToast('🔄 Syncing Strava…')
 
   try {
@@ -320,6 +321,7 @@ export function connectStrava() {
 }
 
 export const stravaAutoPushEnabled = () => localStorage.getItem('strava-auto-push') === 'true'
+export const stravaSyncPaused = () => localStorage.getItem('strava-sync-paused') === '1'
 
 // Only sport_type values accepted by Strava's API — combat sports and others
 // not in Strava's enum fall through to the 'Workout' default below.

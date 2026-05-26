@@ -108,6 +108,11 @@ export function showTutorial() {
 
 export function showTutorialIfNew() {
   if (!state.currentUser) return
-  if (!isDemo && localStorage.getItem(getSeenKey())) return
+  if (isDemo) {
+    if (sessionStorage.getItem('tutorial-seen-demo')) return
+    sessionStorage.setItem('tutorial-seen-demo', '1')
+  } else {
+    if (localStorage.getItem(getSeenKey())) return
+  }
   showTutorial()
 }
