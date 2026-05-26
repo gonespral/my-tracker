@@ -150,14 +150,13 @@ Content-Type: application/json
     "exerciseType": "RUNNING",
     "metricsSummary": {
       "caloriesKcal": 350,
-      "distanceMillimeters": 5000000
+      "distanceKm": 5.0
     }
   }
 }
 ```
 
-> **Distance unit**: the API standard unit is **millimeters**.
-> Convert: `km * 1_000_000` → mm. Current pull code handles `distanceKm`/`distanceM`/`distanceMi` as fallbacks from the old API; new pushes should send `distanceMillimeters`.
+> **Distance unit**: the docs mention `elevationGainMillimeters` as an example of a mm-based field — but that field has the unit in its name. The primary exercise distance field in `metricsSummary` uses `distanceKm`/`distanceM`/`distanceMi` based on what the existing pull code already handles. Use `distanceKm` for push until the exact create schema is confirmed from the API reference.
 
 ### Update existing exercise
 ```
@@ -231,7 +230,7 @@ GET https://health.googleapis.com/v4/users/me/identity
 1. **Scope**: change `googlehealth.activity_and_fitness.readonly` → `googlehealth.activity_and_fitness`
 2. **Add** `ACTIVITY_TYPE_TO_GH` reverse map
 3. **Add** `pushActivityToGoogleHealth(entry)` function using `POST .../exercise/dataPoints`
-4. **Update** pull's distance fallback chain to also handle `distanceMillimeters` (new standard unit)
+4. **Verify** exact distance field name for exercise create from the API reference before pushing
 5. **Export** `pushActivityToGoogleHealth` and `googleHealthIsConnected`
 
 Users who connected with the old scope must re-authorize to get write access. Detect via a `google-health-can-write` localStorage flag set during the new OAuth callback.
