@@ -395,7 +395,7 @@ export function connectGoogleHealth() {
   url.searchParams.set('client_id',     clientId)
   url.searchParams.set('redirect_uri',  redirect)
   url.searchParams.set('response_type', 'code')
-  url.searchParams.set('scope',         'https://www.googleapis.com/auth/googlehealth.activity_and_fitness.readonly https://www.googleapis.com/auth/googlehealth.activity_and_fitness')
+  url.searchParams.set('scope',         'https://www.googleapis.com/auth/googlehealth.activity_and_fitness')
   url.searchParams.set('access_type',   'offline')
   url.searchParams.set('prompt',        'consent')
   url.searchParams.set('state',         'google-health-oauth')
@@ -414,7 +414,6 @@ export async function pushActivityToGoogleHealth(entry) {
   const endTime   = new Date(startMs + durationMs).toISOString()
   const metrics = {}
   if (entry.calories_burned) metrics.caloriesKcal = entry.calories_burned
-  if (entry.distance_km)     metrics.distanceKm   = entry.distance_km
   const body = {
     exercise: {
       interval: { startTime, endTime },
@@ -442,7 +441,8 @@ export async function pushActivityToGoogleHealth(entry) {
   }
   if (resp.status === 403) {
     const errBody = await resp.json().catch(() => ({}))
-    throw new Error(errBody.error?.message ?? 'Push not permitted (403) — check your Google Health account has Fitbit linked')
+    const msg = errBody.error?.message || errBody.error?.status || 'PERMISSION_DENIED'
+    throw new Error(`Push blocked (403 ${msg}) — disconnect and reconnect Google Health in Settings to grant push permissions`)
   }
   if (!resp.ok) {
     const err = await resp.json().catch(() => ({}))
