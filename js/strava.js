@@ -320,6 +320,7 @@ export function connectStrava() {
 }
 
 export const stravaAutoPushEnabled = () => localStorage.getItem('strava-auto-push') === 'true'
+export const stravaAutoPushGoogleEnabled = () => localStorage.getItem('strava-auto-push-google') === 'true'
 
 // Only sport_type values accepted by Strava's API — combat sports and others
 // not in Strava's enum fall through to the 'Workout' default below.

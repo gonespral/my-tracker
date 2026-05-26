@@ -9,7 +9,7 @@ import { renderToday, openFoodSheet, openFoodSheetWithPreset, openWorkoutSheet, 
 import { renderNutrition } from './tabs/nutrition.js'
 import { renderWorkouts } from './tabs/workouts.js'
 import { renderSettings, openPresetSheet, deletePreset, openWorkoutPresetSheet, deleteWorkoutPreset } from './tabs/settings.js'
-import { handleStravaCallback, syncStrava, stravaIsConnected, pushActivityToStrava } from './strava.js'
+import { handleStravaCallback, syncStrava, stravaIsConnected, stravaAutoPushEnabled, pushActivityToStrava } from './strava.js'
 import { handleGoogleHealthCallback, syncGoogleHealth, googleHealthIsConnected } from './google-health.js'
 import { showTutorialIfNew } from './tutorial.js'
 
@@ -698,6 +698,11 @@ async function initApp() {
           time: timeIso
         })
         showToast(`${{ low: '😴', medium: '💪', high: '🔥' }[intensity]} Logged ${desc}`)
+        if (stravaAutoPushEnabled() && stravaIsConnected()) {
+          pushActivityToStrava({ description: desc, activity_type: activityType, calories_burned: calsBurned, duration_min: durationMin, distance_km: distanceKm, heart_rate_avg: heartRate, time: timeIso })
+            .then(() => showToast('✅ Pushed to Strava'))
+            .catch(err => showToast('⚠️ Strava push failed: ' + (err.message || err)))
+        }
       }
       await renderActive()
     } catch (err) { showToast('❌ ' + (err.message || 'Save failed')) }

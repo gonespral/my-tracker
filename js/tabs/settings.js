@@ -12,7 +12,7 @@ import { state } from '../state.js'
 import { supabase, db, getWorkoutConflictPreference, setWorkoutConflictPreference } from '../db.js'
 import { fmt, round, cap } from '../utils.js'
 import { openSheet, showToast, closeMenus, closeSheets } from '../ui.js'
-import { connectStrava, disconnectStrava, syncStrava, updateStravaSettingsSection, stravaAutoPushEnabled, stravaWeightSyncEnabled, setStravaWeightSync, stravaSpoofCaloriesEnabled, setStravaSpoofCalories } from '../strava.js'
+import { connectStrava, disconnectStrava, syncStrava, updateStravaSettingsSection, stravaAutoPushEnabled, stravaAutoPushGoogleEnabled, stravaWeightSyncEnabled, setStravaWeightSync, stravaSpoofCaloriesEnabled, setStravaSpoofCalories } from '../strava.js'
 import { connectGoogleHealth, disconnectGoogleHealth, syncGoogleHealth, updateGoogleHealthSettingsSection } from '../google-health.js'
 import { materialIcon } from '../icons.js'
 import { showTutorial } from '../tutorial.js'
@@ -363,11 +363,21 @@ export async function renderSettings() {
         <button id="remove-strava-btn" class="link-btn" style="margin-top:12px;color:var(--danger);display:block">Remove all synced activities</button>
         <div class="toggle-row" style="margin-top:14px">
           <div>
-            <div class="toggle-row-label">Auto push to Strava</div>
-            <div class="toggle-row-sub">Automatically push new logged activities to Strava</div>
+            <div class="toggle-row-label">Auto push manual activities</div>
+            <div class="toggle-row-sub">Automatically push manually logged activities to Strava</div>
           </div>
           <label class="toggle-switch">
             <input type="checkbox" id="strava-auto-push-toggle" ${stravaAutoPushEnabled() ? 'checked' : ''}>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="toggle-row">
+          <div>
+            <div class="toggle-row-label">Auto push Google Health imports</div>
+            <div class="toggle-row-sub">Automatically push Google Health synced activities to Strava</div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="strava-auto-push-google-toggle" ${stravaAutoPushGoogleEnabled() ? 'checked' : ''}>
             <span class="toggle-slider"></span>
           </label>
         </div>
@@ -624,6 +634,11 @@ export async function renderSettings() {
   document.getElementById('strava-auto-push-toggle')?.addEventListener('change', e => {
     localStorage.setItem('strava-auto-push', e.target.checked ? 'true' : 'false')
     showToast(e.target.checked ? '✅ Auto push enabled' : 'Auto push disabled')
+  })
+
+  document.getElementById('strava-auto-push-google-toggle')?.addEventListener('change', e => {
+    localStorage.setItem('strava-auto-push-google', e.target.checked ? 'true' : 'false')
+    showToast(e.target.checked ? '✅ Google Health auto push enabled' : 'Google Health auto push disabled')
   })
 
   document.getElementById('strava-sync-weight-toggle')?.addEventListener('change', e => {

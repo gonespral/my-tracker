@@ -86,6 +86,8 @@ export async function renderToday() {
     <div class="section-label" style="margin-top:14px">Activities</div>
     ${workouts.map(e => workoutItem(e, today)).join('')}
     <button class="log-add-btn" data-action="open-workout-sheet">+ Add activity</button>
+    <div class="section-label" style="margin-top:14px">Weight</div>
+    <button class="log-add-btn" data-action="log-weight">+ Log today's weight</button>
   `
 }
 
