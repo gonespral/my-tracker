@@ -3,6 +3,7 @@ import { fmt, round, cap, formatTimeToAMPM } from './utils.js'
 import { typeIcon, SPORT_TYPE_MAP, materialIcon } from './icons.js'
 import { state } from './state.js'
 import { stravaIsConnected } from './strava.js'
+import { googleHealthIsConnected } from './google-health.js'
 
 const FOOD_ICON = materialIcon('restaurant', 15)
 
@@ -126,7 +127,10 @@ export const workoutItem = (e, date) => {
   if (!isStrava && stravaIsConnected()) {
     menuItems.push(`<button data-action="push-to-strava" data-id="${e.id}">Push to Strava</button>`)
   }
-if (!isImported) {
+  if (!isGoogleHealth && googleHealthIsConnected()) {
+    menuItems.push(`<button data-action="push-to-google-health" data-id="${e.id}">Push to Google Health</button>`)
+  }
+  if (!isImported) {
     menuItems.push(`<button class="danger" data-action="delete-workout" data-id="${e.id}">Delete</button>`)
   }
 
