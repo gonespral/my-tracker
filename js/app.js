@@ -712,9 +712,11 @@ async function initApp() {
           time: timeIso
         })
         showToast(`${{ low: '😴', medium: '💪', high: '🔥' }[intensity]} Logged ${desc}`)
-        const autoPushEntry = { activity_type: activityType, date: dateVal, time: timeIso, duration_min: durationMin, calories_burned: calsBurned, distance_km: distanceKm }
+        const autoPushEntry = { description: desc, activity_type: activityType, date: dateVal, time: timeIso, duration_min: durationMin, calories_burned: calsBurned, distance_km: distanceKm, heart_rate_avg: heartRate }
         if (stravaAutoPushEnabled() && stravaIsConnected() && durationMin) {
-          pushActivityToStrava(autoPushEntry).catch(e => console.warn('Strava auto-push:', e))
+          pushActivityToStrava(autoPushEntry)
+            .then(() => showToast('✅ Pushed to Strava'))
+            .catch(err => showToast('⚠️ Strava push failed: ' + (err.message || err)))
         }
         if (ghAutoPushEnabled() && googleHealthIsConnected() && durationMin) {
           pushActivityToGoogleHealth(autoPushEntry).catch(e => console.warn('GH auto-push:', e))
