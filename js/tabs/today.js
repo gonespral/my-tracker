@@ -25,7 +25,7 @@ function loadWisdom(wisdomEl) {
 
 export function reloadWisdom() {
   if (!state.currentUser) return
-  localStorage.removeItem(`tracker-wisdom-${state.currentUser.id}-${dateStr()}`)
+  localStorage.removeItem(`tracker-wisdom-${state.currentUser.id}`)
   const wisdomEl = document.getElementById('wisdom-card')
   if (wisdomEl) { wisdomEl.dataset.loaded = ''; loadWisdom(wisdomEl) }
 }
