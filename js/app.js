@@ -13,6 +13,7 @@ import { handleStravaCallback, syncStrava, stravaIsConnected, pushActivityToStra
 import { handleGoogleHealthCallback, syncGoogleHealth, googleHealthIsConnected } from './google-health.js'
 import { showTutorialIfNew } from './tutorial.js'
 
+
 function signIn() {
   supabase.auth.signInWithOAuth({
     provider: 'github',
