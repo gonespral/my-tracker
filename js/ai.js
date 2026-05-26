@@ -238,9 +238,11 @@ export async function fetchDailyWisdom() {
   if (!key) return null
 
   const today = dateStr()
-  const cacheKey = `tracker-wisdom-${state.currentUser.id}-${today}`
-  const cached = localStorage.getItem(cacheKey)
-  if (cached) return cached
+  const cacheKey = `tracker-wisdom-${state.currentUser.id}`
+  try {
+    const cached = JSON.parse(localStorage.getItem(cacheKey))
+    if (cached?.date === today) return cached.text
+  } catch (_) {}
 
   const data = await db.load()
   const weights = data.weights || []
@@ -312,7 +314,7 @@ Rules: one sentence, no markdown, no em dashes, no emojis, no lists, strictly in
     if (!r.ok) return null
     const msg = await r.json()
     const text = msg.content.find(b => b.type === 'text')?.text?.trim() || null
-    if (text) localStorage.setItem(cacheKey, text)
+    if (text) localStorage.setItem(cacheKey, JSON.stringify({ date: today, text }))
     return text
   } catch (_) { return null }
 }
