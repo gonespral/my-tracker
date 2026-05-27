@@ -469,14 +469,24 @@ export function sparklineHTML(weights) {
   const vals = ordered.map(w => w.kg)
   const minV = Math.min(...vals), maxV = Math.max(...vals)
   const range = maxV - minV || 0.5
-  const W = 400, H = 60, PAD = 8
-  const xStep = (W - PAD*2) / (vals.length - 1 || 1)
-  const pts = vals.map((v,i) => ({
-    x: PAD + i * xStep,
-    y: PAD + (1 - (v - minV) / range) * (H - PAD*2),
+
+  const W = 400, H = 80
+  const LPAD = 44, RPAD = 8, TPAD = 10, BPAD = 10
+  const chartW = W - LPAD - RPAD
+  const chartH = H - TPAD - BPAD
+
+  const xStep = chartW / (vals.length - 1 || 1)
+  const pts = vals.map((v, i) => ({
+    x: LPAD + i * xStep,
+    y: TPAD + (1 - (v - minV) / range) * chartH,
   }))
-  const line = pts.map((p,i) => `${i?'L':'M'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ')
-  const area = line + ` L${pts[pts.length-1].x.toFixed(1)},${H} L${pts[0].x.toFixed(1)},${H} Z`
+  const line = pts.map((p, i) => `${i ? 'L' : 'M'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ')
+  const area = line + ` L${pts[pts.length-1].x.toFixed(1)},${TPAD + chartH} L${pts[0].x.toFixed(1)},${TPAD + chartH} Z`
+
+  const midV = (minV + maxV) / 2
+  const ticks = range > 0.01
+    ? [{ v: maxV, y: TPAD }, { v: midV, y: TPAD + chartH / 2 }, { v: minV, y: TPAD + chartH }]
+    : [{ v: minV, y: TPAD + chartH / 2 }]
 
   const uid = Math.random().toString(36).substring(7)
   return `
@@ -492,10 +502,16 @@ export function sparklineHTML(weights) {
             <stop offset="100%" stop-color="var(--accent)" stop-opacity=".02"/>
           </linearGradient>
         </defs>
+        ${ticks.map(t => `
+          <line x1="${LPAD}" y1="${t.y.toFixed(1)}" x2="${W - RPAD}" y2="${t.y.toFixed(1)}"
+            stroke="var(--border)" stroke-width="1" stroke-dasharray="3,3"/>
+          <text x="${LPAD - 5}" y="${t.y.toFixed(1)}" text-anchor="end" dominant-baseline="middle"
+            font-size="13" fill="var(--tx3)">${t.v.toFixed(1)}</text>
+        `).join('')}
         <path d="${area}" fill="url(#wg-${uid})"/>
         <path d="${line}" fill="none" stroke="var(--accent)" stroke-width="2"
           stroke-linecap="round" stroke-linejoin="round"/>
-        ${pts.map(p=>`<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3" fill="var(--accent)"/>`).join('')}
+        ${pts.map(p => `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3" fill="var(--accent)"/>`).join('')}
       </svg>
     </div>`
 }

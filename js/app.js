@@ -963,6 +963,7 @@ async function initApp() {
   }
   // Auto-sync Google Health after initial render (non-blocking)
   if (googleHealthIsConnected()) {
+    setInterval(() => syncGoogleHealth({ onComplete: renderActive }).catch(e => console.warn('Google Health sync:', e)), 60000)
     syncGoogleHealth({ onComplete: renderActive }).catch(e => console.warn('Google Health sync:', e))
   }
 }

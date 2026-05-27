@@ -1,11 +1,12 @@
 import { TARGETS, MEAL_ORDER, MEAL_LABEL, MEAL_ICON } from '../config.js'
 import { state } from '../state.js'
 import { db } from '../db.js'
-import { dateStr, sumFood, calculateNetActiveCalories } from '../utils.js'
-import { calRingHTML, macroRingHTML, weekChartHTML, streakHTML } from '../charts.js'
+import { dateStr, sumFood, calculateNetActiveCalories, fmtDateShort } from '../utils.js'
+import { calRingHTML, macroRingHTML, weekChartHTML, streakHTML, sparklineHTML } from '../charts.js'
 import { foodItem, workoutItem, groupWorkoutsByConflict, workoutStack } from '../renderers.js'
 import { openSheet, showToast, closeMenus } from '../ui.js'
 import { fetchDailyWisdom } from '../ai.js'
+import { materialIcon } from '../icons.js'
 
 function wisdomHeader() {
   return `<div class="wisdom-header"><div class="wisdom-title">Claude Wisdom</div><button class="wisdom-reload-btn" data-action="reload-wisdom" aria-label="Regenerate"><span class="material-symbols-outlined" style="font-size:14px">refresh</span></button></div>`
@@ -28,6 +29,38 @@ export function reloadWisdom() {
   localStorage.removeItem(`tracker-wisdom-${state.currentUser.id}`)
   const wisdomEl = document.getElementById('wisdom-card')
   if (wisdomEl) { wisdomEl.dataset.loaded = ''; loadWisdom(wisdomEl) }
+}
+
+function renderTodayWeightSection(weights, today) {
+  const sorted = [...weights].sort((a, b) => b.date.localeCompare(a.date))
+  const todayEntry = sorted.find(w => w.date === today)
+  if (!todayEntry) {
+    return `<button class="log-add-btn" data-action="log-weight">+ Log today's weight</button>`
+  }
+  const prev = sorted.find(w => w.date < today)
+  const delta = prev ? todayEntry.kg - prev.kg : null
+  let dHtml = ''
+  if (delta !== null) {
+    const cls = delta > 0.01 ? 'up' : delta < -0.01 ? 'down' : 'same'
+    dHtml = `<span class="delta ${cls}">${delta > 0 ? '+' : ''}${delta.toFixed(2)} kg</span>`
+  }
+  return `
+    <button class="log-add-btn" style="margin-bottom:12px" data-action="log-weight">+ Log today's weight</button>
+    ${sparklineHTML(sorted)}
+    <div class="weight-entry">
+      <div class="weight-entry-date">${fmtDateShort(todayEntry.date)}</div>
+      <div class="weight-entry-right">
+        ${dHtml}
+        <div class="weight-entry-kg">${todayEntry.kg.toFixed(2)}<span style="font-size:12px;font-weight:400;color:var(--tx3)"> kg</span></div>
+      </div>
+      <div class="entry-menu-wrap">
+        <button class="entry-menu-btn" data-action="toggle-menu">${materialIcon('more_vert', 16)}</button>
+        <div class="entry-menu">
+          <button data-action="edit-weight" data-date="${todayEntry.date}">Edit</button>
+          <button class="danger" data-action="delete-weight" data-date="${todayEntry.date}">Delete</button>
+        </div>
+      </div>
+    </div>`
 }
 
 export async function renderToday() {
@@ -89,7 +122,7 @@ export async function renderToday() {
     ).join('')}
     <button class="log-add-btn" data-action="open-workout-sheet">+ Add activity</button>
     <div class="section-label" style="margin-top:14px">Weight</div>
-    <button class="log-add-btn" data-action="log-weight">+ Log today's weight</button>
+    ${renderTodayWeightSection(data.weights || [], today)}
   `
 }
 
@@ -227,7 +260,7 @@ export async function saveToMeals(id, date) {
   }
   if (!entry) return
   try {
-    await db.addMeal({ name: entry.description, calories: entry.calories||0, protein: entry.protein||0, carbs: entry.carbs||0, fat: entry.fat||0, meal: entry.meal||'snack' })
+    await db.addMeal({ name: entry.description, calories: entry.calories||0, protein: entry.protein||0, carbs: entry.carbs||0, fat: entry.fat||0 })
     state.mealsCache = null
     showToast(`✅ Saved "${entry.description}" to meals`)
   } catch (e) { showToast('❌ ' + e.message) }

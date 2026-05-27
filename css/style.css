@@ -2736,6 +2736,23 @@ body {
 }
 
 @media (max-width: 767px) {
+  #sync-status {
+    font-size: 11px;
+    min-width: 0;
+    overflow: hidden;
+    flex-shrink: 1;
+  }
+
+  .github-repo-link {
+    display: none;
+  }
+
+  .sync-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 90px;
+  }
+
   #chat-panel {
     border-left: none;
     border-right: none;
