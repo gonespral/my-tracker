@@ -32,6 +32,7 @@ export const state = {
   // UI
   statsOpen: false,
   toastTmr:  null,
+  expandedConflictGroups: new Set(),
 
   // Speech
   recognition:   null,

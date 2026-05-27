@@ -3,7 +3,7 @@ import { state } from '../state.js'
 import { db } from '../db.js'
 import { dateStr, sumFood, calculateNetActiveCalories } from '../utils.js'
 import { calRingHTML, macroRingHTML, weekChartHTML, streakHTML } from '../charts.js'
-import { foodItem, workoutItem } from '../renderers.js'
+import { foodItem, workoutItem, groupWorkoutsByConflict, workoutStack } from '../renderers.js'
 import { openSheet, showToast, closeMenus } from '../ui.js'
 import { fetchDailyWisdom } from '../ai.js'
 
@@ -84,7 +84,9 @@ export async function renderToday() {
     ${orderedFood.map(e => foodItem(e, today)).join('') || ''}
     <button class="log-add-btn" data-action="open-food-sheet" data-meal="snack">+ Add meal</button>
     <div class="section-label" style="margin-top:14px">Activities</div>
-    ${workouts.map(e => workoutItem(e, today)).join('')}
+    ${groupWorkoutsByConflict(workouts).map(item =>
+      item.type === 'stack' ? workoutStack(item.entries, today) : workoutItem(item.entry, today)
+    ).join('')}
     <button class="log-add-btn" data-action="open-workout-sheet">+ Add activity</button>
     <div class="section-label" style="margin-top:14px">Weight</div>
     <button class="log-add-btn" data-action="log-weight">+ Log today's weight</button>

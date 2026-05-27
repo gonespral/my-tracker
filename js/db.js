@@ -1,5 +1,6 @@
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js'
 import { state } from './state.js'
+import { startSync, endSync, failSync } from './sync-status.js'
 
 export const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 
@@ -286,7 +287,11 @@ export const db = {
       state.workoutConflictGroups = {}
       return { food: {}, workouts: {}, weights: [] }
     }
+    // Only show loading indicator when we have to actually hit Supabase
+    const needsFetch = !state.dbCache
+    if (needsFetch) startSync('Supabase')
 
+    try {
     // Safari backgrounds freeze the auto-refresh timer; when the tab comes back
     // the token may be expired. Check and refresh before querying so we get a
     // real error (or null user) rather than silent empty arrays from RLS.
@@ -334,7 +339,12 @@ export const db = {
     const weights = (weightRows || []).map(({ id, user_id, created_at, ...r }) => r)
 
     state.dbCache = { food, workouts, weights }
+    if (needsFetch) endSync('Supabase')
     return state.dbCache
+    } catch (e) {
+      if (needsFetch) failSync('Supabase')
+      throw e
+    }
   },
 
   bust() { state.dbCache = null },

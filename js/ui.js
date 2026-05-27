@@ -146,8 +146,19 @@ export function toggleEntryMenu(btn) {
   const menu = btn.nextElementSibling
   const isOpen = menu.classList.contains('open')
   closeMenus()
-  if (!isOpen) menu.classList.add('open')
+  if (!isOpen) {
+    menu.classList.add('open')
+    // Lift the card above its stack siblings
+    const stackCard = btn.closest('.conflict-stack-below .log-item')
+    if (stackCard) stackCard.style.zIndex = '100'
+    // Lift the whole conflict-stack above sibling stacks
+    const conflictStack = btn.closest('.conflict-stack')
+    if (conflictStack) conflictStack.style.zIndex = '10'
+  }
 }
 
-export const closeMenus = () =>
+export const closeMenus = () => {
   document.querySelectorAll('.entry-menu.open').forEach(m => m.classList.remove('open'))
+  document.querySelectorAll('.conflict-stack-below .log-item').forEach(el => el.style.zIndex = '')
+  document.querySelectorAll('.conflict-stack').forEach(el => el.style.zIndex = '')
+}

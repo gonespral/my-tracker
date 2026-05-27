@@ -735,7 +735,7 @@ export async function renderSettings() {
 
   document.getElementById('force-sync-btn')?.addEventListener('click', async () => {
     closeSheets()
-    await syncStrava({ silent: false })
+    await syncStrava({})
   })
 
   document.getElementById('remove-strava-btn')?.addEventListener('click', async () => {
@@ -778,7 +778,7 @@ export async function renderSettings() {
 
   document.getElementById('gh-force-sync-btn')?.addEventListener('click', async () => {
     closeSheets()
-    await syncGoogleHealth({ silent: false })
+    await syncGoogleHealth({})
   })
 
   document.getElementById('remove-gh-btn')?.addEventListener('click', async () => {
