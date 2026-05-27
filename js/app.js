@@ -72,6 +72,25 @@ document.addEventListener('click', async (e) => {
       toggleEntryMenu(actionEl)
       break
 
+    case 'expand-conflict-stack': {
+      if (e.target.closest('.entry-menu-wrap')) break
+      const stack = e.target.closest('.conflict-stack')
+      if (!stack) break
+      const below = stack.querySelector('.conflict-stack-below')
+
+      if (stack.classList.contains('conflict-stack--expanded')) {
+        // Only collapse when tapping the front (counting) card, not the duplicates below
+        const frontCard = stack.querySelector('.log-item:first-child')
+        if (!frontCard?.contains(e.target)) break
+        if (below) below.style.overflow = ''
+        stack.classList.remove('conflict-stack--expanded')
+      } else {
+        stack.classList.add('conflict-stack--expanded')
+        if (below) below.style.overflow = 'visible'
+      }
+      break
+    }
+
     case 'edit-food':
       editFood(id, date)
       break

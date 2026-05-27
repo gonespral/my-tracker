@@ -2,7 +2,7 @@ import { state } from '../state.js'
 import { db } from '../db.js'
 import { dateStr } from '../utils.js'
 import { calTrendHTML, streakHTML, monthHeatmapHTML, monthNavHTML, activityStatsHTML, activityTypeBreakdownHTML } from '../charts.js'
-import { workoutItem } from '../renderers.js'
+import { workoutItem, groupWorkoutsByConflict, workoutStack } from '../renderers.js'
 
 
 export async function renderWorkouts(monthOffset) {
@@ -38,7 +38,9 @@ export async function renderWorkouts(monthOffset) {
     return `
       <div class="workout-day-group" data-date="${ds}">
         <div class="workout-day-hd${isToday ? ' today-hd' : ''}">${label}</div>
-        ${ws.map(e => workoutItem(e, ds)).join('')}
+        ${groupWorkoutsByConflict(ws).map(item =>
+          item.type === 'stack' ? workoutStack(item.entries, ds) : workoutItem(item.entry, ds)
+        ).join('')}
       </div>`
   }).join('')
 

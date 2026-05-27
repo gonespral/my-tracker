@@ -48,6 +48,36 @@ function isSavedWorkoutPresetEntry(entry) {
     samePresetNumber(preset.calories_burned, entry.calories_burned))
 }
 
+export function groupWorkoutsByConflict(workouts) {
+  const groups = new Map()
+  for (const entry of workouts) {
+    if (entry.conflictGroupId && !entry.dismissedConflictGroupId) {
+      if (!groups.has(entry.conflictGroupId)) groups.set(entry.conflictGroupId, [])
+      groups.get(entry.conflictGroupId).push(entry)
+    }
+  }
+
+  const result = []
+  const seen = new Set()
+  for (const entry of workouts) {
+    if (seen.has(entry.id)) continue
+    seen.add(entry.id)
+
+    if (entry.conflictGroupId && !entry.dismissedConflictGroupId) {
+      const gid = entry.conflictGroupId
+      const group = groups.get(gid)
+      // Only emit the stack once — at the position of the first group member
+      const firstInGroup = group[0]
+      if (firstInGroup.id !== entry.id) continue
+      const sorted = [...group].sort((a, b) => (a.isDuplicate ? 1 : 0) - (b.isDuplicate ? 1 : 0))
+      result.push({ type: 'stack', entries: sorted, groupId: gid })
+    } else {
+      result.push({ type: 'single', entry })
+    }
+  }
+  return result
+}
+
 // date param is passed so edit/delete actions know which day the entry belongs to
 export const foodItem = (e, date) => {
   const fromPreset = isSavedMealEntry(e)
@@ -102,25 +132,23 @@ export const workoutItem = (e, date) => {
   const isImported       = isStrava || isGoogleHealth
   const pushedToStrava   = !isStrava   && wasPushedToStrava(e.id)
   const pushedToGH       = !isGoogleHealth && wasPushedToGH(e.id)
-  const isDuplicate      = e.isDuplicate === true
   const inConflict       = !!e.conflictGroupId
   const isDismissed      = !!e.dismissedConflictGroupId
-  const duplicateBadge   = isDuplicate ? `<span class="tag tag-duplicate">Duplicate</span>` : ''
   const savedBadge       = fromPreset ? `<span class="tag tag-saved">Saved</span>` : ''
   const stravaBadge      = isStrava
     ? `<a class="tag tag-strava" href="https://www.strava.com/activities/${e.external_id}" target="_blank" rel="noopener" style="text-decoration:none">Strava ↗</a>`
-    : pushedToStrava ? `<span class="tag tag-strava">→ Strava</span>` : ''
+    : ''
   const googleHealthBadge = e.source === 'fitbit'
     ? `<span class="tag tag-google-health">Fitbit</span>`
     : isGoogleHealth ? `<span class="tag tag-google-health">Google Health</span>`
-    : pushedToGH     ? `<span class="tag tag-google-health">→ Google Health</span>` : ''
+    : ''
 
   // Build three-dot menu items
   const menuItems = []
   if (!isImported) {
     menuItems.push(`<button data-action="edit-workout" data-id="${e.id}" data-date="${date}">Edit</button>`)
   }
-  if (inConflict && isDuplicate) {
+  if (inConflict && e.isDuplicate) {
     menuItems.push(`<button data-action="activate-workout-conflict" data-group="${e.conflictGroupId}" data-source="${e.source || 'manual'}" data-id="${e.id}">Count this instead</button>`)
   }
   if (inConflict) {
@@ -129,10 +157,13 @@ export const workoutItem = (e, date) => {
   if (isDismissed) {
     menuItems.push(`<button data-action="reflag-workout-conflict" data-group="${e.dismissedConflictGroupId}">Flag as duplicate</button>`)
   }
-  if (!isStrava && !pushedToStrava && stravaIsConnected()) {
+  const conflictSources = e.conflictSources || []
+  const conflictHasStrava = conflictSources.includes('strava')
+  const conflictHasGH = conflictSources.some(s => s === 'google-health' || s === 'fitbit')
+  if (!isStrava && !pushedToStrava && !conflictHasStrava && stravaIsConnected()) {
     menuItems.push(`<button data-action="push-to-strava" data-id="${e.id}">Push to Strava</button>`)
   }
-  if (!isGoogleHealth && !pushedToGH && googleHealthIsConnected()) {
+  if (!isGoogleHealth && !pushedToGH && !conflictHasGH && googleHealthIsConnected()) {
     menuItems.push(`<button data-action="push-to-google-health" data-id="${e.id}">Push to Google Health</button>`)
   }
   if (isStrava && stravaIsConnected()) {
@@ -161,7 +192,7 @@ export const workoutItem = (e, date) => {
       </div>` : ''
 
   return `
-    <div class="log-item${isDuplicate ? ' log-item-duplicate' : ''}">
+    <div class="log-item">
       <div class="log-icon">${logIcon}</div>
       <div class="log-body">
         <div style="display:flex; align-items:baseline; gap:8px; margin-bottom:2px;">
@@ -170,7 +201,6 @@ export const workoutItem = (e, date) => {
         </div>
         <div class="log-tags">
           <span class="tag intensity-${e.intensity}">${intensityIcon} ${cap(e.intensity)}</span>
-          ${duplicateBadge}
           ${savedBadge}
           ${e.duration_min ? `<span class="tag">${ICON_CLOCK} ${e.duration_min} min</span>` : ''}
           ${e.distance_km  ? `<span class="tag">${ICON_PIN} ${e.distance_km} km</span>`  : ''}
@@ -186,6 +216,17 @@ export const workoutItem = (e, date) => {
       </div>` : ''}
       ${menuHTML}
     </div>`
+}
+
+export function workoutStack(entries, date) {
+  const [active, ...dupes] = entries
+  const activeHTML = workoutItem(active, date)
+  const dupesHTML = dupes.map(e => workoutItem(e, date)).join('')
+  return `<div class="conflict-stack"
+    data-action="expand-conflict-stack"
+    data-group="${active.conflictGroupId}"
+    data-count="${Math.min(entries.length, 3)}">
+    ${activeHTML}<div class="conflict-stack-below">${dupesHTML}</div></div>`
 }
 
 export function foodByMeal(food, date, options = {}) {
