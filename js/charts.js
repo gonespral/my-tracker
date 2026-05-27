@@ -22,20 +22,25 @@ function progressColor(consumed, target, timeFrac, accentColor = 'var(--accent)'
   return '#ef4444'
 }
 
-// SVG tick line marking the time-target position on a ring.
-// Drawn as a white halo + dark inner line so it's visible on both the gray
-// track and the colored progress arc.
+// SVG triangle marker just outside the ring, pointing inward at the time-target position.
+// Placed outside the ring stroke so it's always visible against the page background.
+// Requires overflow="visible" on the parent SVG.
 function ringTickSVG(cx, cy, r, sw, timeFrac) {
   if (timeFrac <= 0 || timeFrac >= 1) return ''
   const angle = -Math.PI / 2 + timeFrac * 2 * Math.PI
   const dx = Math.cos(angle), dy = Math.sin(angle)
-  const inner = r - sw / 2 - 2
-  const outer = r + sw / 2 + 2
-  const x1 = (cx + inner * dx).toFixed(1), y1 = (cy + inner * dy).toFixed(1)
-  const x2 = (cx + outer * dx).toFixed(1), y2 = (cy + outer * dy).toFixed(1)
-  return `
-    <line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="var(--bg)" stroke-width="${sw > 10 ? 4 : 3}" stroke-linecap="round"/>
-    <line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="var(--tx)" stroke-width="${sw > 10 ? 2 : 1.5}" stroke-linecap="round" opacity="0.75"/>`
+  const px = -dy, py = dx  // perpendicular to radial direction
+  const isLarge = sw > 10
+  const gap   = 4                        // space between ring outer edge and triangle tip
+  const depth = isLarge ? 9 : 6         // triangle height (pointing inward)
+  const half  = isLarge ? 5 : 3.5       // half-width of triangle base
+  const tipR  = r + sw / 2 + gap
+  const baseR = tipR + depth
+  const tipX  = (cx + tipR  * dx).toFixed(1), tipY  = (cy + tipR  * dy).toFixed(1)
+  const b1X   = (cx + baseR * dx + half * px).toFixed(1), b1Y = (cy + baseR * dy + half * py).toFixed(1)
+  const b2X   = (cx + baseR * dx - half * px).toFixed(1), b2Y = (cy + baseR * dy - half * py).toFixed(1)
+  return `<polygon points="${tipX},${tipY} ${b1X},${b1Y} ${b2X},${b2Y}"
+    fill="var(--tx2)" stroke="var(--bg)" stroke-width="1.5" stroke-linejoin="round"/>`
 }
 
 export function calRingHTML(consumed, target, burned = 0) {
@@ -57,7 +62,7 @@ export function calRingHTML(consumed, target, burned = 0) {
 
   return `
     <div class="ring-wrap" style="width:${size}px;height:${size}px">
-      <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+      <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" overflow="visible">
         <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--track)" stroke-width="${sw}"/>
         <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${color}" stroke-width="${sw}"
           stroke-dasharray="${circ.toFixed(2)}" stroke-dashoffset="${off.toFixed(2)}"
@@ -95,7 +100,7 @@ export function macroRingHTML(label, value, target, unit, accentColor) {
     <div class="macro-ring-card">
       <div class="macro-ring-label">${label}</div>
       <div class="ring-wrap" style="width:${size}px;height:${size}px">
-        <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+        <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" overflow="visible">
           <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--track)" stroke-width="${sw}"/>
           <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${color}" stroke-width="${sw}"
             stroke-dasharray="${circ.toFixed(2)}" stroke-dashoffset="${off.toFixed(2)}"
