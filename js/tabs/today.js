@@ -3,7 +3,7 @@ import { state } from '../state.js'
 import { db } from '../db.js'
 import { dateStr, sumFood, calculateNetActiveCalories, fmtDateShort } from '../utils.js'
 import { stagger, renderPanel } from '../animate.js'
-import { calRingHTML, macroRingHTML, weekChartHTML, streakHTML, sparklineHTML } from '../charts.js'
+import { calRingHTML, macroRingHTML, weekChartHTML, streakHTML, sparklineHTML, MACRO_COLORS } from '../charts.js'
 import { foodItem, workoutItem, groupWorkoutsByConflict, workoutStack } from '../renderers.js'
 import { openSheet, showToast, closeMenus } from '../ui.js'
 import { fetchDailyWisdom } from '../ai.js'
@@ -92,9 +92,9 @@ export async function renderToday() {
      </div>`)
 
   renderPanel(document.getElementById('macro-rings'),
-    macroRingHTML('Protein', totals.protein, TARGETS.protein, 'g', 'var(--accent)') +
-    macroRingHTML('Carbs',   totals.carbs,   TARGETS.carbs,   'g', '#3b82f6') +
-    macroRingHTML('Fat',     totals.fat,      TARGETS.fat,      'g', '#f59e0b'))
+    macroRingHTML('Protein', totals.protein, TARGETS.protein, 'g', MACRO_COLORS.protein) +
+    macroRingHTML('Carbs',   totals.carbs,   TARGETS.carbs,   'g', MACRO_COLORS.carbs) +
+    macroRingHTML('Fat',     totals.fat,     TARGETS.fat,     'g', MACRO_COLORS.fat))
 
   renderPanel(document.getElementById('week-chart-card'), weekChartHTML(data))
   renderPanel(document.getElementById('streak-card'),     streakHTML(data))
