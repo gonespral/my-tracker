@@ -2,6 +2,7 @@ import { state } from './state.js'
 import { db, supabase, parseWorkoutStart } from './db.js'
 import { dateStr, nowTime } from './utils.js'
 import { showToast } from './ui.js'
+import { startSync, endSync, failSync } from './sync-status.js'
 import { GOOGLE_HEALTH_CLIENT_ID as DEFAULT_CLIENT_ID, EDGE_FUNCTION_URL } from './config.js'
 import { stravaAutoPushGoogleEnabled, stravaIsConnected, pushActivityToStrava } from './strava.js'
 
@@ -297,86 +298,101 @@ function mapDataPoint(dp) {
   }
 }
 
-export async function syncGoogleHealth({ silent = false, onComplete = null } = {}) {
+let ghSyncInProgress = false
+
+export async function syncGoogleHealth({ onComplete = null } = {}) {
   if (!googleHealthIsConnected()) return
   if (!state.currentUser) return
-  if (ghSyncPaused()) { if (!silent) showToast('⏸ Google Health sync is paused'); return }
+  if (ghSyncPaused()) return
+  if (ghSyncInProgress) return
+  ghSyncInProgress = true
+  startSync('Google Health')
 
-  let token
+  let newCount = 0
+  let syncFailed = false
   try {
-    token = await getValidAccessToken()
-  } catch (e) {
-    if (!silent) showToast('❌ Google Health: ' + e.message)
-    return
-  }
-
-  const cutoff = (() => { const d = new Date(); d.setDate(d.getDate() - 90); return dateStr(d) })()
-
-  let allPoints = []
-  let pageToken  = null
-  try {
-    do {
-      const url = new URL('https://health.googleapis.com/v4/users/me/dataTypes/exercise/dataPoints')
-      url.searchParams.set('pageSize', '200')
-      if (pageToken) url.searchParams.set('pageToken', pageToken)
-
-      const res = await fetch(url.toString(), { headers: { Authorization: `Bearer ${token}` } })
-      if (res.status === 401) {
-        disconnectGoogleHealth(true)
-        if (!silent) showToast('❌ Google Health session expired')
-        return
-      }
-      if (!res.ok) {
-        const errBody = await res.json().catch(() => ({}))
-        const msg = errBody.error?.message || errBody.error?.status || `HTTP ${res.status}`
-        console.error('[GH sync 403 detail]', JSON.stringify(errBody, null, 2))
-        throw new Error(`Google Health read: ${msg}`)
-      }
-      const data = await res.json()
-      allPoints = allPoints.concat(data.dataPoints || [])
-      pageToken  = data.nextPageToken || null
-    } while (pageToken)
-  } catch (e) {
-    if (!silent) showToast('❌ Google Health sync: ' + e.message)
-    return
-  }
-
-  try {
-    allPoints = allPoints.filter(dp => {
-      const start = dp.exercise?.interval?.startTime || ''
-      return start.slice(0, 10) >= cutoff
-    })
-
-    const allIds    = allPoints.map(dp => (dp.name || '').split('/').pop()).filter(Boolean)
-    const existing  = await db.getGoogleHealthIds(allIds)
-    const existingSet = new Set(existing)
-
-    const toInsert = allPoints
-      .filter(dp => {
-        const id = (dp.name || '').split('/').pop()
-        return id && !existingSet.has(id)
-      })
-      .map(mapDataPoint)
-      .filter(e => e.date)
-
-    if (toInsert.length > 0) {
-      await db.insertWorkouts(toInsert)
-      if (stravaAutoPushGoogleEnabled() && stravaIsConnected()) {
-        for (const entry of toInsert) {
-          pushActivityToStrava(entry).catch(err => console.warn('[Strava auto-push]', err.message || err))
-        }
-      }
+    let token
+    try {
+      token = await getValidAccessToken()
+    } catch (e) {
+      console.error('Google Health token error:', e)
+      syncFailed = true
+      return
     }
 
-    localStorage.setItem(GH_LAST_SYNC, String(Date.now()))
-    updateGoogleHealthSettingsSection()
+    const cutoff = (() => { const d = new Date(); d.setDate(d.getDate() - 90); return dateStr(d) })()
 
-    onComplete?.()
+    let allPoints = []
+    let pageToken  = null
+    try {
+      do {
+        const url = new URL('https://health.googleapis.com/v4/users/me/dataTypes/exercise/dataPoints')
+        url.searchParams.set('pageSize', '200')
+        if (pageToken) url.searchParams.set('pageToken', pageToken)
 
-    if (!silent) showToast(`✅ Google Health: ${toInsert.length} new activit${toInsert.length !== 1 ? 'ies' : 'y'} added`)
-  } catch (e) {
-    if (!silent) showToast('❌ Google Health sync: ' + e.message)
+        const res = await fetch(url.toString(), { headers: { Authorization: `Bearer ${token}` } })
+        if (res.status === 401) {
+          disconnectGoogleHealth(true)
+          return
+        }
+        if (!res.ok) {
+          const errBody = await res.json().catch(() => ({}))
+          const msg = errBody.error?.message || errBody.error?.status || `HTTP ${res.status}`
+          console.error('[GH sync detail]', JSON.stringify(errBody, null, 2))
+          throw new Error(`Google Health read: ${msg}`)
+        }
+        const data = await res.json()
+        allPoints = allPoints.concat(data.dataPoints || [])
+        pageToken  = data.nextPageToken || null
+      } while (pageToken)
+    } catch (e) {
+      console.error('Google Health sync error:', e)
+      syncFailed = true
+      return
+    }
+
+    try {
+      allPoints = allPoints.filter(dp => {
+        const start = dp.exercise?.interval?.startTime || ''
+        return start.slice(0, 10) >= cutoff
+      })
+
+      const allIds    = allPoints.map(dp => (dp.name || '').split('/').pop()).filter(Boolean)
+      const existing  = await db.getGoogleHealthIds(allIds)
+      const existingSet = new Set(existing)
+
+      const toInsert = allPoints
+        .filter(dp => {
+          const id = (dp.name || '').split('/').pop()
+          return id && !existingSet.has(id)
+        })
+        .map(mapDataPoint)
+        .filter(e => e.date)
+
+      if (toInsert.length > 0) {
+        await db.insertWorkouts(toInsert)
+        newCount = toInsert.length
+        if (stravaAutoPushGoogleEnabled() && stravaIsConnected()) {
+          for (const entry of toInsert) {
+            pushActivityToStrava(entry).catch(err => console.warn('[Strava auto-push]', err.message || err))
+          }
+        }
+      }
+
+      localStorage.setItem(GH_LAST_SYNC, String(Date.now()))
+      updateGoogleHealthSettingsSection()
+
+      onComplete?.()
+    } catch (e) {
+      console.error('Google Health sync error:', e)
+      syncFailed = true
+    }
+  } finally {
+    ghSyncInProgress = false
+    if (syncFailed) failSync('Google Health')
+    else endSync('Google Health')
   }
+  return newCount
 }
 
 export function connectGoogleHealth() {

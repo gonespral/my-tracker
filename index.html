@@ -44,9 +44,16 @@
           </svg>
         </a>
       </span>
+      <div id="sync-status" hidden aria-live="polite">
+        <span class="sync-dot"></span>
+        <span class="sync-label"></span>
+      </div>
       <div class="top-bar-actions">
         <button id="demo-btn" class="icon-btn" title="Exit Demo Mode" style="display:none; color: var(--warn); background: var(--warn-soft); border-radius: 999px; padding: 4px 10px; font-size: 11px; font-weight: 700; font-family: 'Space Grotesk', sans-serif; letter-spacing: 0.5px; border: 1px solid var(--warn);">
           DEMO
+        </button>
+        <button id="refresh-btn" class="icon-btn" title="Sync all" aria-label="Sync all">
+          <span class="material-symbols-outlined" style="font-size:18px">sync</span>
         </button>
         <button id="theme-toggle" class="icon-btn" title="Toggle dark mode" aria-label="Toggle dark mode">
           <span class="material-symbols-outlined icon-sun" style="font-size:18px">light_mode</span>

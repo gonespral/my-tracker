@@ -172,10 +172,10 @@ export const workoutItem = (e, date) => {
   if (isGoogleHealth && !isFitbit && googleHealthIsConnected()) {
     menuItems.push(`<button class="danger" data-action="delete-from-gh" data-id="${e.id}" data-remote-id="${e.external_id}">Delete from Google Health</button>`)
   }
-  if (pushedToStrava && stravaIsConnected()) {
+  if (pushedToStrava && !isStrava && stravaIsConnected()) {
     menuItems.push(`<button class="danger" data-action="unlink-from-strava" data-id="${e.id}" data-remote-id="${pushedStravaId(e.id)}">Remove from Strava</button>`)
   }
-  if (pushedToGH && googleHealthIsConnected()) {
+  if (pushedToGH && !isGoogleHealth && googleHealthIsConnected()) {
     menuItems.push(`<button class="danger" data-action="unlink-from-gh" data-id="${e.id}" data-remote-id="${pushedGHId(e.id)}">Remove from Google Health</button>`)
   }
   if (!isImported) {
@@ -220,13 +220,15 @@ export const workoutItem = (e, date) => {
 
 export function workoutStack(entries, date) {
   const [active, ...dupes] = entries
+  const groupId = active.conflictGroupId
+  const isExpanded = state.expandedConflictGroups.has(groupId)
   const activeHTML = workoutItem(active, date)
   const dupesHTML = dupes.map(e => workoutItem(e, date)).join('')
-  return `<div class="conflict-stack"
+  return `<div class="conflict-stack${isExpanded ? ' conflict-stack--expanded' : ''}"
     data-action="expand-conflict-stack"
-    data-group="${active.conflictGroupId}"
+    data-group="${groupId}"
     data-count="${Math.min(entries.length, 3)}">
-    ${activeHTML}<div class="conflict-stack-below">${dupesHTML}</div></div>`
+    ${activeHTML}<div class="conflict-stack-below" style="${isExpanded ? 'overflow:visible' : ''}">${dupesHTML}</div></div>`
 }
 
 export function foodByMeal(food, date, options = {}) {

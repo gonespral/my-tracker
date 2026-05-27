@@ -13,6 +13,7 @@ import { handleStravaCallback, syncStrava, stravaIsConnected, pushActivityToStra
 import { handleGoogleHealthCallback, syncGoogleHealth, googleHealthIsConnected, pushActivityToGoogleHealth, deleteActivityFromGoogleHealth, ghAutoPushEnabled } from './google-health.js'
 import { markPushedToStrava, markPushedToGH, clearPushedToStrava, clearPushedToGH } from './push-tracker.js'
 import { showTutorialIfNew } from './tutorial.js'
+import { clearFailed } from './sync-status.js'
 
 
 function signIn() {
@@ -44,6 +45,18 @@ export async function renderActive() {
     console.error('Render error:', e)
     showToast('❌ ' + e.message)
   }
+  restoreExpandedStacks()
+}
+
+function restoreExpandedStacks() {
+  if (!state.expandedConflictGroups.size) return
+  document.querySelectorAll('.conflict-stack:not(.conflict-stack--expanded)').forEach(stack => {
+    if (state.expandedConflictGroups.has(stack.dataset.group)) {
+      stack.classList.add('conflict-stack--expanded')
+      const below = stack.querySelector('.conflict-stack-below')
+      if (below) below.style.overflow = 'visible'
+    }
+  })
 }
 
 function switchTab(tab) {
@@ -77,6 +90,7 @@ document.addEventListener('click', async (e) => {
       const stack = e.target.closest('.conflict-stack')
       if (!stack) break
       const below = stack.querySelector('.conflict-stack-below')
+      const group = stack.dataset.group
 
       if (stack.classList.contains('conflict-stack--expanded')) {
         // Only collapse when tapping the front (counting) card, not the duplicates below
@@ -84,9 +98,11 @@ document.addEventListener('click', async (e) => {
         if (!frontCard?.contains(e.target)) break
         if (below) below.style.overflow = ''
         stack.classList.remove('conflict-stack--expanded')
+        state.expandedConflictGroups.delete(group)
       } else {
         stack.classList.add('conflict-stack--expanded')
         if (below) below.style.overflow = 'visible'
+        state.expandedConflictGroups.add(group)
       }
       break
     }
@@ -129,7 +145,7 @@ document.addEventListener('click', async (e) => {
         const { id: remoteId } = await pushActivityToStrava(entry)
         markPushedToStrava(entry.id, remoteId)
         showToast('✅ Pushed to Strava')
-        syncStrava({ silent: true, onComplete: renderActive }).catch(e => console.warn('Strava sync:', e))
+        syncStrava({ onComplete: renderActive }).catch(e => console.warn('Strava sync:', e))
       }
       catch (err) { showToast('❌ ' + err.message) }
       break
@@ -663,8 +679,17 @@ async function initApp() {
   syncBarHeight()
 
   // Re-render when tab becomes visible — db.load() handles token refresh internally
+  let hiddenAt = 0
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') renderActive()
+    if (document.visibilityState === 'hidden') {
+      hiddenAt = Date.now()
+    } else {
+      renderActive()
+      if (Date.now() - hiddenAt > 30_000) {
+        if (stravaIsConnected()) syncStrava({ onComplete: renderActive }).catch(e => console.warn('Strava sync:', e))
+        if (googleHealthIsConnected()) syncGoogleHealth({ onComplete: renderActive }).catch(e => console.warn('GH sync:', e))
+      }
+    }
   })
 
   // ── Backdrop closes sheets and collapses chat ──
@@ -687,6 +712,20 @@ async function initApp() {
   })
 
   // ── Theme toggle ──
+  document.getElementById('refresh-btn').addEventListener('click', async () => {
+    clearFailed()
+    db.bust()
+    const [, stravaNew, ghNew] = await Promise.all([
+      db.load().then(() => renderActive()).catch(e => console.warn('DB load:', e)),
+      stravaIsConnected() ? syncStrava({ onComplete: renderActive }).catch(e => { console.warn('Strava sync:', e); return 0 }) : 0,
+      googleHealthIsConnected() ? syncGoogleHealth({ onComplete: renderActive }).catch(e => { console.warn('GH sync:', e); return 0 }) : 0,
+    ])
+    const parts = []
+    if (stravaNew) parts.push(`Strava: ${stravaNew} new`)
+    if (ghNew) parts.push(`Google Health: ${ghNew} new`)
+    if (parts.length) showToast(`✅ ${parts.join(' · ')}`)
+  })
+
   document.getElementById('theme-toggle').addEventListener('click', () => {
     const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'
     document.documentElement.setAttribute('data-theme', next)
@@ -911,12 +950,12 @@ async function initApp() {
 
   // Auto-sync Strava after initial render (non-blocking)
   if (stravaIsConnected()) {
-    setInterval(() => syncStrava({ silent: true, onComplete: renderActive }).catch(e => console.warn('Strava sync:', e)), 30000)
-    syncStrava({ silent: true, onComplete: renderActive }).catch(e => console.warn('Strava sync:', e))
+    setInterval(() => syncStrava({ onComplete: renderActive }).catch(e => console.warn('Strava sync:', e)), 60000)
+    syncStrava({ onComplete: renderActive }).catch(e => console.warn('Strava sync:', e))
   }
   // Auto-sync Google Health after initial render (non-blocking)
   if (googleHealthIsConnected()) {
-    syncGoogleHealth({ silent: true, onComplete: renderActive }).catch(e => console.warn('Google Health sync:', e))
+    syncGoogleHealth({ onComplete: renderActive }).catch(e => console.warn('Google Health sync:', e))
   }
 }
 

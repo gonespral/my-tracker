@@ -1,6 +1,7 @@
 import { nowTime, dateStr } from './utils.js'
 import { db, supabase, parseWorkoutStart } from './db.js'
 import { showToast } from './ui.js'
+import { startSync, endSync, failSync } from './sync-status.js'
 import { STRAVA_CLIENT_ID as DEFAULT_CLIENT_ID, EDGE_FUNCTION_URL } from './config.js'
 
 const S_CUSTOM_FLAG = 'strava-use-custom'
@@ -214,11 +215,15 @@ function mapActivity(act) {
   }
 }
 
-export async function syncStrava({ silent = false, onComplete = null } = {}) {
-  if (!stravaIsConnected()) return
-  if (stravaSyncPaused()) { if (!silent) showToast('⏸ Strava sync is paused'); return }
-  if (!silent) showToast('🔄 Syncing Strava…')
+let stravaSyncInProgress = false
 
+export async function syncStrava({ onComplete = null } = {}) {
+  if (!stravaIsConnected()) return
+  if (stravaSyncPaused()) return
+  if (stravaSyncInProgress) return
+  stravaSyncInProgress = true
+  startSync('Strava')
+  let newCount = 0
   try {
     const token = await getValidAccessToken()
 
@@ -273,7 +278,7 @@ export async function syncStrava({ silent = false, onComplete = null } = {}) {
         })
 
         await db.insertWorkouts(toInsert)
-        showToast(`✅ Synced ${toInsert.length} new activit${toInsert.length === 1 ? 'y' : 'ies'}`)
+        newCount = toInsert.length
         if (localStorage.getItem('gh-push-strava') === '1' && localStorage.getItem('google-health-connected') === 'true') {
           import('./google-health.js').then(({ pushActivityToGoogleHealth }) => {
             for (const entry of toInsert) {
@@ -281,11 +286,7 @@ export async function syncStrava({ silent = false, onComplete = null } = {}) {
             }
           })
         }
-      } else {
-        if (!silent) showToast('✅ Strava: already up to date')
       }
-    } else {
-      if (!silent) showToast('✅ Strava: no new activities')
     }
 
     localStorage.setItem(S_LAST_SYNC, String(Date.now()))
@@ -293,8 +294,13 @@ export async function syncStrava({ silent = false, onComplete = null } = {}) {
     if (onComplete) await onComplete()
   } catch (e) {
     console.error('Strava sync error:', e)
-    if (!silent) showToast('❌ Strava: ' + e.message)
+    stravaSyncInProgress = false
+    failSync('Strava')
+    return newCount
   }
+  stravaSyncInProgress = false
+  endSync('Strava')
+  return newCount
 }
 
 export function connectStrava() {
