@@ -529,7 +529,7 @@ export async function renderSettings() {
 
     <div style="text-align:center; margin-top:32px; margin-bottom:16px; font-size:12px; color:var(--tx3); line-height:1.6">
       Made by <strong>Gonçalo Nespral</strong><br>
-      <a href="https://github.com/gonespral/health-tracker" target="_blank" style="color:var(--tx2); text-decoration:none">GitHub Repo</a> &nbsp;·&nbsp;
+      <a href="https://github.com/gonespral/my-tracker" target="_blank" style="color:var(--tx2); text-decoration:none">GitHub Repo</a> &nbsp;·&nbsp;
       <a href="https://gonespral.github.io" target="_blank" style="color:var(--tx2); text-decoration:none">gonespral.github.io</a><br>
       <a href="privacy.html" target="_blank" style="color:var(--tx3); text-decoration:none">Privacy Policy</a> &nbsp;·&nbsp;
       <a href="terms.html" target="_blank" style="color:var(--tx3); text-decoration:none">Terms of Service</a>

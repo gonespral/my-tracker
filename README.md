@@ -53,7 +53,7 @@ Run migrations in `supabase/migrations/` in order against a fresh Supabase proje
 ### Local Development
 
 ```bash
-git clone https://github.com/gonespral/health-tracker.git
+git clone https://github.com/gonespral/my-tracker.git
 cd health-tracker
 npm run dev   # serves on http://localhost:3000
 ```
