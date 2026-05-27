@@ -117,6 +117,7 @@ document.addEventListener('click', async (e) => {
 
     case 'delete-food':
       closeMenus()
+      if (!confirm('Delete this food entry?')) break
       try { await db.deleteFood(id); await renderActive() }
       catch (err) { showToast('❌ ' + err.message) }
       break
@@ -131,6 +132,7 @@ document.addEventListener('click', async (e) => {
 
     case 'delete-workout':
       closeMenus()
+      if (!confirm('Delete this activity?')) break
       try { await db.deleteWorkout(id); await renderActive() }
       catch (err) { showToast('❌ ' + err.message) }
       break
@@ -161,6 +163,7 @@ document.addEventListener('click', async (e) => {
         const remoteId = await pushActivityToGoogleHealth(entry)
         markPushedToGH(entry.id, remoteId)
         showToast('✅ Pushed to Google Health')
+        syncGoogleHealth({ onComplete: renderActive }).catch(e => console.warn('GH sync:', e))
       }
       catch (err) { showToast('❌ ' + err.message) }
       break
@@ -168,6 +171,7 @@ document.addEventListener('click', async (e) => {
 
     case 'delete-from-strava': {
       closeMenus()
+      if (!confirm('Delete this activity from Strava and remove it locally?')) break
       const remoteId = actionEl.dataset.remoteId
       if (!remoteId) { showToast('❌ No Strava activity ID'); break }
       showToast('🔄 Deleting from Strava…')
@@ -183,6 +187,7 @@ document.addEventListener('click', async (e) => {
 
     case 'delete-from-gh': {
       closeMenus()
+      if (!confirm('Delete this activity from Google Health and remove it locally?')) break
       const remoteId = actionEl.dataset.remoteId
       if (!remoteId) { showToast('❌ No Google Health data point ID'); break }
       showToast('🔄 Deleting from Google Health…')
@@ -198,6 +203,7 @@ document.addEventListener('click', async (e) => {
 
     case 'unlink-from-gh': {
       closeMenus()
+      if (!confirm('Remove this activity from Google Health? It will be kept locally.')) break
       const remoteId = actionEl.dataset.remoteId
       if (!remoteId) { showToast('❌ No Google Health data point ID'); break }
       showToast('🔄 Removing from Google Health…')
@@ -213,6 +219,7 @@ document.addEventListener('click', async (e) => {
 
     case 'unlink-from-strava': {
       closeMenus()
+      if (!confirm('Remove this activity from Strava? It will be kept locally.')) break
       const remoteId = actionEl.dataset.remoteId
       if (!remoteId) { showToast('❌ No Strava activity ID'); break }
       showToast('🔄 Removing from Strava…')
@@ -284,6 +291,7 @@ document.addEventListener('click', async (e) => {
 
     case 'delete-weight':
       closeMenus()
+      if (!confirm('Delete this weight entry?')) break
       try { await db.deleteWeight(date); await renderActive() }
       catch (err) { showToast('❌ ' + err.message) }
       break

@@ -160,10 +160,10 @@ export const workoutItem = (e, date) => {
   const conflictSources = e.conflictSources || []
   const conflictHasStrava = conflictSources.includes('strava')
   const conflictHasGH = conflictSources.some(s => s === 'google-health' || s === 'fitbit')
-  if (!isStrava && !pushedToStrava && !conflictHasStrava && stravaIsConnected()) {
+  if (!isStrava && !conflictHasStrava && stravaIsConnected()) {
     menuItems.push(`<button data-action="push-to-strava" data-id="${e.id}">Push to Strava</button>`)
   }
-  if (!isGoogleHealth && !pushedToGH && !conflictHasGH && googleHealthIsConnected()) {
+  if (!isGoogleHealth && !conflictHasGH && googleHealthIsConnected()) {
     menuItems.push(`<button data-action="push-to-google-health" data-id="${e.id}">Push to Google Health</button>`)
   }
   if (isStrava && stravaIsConnected()) {
