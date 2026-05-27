@@ -172,10 +172,10 @@ export const workoutItem = (e, date) => {
   if (isGoogleHealth && !isFitbit && googleHealthIsConnected()) {
     menuItems.push(`<button class="danger" data-action="delete-from-gh" data-id="${e.id}" data-remote-id="${e.external_id}">Delete from Google Health</button>`)
   }
-  if (pushedToStrava && !isStrava && stravaIsConnected()) {
+  if (pushedToStrava && !isStrava && !isGoogleHealth && stravaIsConnected()) {
     menuItems.push(`<button class="danger" data-action="unlink-from-strava" data-id="${e.id}" data-remote-id="${pushedStravaId(e.id)}">Remove from Strava</button>`)
   }
-  if (pushedToGH && !isGoogleHealth && googleHealthIsConnected()) {
+  if (pushedToGH && !isGoogleHealth && !isStrava && googleHealthIsConnected()) {
     menuItems.push(`<button class="danger" data-action="unlink-from-gh" data-id="${e.id}" data-remote-id="${pushedGHId(e.id)}">Remove from Google Health</button>`)
   }
   if (!isImported) {
