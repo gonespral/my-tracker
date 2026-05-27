@@ -22,13 +22,20 @@ function progressColor(consumed, target, timeFrac, accentColor = 'var(--accent)'
   return '#ef4444'
 }
 
-// SVG dot marking the time-target position on a ring.
+// SVG tick line marking the time-target position on a ring.
+// Drawn as a white halo + dark inner line so it's visible on both the gray
+// track and the colored progress arc.
 function ringTickSVG(cx, cy, r, sw, timeFrac) {
   if (timeFrac <= 0 || timeFrac >= 1) return ''
   const angle = -Math.PI / 2 + timeFrac * 2 * Math.PI
-  const dotX = (cx + r * Math.cos(angle)).toFixed(1)
-  const dotY = (cy + r * Math.sin(angle)).toFixed(1)
-  return `<circle cx="${dotX}" cy="${dotY}" r="${sw > 10 ? 3 : 2}" fill="var(--tx2)" opacity="0.5"/>`
+  const dx = Math.cos(angle), dy = Math.sin(angle)
+  const inner = r - sw / 2 - 2
+  const outer = r + sw / 2 + 2
+  const x1 = (cx + inner * dx).toFixed(1), y1 = (cy + inner * dy).toFixed(1)
+  const x2 = (cx + outer * dx).toFixed(1), y2 = (cy + outer * dy).toFixed(1)
+  return `
+    <line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="var(--bg)" stroke-width="${sw > 10 ? 4 : 3}" stroke-linecap="round"/>
+    <line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="var(--tx)" stroke-width="${sw > 10 ? 2 : 1.5}" stroke-linecap="round" opacity="0.75"/>`
 }
 
 export function calRingHTML(consumed, target, burned = 0) {
