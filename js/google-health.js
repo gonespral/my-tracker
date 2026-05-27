@@ -513,10 +513,61 @@ export async function deleteActivityFromGoogleHealth(nameOrId) {
   }
 }
 
-async function fetchDailyTDEE(_token, _days = 90) {
-  // TODO: Google Health v4 does not expose a public daily-calorie rollup REST endpoint yet.
-  // When Google adds one, implement it here and restore the calibrateTDEETargets call in syncGoogleHealth.
-  throw new Error('TDEE calibration via Google Health is not yet supported')
+function estimateBMR(settings = {}) {
+  const { weight_kg = 75, height_cm = 170, age_years = 30, sex = 'male' } = settings
+  return sex === 'female'
+    ? 10 * weight_kg + 6.25 * height_cm - 5 * age_years - 161
+    : 10 * weight_kg + 6.25 * height_cm - 5 * age_years + 5
+}
+
+async function fetchDailyTDEE(token, days = 90) {
+  // Use calories-in-heart-rate-zone:dailyRollUp — Fitbit HR sensor measures active calories
+  // per zone per day. TDEE = zone_calories (active) + BMR (sedentary baseline).
+  const cutoff = dateStr(new Date(Date.now() - days * 86400000))
+  const today  = dateStr(new Date())
+
+  const res = await fetch(
+    'https://health.googleapis.com/v4/users/me/dataTypes/calories-in-heart-rate-zone:dailyRollUp',
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({ civilTimeRange: { startDate: cutoff, endDate: today } }),
+    }
+  )
+
+  if (res.status === 401) { disconnectGoogleHealth(true); throw new Error('Session expired') }
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error?.message || `HR-zone calories fetch failed (${res.status})`)
+  }
+
+  const data = await res.json()
+  console.log('[GH TDEE] raw:', JSON.stringify(data, null, 2))
+
+  const settings = state.dbCache?.settings ?? {}
+  const bmr = estimateBMR(settings)
+
+  const rollups = data.rollups ?? data.dailyRollups ?? data.dataPoints ?? []
+  return rollups.map(r => {
+    const date = r.date ?? r.civilDate ?? r.interval?.startTime?.slice(0, 10)
+    if (!date || date < cutoff) return null
+
+    // Sum all HR zone kcal values — field shape confirmed from logged raw response
+    const zones = r.caloriesInHeartRateZone ?? r.rollup ?? r
+    let activeKcal = 0
+    if (typeof zones === 'object' && zones !== null) {
+      for (const v of Object.values(zones)) {
+        activeKcal += typeof v === 'number' ? v : (v?.kcal ?? v?.calories ?? 0)
+      }
+    }
+    if (activeKcal <= 0) return null
+
+    return { date, kcal: Math.round(activeKcal + bmr) }
+  }).filter(Boolean)
 }
 
 export async function calibrateTDEETargets({ silent = false } = {}) {
