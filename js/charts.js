@@ -260,8 +260,8 @@ function buildCalorieTrendHTML(days, { title, primaryLabel, secondaryLabel, prim
     }
   }
 
-  const uid = Math.random().toString(36).substring(7)
-  
+  const uid = title.replace(/\W+/g, '').toLowerCase().slice(0, 14)
+
   return `
     <div class="chart-header">
       <div style="display:flex;align-items:center;gap:6px">
@@ -539,7 +539,7 @@ export function sparklineHTML(weights, { compact = false } = {}) {
     ? [{ v: maxV, y: TPAD }, { v: midV, y: TPAD + chartH / 2 }, { v: minV, y: TPAD + chartH }]
     : [{ v: minV, y: TPAD + chartH / 2 }]
 
-  const uid = Math.random().toString(36).substring(7)
+  const uid = 'wgt'
   return `
     <div class="sparkline-card">
       <div class="chart-header">

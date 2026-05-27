@@ -2,6 +2,7 @@
 export const state = {
   currentUser:  null,
   dbCache:      null,
+  dataGen:      0,   // incremented on every db.bust(); used to skip redundant tab re-renders
   mealsCache:   null,
   workoutPresetsCache: null,
   workoutConflictGroups: null,
