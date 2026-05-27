@@ -57,7 +57,7 @@ In Supabase go to **Authentication → URL Configuration**:
 
 ### 2.5 Deploy edge functions
 
-The Strava and Google Health OAuth flows use Supabase Edge Functions as token brokers. Deploy them once:
+The Strava and Google Health OAuth flows use Supabase Edge Functions as token brokers (they hold your client secrets server-side so they are never exposed in the browser). Deploy them once:
 
 ```bash
 npx supabase login
@@ -75,6 +75,8 @@ npx supabase secrets set GOOGLE_HEALTH_CLIENT_ID=your_id
 npx supabase secrets set GOOGLE_HEALTH_CLIENT_SECRET=your_secret
 ```
 
+> **Note:** If you prefer not to use the shared edge function approach, you can skip deploying these functions and enter your own client credentials directly in the app's Settings sheet using the "Use custom credentials" option for each integration.
+
 ### 2.6 Update env.js
 
 ```js
@@ -88,9 +90,17 @@ export const GOOGLE_HEALTH_CLIENT_ID = "your-google-client-id"  // default/share
 
 ## 3. GitHub Pages deployment
 
-Pushes to `main` deploy automatically via `.github/workflows/deploy.yml`. The workflow injects env variables into `js/env.js` before publishing.
+The included workflow (`.github/workflows/deploy.yml`) builds and publishes to GitHub Pages on every push to `main`. It injects the secrets below into a generated `js/env.js` before publishing, so you never commit credentials.
 
-Set these repository secrets under **Settings → Secrets and variables → Actions**:
+### 3.1 Enable GitHub Pages
+
+1. Push your fork to GitHub.
+2. Go to your repository → **Settings → Pages**.
+3. Under **Build and deployment**, set Source to **GitHub Actions**.
+
+### 3.2 Set repository secrets
+
+Go to **Settings → Secrets and variables → Actions → New repository secret** and add:
 
 | Secret | Where to find it |
 |:---|:---|
@@ -99,9 +109,21 @@ Set these repository secrets under **Settings → Secrets and variables → Acti
 | `STRAVA_CLIENT_ID` | Strava API settings page |
 | `GOOGLE_HEALTH_CLIENT_ID` | Google Cloud Console → Credentials |
 
+Once saved, push any commit to `main` to trigger the first deploy. The published URL will be shown in Settings → Pages.
+
 ---
 
 ## 4. Strava integration
+
+The Strava integration supports two-way sync: pull activities from Strava and push locally logged workouts to Strava. The following features are available once connected:
+
+- **Auto-sync on load** — last 90 days of activities pulled on each app load; activities deleted from Strava are removed locally on the next sync.
+- **Push to Strava** — push any locally logged workout to Strava from the Workouts tab.
+- **Auto-push** — toggle in Settings to automatically push every new local activity to Strava.
+- **Cross-push from Google Health** — toggle to automatically push Google Health imports to Strava.
+- **Delete from Strava** — delete a synced activity from Strava directly in the app (with confirmation prompt).
+- **Pause sync** — pause/resume Strava sync without disconnecting.
+- **Calorie spoofing** — see below.
 
 ### 4.1 Create a Strava app
 
@@ -122,11 +144,30 @@ npx supabase secrets set STRAVA_CLIENT_SECRET=your_client_secret
 
 ### 4.3 Connect in the app
 
-Open MyTracker → Settings → Strava → Connect. You can also enter custom credentials here if you want to use your own app instead of the shared one.
+Open MyTracker → Settings → Strava → Connect. You can also enable "Use custom credentials" and paste your own Client ID and Secret to bypass the shared edge function entirely.
+
+### 4.4 Calorie spoofing
+
+Strava's API does not allow setting calories on manually created activities. When calorie spoofing is enabled, the app:
+
+1. Derives a target heart rate from your logged calories, duration, weight, age, and sex using the Keytel et al. (2005) formula.
+2. Builds a TCX file with synthetic heart rate trackpoints.
+3. Uploads it to Strava as a file upload (instead of the create-activity API) so Strava computes calories from the heart rate data.
+
+To use this feature, set weight, age, and sex in Settings → Profile, then enable "Spoof calories" in Settings → Strava.
 
 ---
 
 ## 5. Google Health integration
+
+Google Health supports bidirectional sync: pull activities from Google Health and push locally logged workouts back. The following features are available once connected:
+
+- **Auto-sync on load** — last 90 days of activities pulled on each app load.
+- **Push to Google Health** — push any locally logged workout to Google Health from the Workouts tab.
+- **Auto-push** — toggle in Settings to automatically push every new local activity to Google Health.
+- **Cross-push from Strava** — toggle to automatically push Strava imports to Google Health.
+- **Delete from Google Health** — delete a synced activity from Google Health directly in the app (with confirmation prompt).
+- **Pause sync** — pause/resume Google Health sync without disconnecting.
 
 Google Health requires a Google Cloud project with the Health API enabled. For personal use you can stay in **testing mode** and skip the full verification process.
 
@@ -165,7 +206,7 @@ npx supabase secrets set GOOGLE_HEALTH_CLIENT_SECRET=your_client_secret
 
 ### 5.5 Connect in the app
 
-Open MyTracker → Settings → Google Health → Connect. To use your own credentials instead of the shared ones, expand "Use custom credentials" and paste your Client ID and Client Secret before connecting.
+Open MyTracker → Settings → Google Health → Connect. To use your own credentials instead of the shared ones, enable "Use custom credentials" and paste your Client ID and Client Secret before connecting.
 
 > **Note on testing mode:** Apps in testing mode are limited to 100 users and tokens expire every 7 days (users will be asked to re-authorize weekly). This is fine for personal use. If you want to share the app publicly with Google Health sync, you would need to go through Google's verification process, which requires a custom domain you own.
 
@@ -177,3 +218,15 @@ Get an API key from the [Anthropic Console](https://console.anthropic.com/) and 
 
 ---
 
+## 7. Profile settings (optional)
+
+Some features require profile data set in Settings → Profile:
+
+| Field | Used by |
+|:---|:---|
+| Weight | Calorie spoofing (Strava), calorie target calculation |
+| Age | Calorie spoofing (Strava) |
+| Sex | Calorie spoofing (Strava) |
+| Calorie targets | Rest-day and training-day calorie targets (can override defaults) |
+
+---
