@@ -463,6 +463,38 @@ export async function pushActivityToGoogleHealth(entry) {
     const err = await resp.json().catch(() => ({}))
     throw new Error(err.error?.message ?? `Push failed (${resp.status})`)
   }
+  const created = await resp.json().catch(() => ({}))
+  // Return the full resource name so the push tracker can pass it directly to batchDelete
+  return created.name || null
+}
+
+export async function deleteActivityFromGoogleHealth(nameOrId) {
+  if (!googleHealthIsConnected()) throw new Error('Google Health not connected')
+  const token = await getValidAccessToken()
+  // Accept either a full resource name (users/.../dataPoints/xxx) or a bare ID
+  const name = nameOrId?.startsWith('users/')
+    ? nameOrId
+    : `users/me/dataTypes/exercise/dataPoints/${nameOrId}`
+  const resp = await fetch(
+    'https://health.googleapis.com/v4/users/me/dataTypes/exercise/dataPoints:batchDelete',
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({ names: [name] }),
+    }
+  )
+  if (resp.status === 401) {
+    disconnectGoogleHealth(true)
+    throw new Error('Session expired — please reconnect Google Health')
+  }
+  if (!resp.ok) {
+    const errBody = await resp.json().catch(() => ({}))
+    throw new Error(errBody.error?.message || `GH delete failed (${resp.status})`)
+  }
 }
 
 async function fetchDailyTDEE(_token, _days = 90) {

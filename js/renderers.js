@@ -4,6 +4,7 @@ import { typeIcon, SPORT_TYPE_MAP, materialIcon } from './icons.js'
 import { state } from './state.js'
 import { stravaIsConnected } from './strava.js'
 import { googleHealthIsConnected } from './google-health.js'
+import { wasPushedToStrava, wasPushedToGH, pushedStravaId, pushedGHId } from './push-tracker.js'
 
 const FOOD_ICON = materialIcon('restaurant', 15)
 
@@ -95,20 +96,24 @@ export const workoutItem = (e, date) => {
     distanceTag = `<span class="tag">${ICON_PIN} ${km >= 1 ? km.toFixed(2) + ' km' : (e.distance || 0).toFixed(2) + ' m'}</span>`
   }
 
-  const isStrava       = e.source === 'strava'
-  const isGoogleHealth = e.source === 'google-health' || e.source === 'fitbit'
-  const isImported     = isStrava || isGoogleHealth
-  const isDuplicate    = e.isDuplicate === true
-  const inConflict     = !!e.conflictGroupId
-  const isDismissed    = !!e.dismissedConflictGroupId
-  const duplicateBadge = isDuplicate ? `<span class="tag tag-duplicate">Duplicate</span>` : ''
-  const savedBadge = fromPreset ? `<span class="tag tag-saved">Saved</span>` : ''
-  const stravaBadge    = isStrava
+  const isStrava         = e.source === 'strava'
+  const isFitbit         = e.source === 'fitbit'
+  const isGoogleHealth   = e.source === 'google-health' || isFitbit
+  const isImported       = isStrava || isGoogleHealth
+  const pushedToStrava   = !isStrava   && wasPushedToStrava(e.id)
+  const pushedToGH       = !isGoogleHealth && wasPushedToGH(e.id)
+  const isDuplicate      = e.isDuplicate === true
+  const inConflict       = !!e.conflictGroupId
+  const isDismissed      = !!e.dismissedConflictGroupId
+  const duplicateBadge   = isDuplicate ? `<span class="tag tag-duplicate">Duplicate</span>` : ''
+  const savedBadge       = fromPreset ? `<span class="tag tag-saved">Saved</span>` : ''
+  const stravaBadge      = isStrava
     ? `<a class="tag tag-strava" href="https://www.strava.com/activities/${e.external_id}" target="_blank" rel="noopener" style="text-decoration:none">Strava ↗</a>`
-    : ''
+    : pushedToStrava ? `<span class="tag tag-strava">→ Strava</span>` : ''
   const googleHealthBadge = e.source === 'fitbit'
     ? `<span class="tag tag-google-health">Fitbit</span>`
-    : (e.source === 'google-health' ? `<span class="tag tag-google-health">Google Health</span>` : '')
+    : isGoogleHealth ? `<span class="tag tag-google-health">Google Health</span>`
+    : pushedToGH     ? `<span class="tag tag-google-health">→ Google Health</span>` : ''
 
   // Build three-dot menu items
   const menuItems = []
@@ -124,11 +129,23 @@ export const workoutItem = (e, date) => {
   if (isDismissed) {
     menuItems.push(`<button data-action="reflag-workout-conflict" data-group="${e.dismissedConflictGroupId}">Flag as duplicate</button>`)
   }
-  if (!isStrava && stravaIsConnected()) {
+  if (!isStrava && !pushedToStrava && stravaIsConnected()) {
     menuItems.push(`<button data-action="push-to-strava" data-id="${e.id}">Push to Strava</button>`)
   }
-  if (!isGoogleHealth && googleHealthIsConnected()) {
+  if (!isGoogleHealth && !pushedToGH && googleHealthIsConnected()) {
     menuItems.push(`<button data-action="push-to-google-health" data-id="${e.id}">Push to Google Health</button>`)
+  }
+  if (isStrava && stravaIsConnected()) {
+    menuItems.push(`<button class="danger" data-action="delete-from-strava" data-id="${e.id}" data-remote-id="${e.external_id}">Delete from Strava</button>`)
+  }
+  if (isGoogleHealth && !isFitbit && googleHealthIsConnected()) {
+    menuItems.push(`<button class="danger" data-action="delete-from-gh" data-id="${e.id}" data-remote-id="${e.external_id}">Delete from Google Health</button>`)
+  }
+  if (pushedToStrava && stravaIsConnected()) {
+    menuItems.push(`<button class="danger" data-action="unlink-from-strava" data-id="${e.id}" data-remote-id="${pushedStravaId(e.id)}">Remove from Strava</button>`)
+  }
+  if (pushedToGH && googleHealthIsConnected()) {
+    menuItems.push(`<button class="danger" data-action="unlink-from-gh" data-id="${e.id}" data-remote-id="${pushedGHId(e.id)}">Remove from Google Health</button>`)
   }
   if (!isImported) {
     menuItems.push(`<button class="danger" data-action="delete-workout" data-id="${e.id}">Delete</button>`)

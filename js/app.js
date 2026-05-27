@@ -9,8 +9,9 @@ import { renderToday, openFoodSheet, openFoodSheetWithPreset, openWorkoutSheet, 
 import { renderNutrition } from './tabs/nutrition.js'
 import { renderWorkouts } from './tabs/workouts.js'
 import { renderSettings, openPresetSheet, deletePreset, openWorkoutPresetSheet, deleteWorkoutPreset } from './tabs/settings.js'
-import { handleStravaCallback, syncStrava, stravaIsConnected, pushActivityToStrava, stravaAutoPushEnabled } from './strava.js'
-import { handleGoogleHealthCallback, syncGoogleHealth, googleHealthIsConnected, pushActivityToGoogleHealth, ghAutoPushEnabled } from './google-health.js'
+import { handleStravaCallback, syncStrava, stravaIsConnected, pushActivityToStrava, deleteActivityFromStrava, stravaAutoPushEnabled } from './strava.js'
+import { handleGoogleHealthCallback, syncGoogleHealth, googleHealthIsConnected, pushActivityToGoogleHealth, deleteActivityFromGoogleHealth, ghAutoPushEnabled } from './google-health.js'
+import { markPushedToStrava, markPushedToGH, clearPushedToStrava, clearPushedToGH } from './push-tracker.js'
 import { showTutorialIfNew } from './tutorial.js'
 
 
@@ -106,7 +107,8 @@ document.addEventListener('click', async (e) => {
       if (!entry.duration_min) { showToast('❌ Set a duration before pushing to Strava'); break }
       showToast('🔄 Pushing to Strava…')
       try {
-        await pushActivityToStrava(entry)
+        const { id: remoteId } = await pushActivityToStrava(entry)
+        markPushedToStrava(entry.id, remoteId)
         showToast('✅ Pushed to Strava')
         syncStrava({ silent: true, onComplete: renderActive }).catch(e => console.warn('Strava sync:', e))
       }
@@ -121,8 +123,69 @@ document.addEventListener('click', async (e) => {
       if (!entry.duration_min) { showToast('❌ Set a duration before pushing to Google Health'); break }
       showToast('🔄 Pushing to Google Health…')
       try {
-        await pushActivityToGoogleHealth(entry)
+        const remoteId = await pushActivityToGoogleHealth(entry)
+        markPushedToGH(entry.id, remoteId)
         showToast('✅ Pushed to Google Health')
+      }
+      catch (err) { showToast('❌ ' + err.message) }
+      break
+    }
+
+    case 'delete-from-strava': {
+      closeMenus()
+      const remoteId = actionEl.dataset.remoteId
+      if (!remoteId) { showToast('❌ No Strava activity ID'); break }
+      showToast('🔄 Deleting from Strava…')
+      try {
+        await deleteActivityFromStrava(remoteId)
+        await db.deleteWorkout(id)
+        await renderActive()
+        showToast('✅ Deleted from Strava')
+      }
+      catch (err) { showToast('❌ ' + err.message) }
+      break
+    }
+
+    case 'delete-from-gh': {
+      closeMenus()
+      const remoteId = actionEl.dataset.remoteId
+      if (!remoteId) { showToast('❌ No Google Health data point ID'); break }
+      showToast('🔄 Deleting from Google Health…')
+      try {
+        await deleteActivityFromGoogleHealth(remoteId)
+        await db.deleteWorkout(id)
+        await renderActive()
+        showToast('✅ Deleted from Google Health')
+      }
+      catch (err) { showToast('❌ ' + err.message) }
+      break
+    }
+
+    case 'unlink-from-gh': {
+      closeMenus()
+      const remoteId = actionEl.dataset.remoteId
+      if (!remoteId) { showToast('❌ No Google Health data point ID'); break }
+      showToast('🔄 Removing from Google Health…')
+      try {
+        await deleteActivityFromGoogleHealth(remoteId)
+        clearPushedToGH(id)
+        await renderActive()
+        showToast('✅ Removed from Google Health (kept locally)')
+      }
+      catch (err) { showToast('❌ ' + err.message) }
+      break
+    }
+
+    case 'unlink-from-strava': {
+      closeMenus()
+      const remoteId = actionEl.dataset.remoteId
+      if (!remoteId) { showToast('❌ No Strava activity ID'); break }
+      showToast('🔄 Removing from Strava…')
+      try {
+        await deleteActivityFromStrava(remoteId)
+        clearPushedToStrava(id)
+        await renderActive()
+        showToast('✅ Removed from Strava (kept locally)')
       }
       catch (err) { showToast('❌ ' + err.message) }
       break

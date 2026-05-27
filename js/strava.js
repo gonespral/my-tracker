@@ -550,6 +550,22 @@ export async function updateStravaAthleteWeight(kg) {
   }
 }
 
+export async function deleteActivityFromStrava(stravaId) {
+  if (!stravaIsConnected()) throw new Error('Strava not connected')
+  const token = await getValidAccessToken()
+  const resp = await fetch(`https://www.strava.com/api/v3/activities/${stravaId}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (resp.status === 401) { disconnectStrava(true); throw new Error('Session expired — please reconnect Strava') }
+  if (!resp.ok && resp.status !== 204) {
+    const raw = await resp.text().catch(() => '')
+    let msg = `${resp.status}`
+    try { const j = JSON.parse(raw); msg = j.message || j.error || msg } catch (_) {}
+    throw new Error(`Strava delete failed: ${msg}`)
+  }
+}
+
 export async function disconnectStrava(silent = false) {
   localStorage.removeItem(S_ACCESS_TOKEN)
   localStorage.removeItem(S_REFRESH_TOKEN)
