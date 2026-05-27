@@ -310,15 +310,13 @@ export async function syncGoogleHealth({ silent = false, onComplete = null } = {
     return
   }
 
-  const afterDate = (() => { const d = new Date(); d.setDate(d.getDate() - 90); return dateStr(d) })()
-  const filterStr = `exercise.interval.civil_start_time >= "${afterDate}T00:00:00"`
+  const cutoff = (() => { const d = new Date(); d.setDate(d.getDate() - 90); return dateStr(d) })()
 
   let allPoints = []
   let pageToken  = null
   try {
     do {
       const url = new URL('https://health.googleapis.com/v4/users/me/dataTypes/exercise/dataPoints')
-      url.searchParams.set('filter', filterStr)
       url.searchParams.set('pageSize', '200')
       if (pageToken) url.searchParams.set('pageToken', pageToken)
 
@@ -328,7 +326,12 @@ export async function syncGoogleHealth({ silent = false, onComplete = null } = {
         if (!silent) showToast('❌ Google Health session expired')
         return
       }
-      if (!res.ok) throw new Error(`Google Health API ${res.status}`)
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}))
+        const msg = errBody.error?.message || errBody.error?.status || `HTTP ${res.status}`
+        console.error('[GH sync 403 detail]', JSON.stringify(errBody, null, 2))
+        throw new Error(`Google Health read: ${msg}`)
+      }
       const data = await res.json()
       allPoints = allPoints.concat(data.dataPoints || [])
       pageToken  = data.nextPageToken || null
@@ -339,6 +342,11 @@ export async function syncGoogleHealth({ silent = false, onComplete = null } = {
   }
 
   try {
+    allPoints = allPoints.filter(dp => {
+      const start = dp.exercise?.interval?.startTime || ''
+      return start.slice(0, 10) >= cutoff
+    })
+
     const allIds    = allPoints.map(dp => (dp.name || '').split('/').pop()).filter(Boolean)
     const existing  = await db.getGoogleHealthIds(allIds)
     const existingSet = new Set(existing)
@@ -362,10 +370,6 @@ export async function syncGoogleHealth({ silent = false, onComplete = null } = {
 
     localStorage.setItem(GH_LAST_SYNC, String(Date.now()))
     updateGoogleHealthSettingsSection()
-
-    // Auto-recalibrate TDEE targets if user has opted in
-    const settings = await db.loadSettings().catch(() => null)
-    if (settings?.tdee_source === 'google-health') calibrateTDEETargets({ silent: true })
 
     onComplete?.()
 
@@ -401,7 +405,7 @@ export function connectGoogleHealth() {
   url.searchParams.set('client_id',     clientId)
   url.searchParams.set('redirect_uri',  redirect)
   url.searchParams.set('response_type', 'code')
-  url.searchParams.set('scope',         'https://www.googleapis.com/auth/googlehealth.activity_and_fitness https://www.googleapis.com/auth/googlehealth.activity_and_fitness_writeonly')
+  url.searchParams.set('scope',         'https://www.googleapis.com/auth/googlehealth.activity_and_fitness https://www.googleapis.com/auth/googlehealth.activity_and_fitness.readonly https://www.googleapis.com/auth/googlehealth.activity_and_fitness.writeonly')
   url.searchParams.set('access_type',   'offline')
   url.searchParams.set('prompt',        'consent')
   url.searchParams.set('state',         'google-health-oauth')
@@ -451,11 +455,9 @@ export async function pushActivityToGoogleHealth(entry) {
   }
   if (resp.status === 403) {
     const errBody = await resp.json().catch(() => ({}))
-    console.error('[GH push 403 full response]', JSON.stringify(errBody, null, 2))
-    const status = errBody.error?.status || 'PERMISSION_DENIED'
-    const msg = errBody.error?.message || status
-    const details = errBody.error?.details?.map(d => d.reason || d.type).filter(Boolean).join(', ')
-    throw new Error(`403 ${status}${details ? ` (${details})` : ''}: ${msg}`)
+    const msg = errBody.error?.message || errBody.error?.status || 'PERMISSION_DENIED'
+    const details = errBody.error?.details?.map(d => JSON.stringify(d)).join('; ') || ''
+    throw new Error(`Push blocked (403): ${msg}${details ? ' — ' + details : ''}`)
   }
   if (!resp.ok) {
     const err = await resp.json().catch(() => ({}))
@@ -463,33 +465,10 @@ export async function pushActivityToGoogleHealth(entry) {
   }
 }
 
-async function fetchDailyTDEE(token, days = 90) {
-  const end = new Date()
-  const start = new Date()
-  start.setDate(start.getDate() - days)
-  const resp = await fetch(
-    'https://health.googleapis.com/v4/users/me/dataTypes/total-calories:dailyRollUp',
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
-      body: JSON.stringify({ startTime: start.toISOString(), endTime: end.toISOString() }),
-    }
-  )
-  if (!resp.ok) throw new Error(`TDEE fetch failed (${resp.status})`)
-  const data = await resp.json()
-  // Normalise whatever shape the API returns into [{date, kcal}]
-  const points = data.rollUps ?? data.dataPoints ?? data.rollups ?? []
-  return points.map(p => {
-    const raw = p.value ?? p.totalCalories?.value ?? p.calories?.value ?? p.caloriesKcal ?? null
-    const kcal = raw != null ? parseFloat(raw) : null
-    const ts = p.startTime ?? p.interval?.startTime ?? p.date ?? null
-    const date = ts ? ts.slice(0, 10) : null
-    return { date, kcal }
-  }).filter(p => p.date && p.kcal != null && p.kcal > 800 && p.kcal < 8000)
+async function fetchDailyTDEE(_token, _days = 90) {
+  // TODO: Google Health v4 does not expose a public daily-calorie rollup REST endpoint yet.
+  // When Google adds one, implement it here and restore the calibrateTDEETargets call in syncGoogleHealth.
+  throw new Error('TDEE calibration via Google Health is not yet supported')
 }
 
 export async function calibrateTDEETargets({ silent = false } = {}) {
