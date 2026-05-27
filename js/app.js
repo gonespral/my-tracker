@@ -36,11 +36,16 @@ function updateSigninOverlay() {
 }
 
 // ── Tab routing ────────────────────────────────────────────────
+// Track which state.dataGen each tab was last rendered at so we can skip
+// re-rendering when switching back to a tab whose data hasn't changed.
+const _tabGen = {}
+
 export async function renderActive() {
   try {
     if (state.activeTab === 'today') await renderToday()
     if (state.activeTab === 'nutrition') await renderNutrition()
     if (state.activeTab === 'workouts') await renderWorkouts()
+    _tabGen[state.activeTab] = state.dataGen
   } catch (e) {
     console.error('Render error:', e)
     showToast('❌ ' + e.message)
@@ -64,7 +69,7 @@ function switchTab(tab) {
   localStorage.setItem('tracker-tab', tab)
   document.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab))
   document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === `panel-${tab}`))
-  renderActive()
+  if (_tabGen[tab] !== state.dataGen) renderActive()
 }
 
 // ── Event delegation for dynamically-generated content ─────────

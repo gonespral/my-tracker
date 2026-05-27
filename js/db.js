@@ -347,7 +347,7 @@ export const db = {
     }
   },
 
-  bust() { state.dbCache = null },
+  bust() { state.dbCache = null; state.dataGen++ },
 
   async addFood(date, entry) {
     const { error } = await supabase.from('food_entries').insert({ user_id: state.currentUser.id, date, ...entry })
