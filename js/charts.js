@@ -110,15 +110,18 @@ export function weekChartHTML(data) {
     const fill = d.cals === 0 ? 'var(--track)' : pct > 1.05 ? 'var(--danger)' : 'var(--accent)'
     const opacity = d.cals === 0 ? '1' : pct > 1.05 ? '0.9' : Math.max(0.15, Math.min(pct, 1)).toFixed(2)
     const labelFill = d.isToday ? 'var(--tx)' : 'var(--tx3)'
+    const delay = `${(i * 0.06).toFixed(2)}s`
     return `
-      <rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bW.toFixed(1)}" height="${bH.toFixed(1)}"
-        fill="${fill}" rx="4" opacity="${opacity}"/>
-      <text x="${(x+bW/2).toFixed(1)}" y="${(H-6).toFixed(1)}" text-anchor="middle"
-        font-size="9" fill="${labelFill}" font-weight="${d.isToday ? '700' : '400'}">${d.label}</text>
-      ${d.cals > 0
-        ? `<text x="${(x+bW/2).toFixed(1)}" y="${(y-4).toFixed(1)}" text-anchor="middle"
-            font-size="8" fill="${fill}" font-weight="600">${Math.round(d.cals)}</text>`
-        : ''}`
+      <g class="bar-group" style="--bar-delay:${delay}">
+        <rect class="bar-rect" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bW.toFixed(1)}" height="${bH.toFixed(1)}"
+          fill="${fill}" rx="4" opacity="${opacity}"/>
+        <text x="${(x+bW/2).toFixed(1)}" y="${(H-6).toFixed(1)}" text-anchor="middle"
+          font-size="9" fill="${labelFill}" font-weight="${d.isToday ? '700' : '400'}">${d.label}</text>
+        ${d.cals > 0
+          ? `<text class="bar-cal-label" x="${(x+bW/2).toFixed(1)}" y="${(y-4).toFixed(1)}" text-anchor="middle"
+              font-size="8" fill="${fill}" font-weight="600">${Math.round(d.cals)}</text>`
+          : ''}
+      </g>`
   }).join('')
 
   const wkAvg = round(days.reduce((s,d) => s+d.cals, 0) / Math.max(days.filter(d=>d.cals>0).length, 1))
@@ -229,7 +232,7 @@ function buildCalorieTrendHTML(days, { title, primaryLabel, secondaryLabel, prim
         ${diffHtml}
       </div>
     </div>
-    <svg viewBox="0 0 ${W} ${H}" class="week-svg">
+    <svg viewBox="0 0 ${W} ${H}" class="week-svg chart-fade-in">
       <defs>
         <linearGradient id="cal-grad-primary-${uid}" x1="0" x2="0" y1="0" y2="1">
           <stop offset="0%" stop-color="${primaryColor}" stop-opacity=".18"/>
@@ -246,13 +249,15 @@ function buildCalorieTrendHTML(days, { title, primaryLabel, secondaryLabel, prim
         stroke="var(--border)" stroke-width="1" stroke-opacity=".6"/>
       <line x1="${PL}" y1="${restY.toFixed(1)}" x2="${(W-PR).toFixed(1)}" y2="${restY.toFixed(1)}"
         stroke="var(--border)" stroke-width="1" stroke-dasharray="4 3"/>
-      ${primaryAreaPaths.map(area => `<path d="${area}" fill="url(#cal-grad-primary-${uid})"/>`).join('')}
+      ${primaryAreaPaths.map(area => `<path d="${area}" fill="url(#cal-grad-primary-${uid})" style="animation:chart-fade-in 0.6s ease both 0.3s"/>`).join('')}
       ${secondaryPaths.map(p => `<path d="${p}" fill="none" stroke="${secondaryColor}" stroke-width="1.6" stroke-opacity=".55"
-        stroke-linecap="round" stroke-linejoin="round"/>`).join('')}
+        stroke-linecap="round" stroke-linejoin="round"
+        stroke-dasharray="10000" style="animation:line-draw 0.9s cubic-bezier(0.22,1,0.36,1) both 0.1s"/>`).join('')}
       ${primaryPaths.map(p => `<path d="${p}" fill="none" stroke="${primaryColor}" stroke-width="1.8"
-        stroke-linecap="round" stroke-linejoin="round"/>`).join('')}
-      ${todayPt.primaryY !== null ? `<circle cx="${todayPt.x.toFixed(1)}" cy="${todayPt.primaryY.toFixed(1)}" r="3" fill="${primaryColor}"/>` : ''}
-      ${todayPt.secondaryY !== null ? `<circle cx="${todayPt.x.toFixed(1)}" cy="${todayPt.secondaryY.toFixed(1)}" r="2.5" fill="${secondaryColor}" fill-opacity=".45"/>` : ''}
+        stroke-linecap="round" stroke-linejoin="round"
+        stroke-dasharray="10000" style="animation:line-draw 0.9s cubic-bezier(0.22,1,0.36,1) both"/>`).join('')}
+      ${todayPt.primaryY !== null ? `<circle cx="${todayPt.x.toFixed(1)}" cy="${todayPt.primaryY.toFixed(1)}" r="3" fill="${primaryColor}" style="animation:dot-pop 0.3s ease both 0.85s"/>` : ''}
+      ${todayPt.secondaryY !== null ? `<circle cx="${todayPt.x.toFixed(1)}" cy="${todayPt.secondaryY.toFixed(1)}" r="2.5" fill="${secondaryColor}" fill-opacity=".45" style="animation:dot-pop 0.3s ease both 0.95s"/>` : ''}
       ${tickLabels}
     </svg>`
 }
@@ -336,9 +341,10 @@ export function mealMacroAvgHTML(data, nDays = 30) {
     { key: 'fat', label: 'Fat', color: '#f59e0b' },
   ]
 
-  const cols = averages.map(row => {
+  const cols = averages.map((row, i) => {
     const macrosSummary = `P${fmt(row.avg.protein)} · C${fmt(row.avg.carbs)} · F${fmt(row.avg.fat)}`
     const barH = Math.round((row.totalMacros / maxStack) * 90)
+    const delay = `${(i * 0.07).toFixed(2)}s`
     const segs = segments.map((seg, idx) => {
       const val = row.avg[seg.key]
       if (val <= 0) return ''
@@ -347,9 +353,9 @@ export function mealMacroAvgHTML(data, nDays = 30) {
     }).join('')
 
     return `
-      <div class="meal-macro-col">
-        <div class="meal-macro-kcal">${fmt(row.avg.calories)} kcal</div>
-        <div class="meal-macro-bar" style="height:${barH}px">${segs}</div>
+      <div class="meal-macro-col" style="--bar-delay:${delay}">
+        <div class="meal-macro-kcal" style="animation:bar-label-in 0.2s ease both;animation-delay:calc(${delay} + 0.3s)">${fmt(row.avg.calories)} kcal</div>
+        <div class="meal-macro-bar macro-bar-rise" style="height:${barH}px">${segs}</div>
         <div class="meal-macro-label">${row.label}</div>
         <div class="meal-macro-detail">${macrosSummary}</div>
       </div>`
@@ -374,15 +380,16 @@ export function macroBarsHTML(totals, label = "Today's macros") {
     { label: 'Carbs',   val: totals.carbs,   target: TARGETS.carbs,    unit: 'g', color: '#3b82f6' },
     { label: 'Fat',     val: totals.fat,      target: TARGETS.fat,      unit: 'g', color: '#f59e0b' },
   ]
-  const rows = bars.map(b => {
+  const rows = bars.map((b, i) => {
     const pct   = Math.min((b.val / b.target) * 100, 100).toFixed(2)
     const over  = b.val > b.target
     const color = over ? 'var(--danger)' : b.color
+    const delay = `${(i * 0.08).toFixed(2)}s`
     return `
       <div class="macro-bar-row">
         <div class="macro-bar-label">${b.label}</div>
         <div class="macro-bar-track">
-          <div class="macro-bar-fill" style="width:${pct}%;background:${color}"></div>
+          <div class="macro-bar-fill macro-fill-anim" style="width:${pct}%;background:${color};--anim-delay:${delay}"></div>
         </div>
         <div class="macro-bar-val" style="color:${color}">${fmt(b.val)}<span class="macro-bar-unit">/${b.target}${b.unit}</span></div>
       </div>`
@@ -447,7 +454,7 @@ export function streakHTML(data) {
     const has = !isFuture && (data.workouts[ds] || []).length > 0
     const lbl = day.toLocaleDateString('en-US', { weekday: 'narrow' })
     dots.push(`
-      <div class="streak-dot-wrap">
+      <div class="streak-dot-wrap" style="--anim-delay:${(i * 0.05).toFixed(2)}s">
         <div class="streak-dot ${has ? 'filled' : ''} ${isToday ? 'today' : ''} ${isFuture ? 'future' : ''}">
           ${has ? `<svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>` : ''}
         </div>
@@ -463,15 +470,17 @@ export function streakHTML(data) {
     <div class="streak-dots">${dots.join('')}</div>`
 }
 
-export function sparklineHTML(weights) {
+export function sparklineHTML(weights, { compact = false } = {}) {
   if (weights.length < 2) return ''
   const ordered = [...weights].reverse()
   const vals = ordered.map(w => w.kg)
   const minV = Math.min(...vals), maxV = Math.max(...vals)
   const range = maxV - minV || 0.5
 
-  const W = 400, H = 80
-  const LPAD = 44, RPAD = 8, TPAD = 10, BPAD = 10
+  // compact=true → left column (~300px); compact=false → right/wide column (~700px+)
+  // viewBox width is chosen so font-size:8 renders at ~8-10px in each context
+  const W = compact ? 380 : 700, H = 80
+  const LPAD = 38, RPAD = 8, TPAD = 10, BPAD = 10
   const chartW = W - LPAD - RPAD
   const chartH = H - TPAD - BPAD
 
@@ -506,7 +515,7 @@ export function sparklineHTML(weights) {
           <line x1="${LPAD}" y1="${t.y.toFixed(1)}" x2="${W - RPAD}" y2="${t.y.toFixed(1)}"
             stroke="var(--border)" stroke-width="1" stroke-dasharray="3,3"/>
           <text x="${LPAD - 5}" y="${t.y.toFixed(1)}" text-anchor="end" dominant-baseline="middle"
-            font-size="13" fill="var(--tx3)">${t.v.toFixed(1)}</text>
+            font-size="8" fill="var(--tx3)">${t.v.toFixed(1)}</text>
         `).join('')}
         <path d="${area}" fill="url(#wg-${uid})"/>
         <path d="${line}" fill="none" stroke="var(--accent)" stroke-width="2"
@@ -628,9 +637,9 @@ export function monthHeatmapHTML(data, monthOffset = 0, type = 'workouts') {
       if (hasWorkout) {
         const w = dayWorkouts[0]
         const wtype = w.activity_type || detectActivityType(w.description)
-        cells.push(`<div class="${cls}" data-action="goto-activity-date" data-date="${ds}" style="cursor:pointer" title="${w.description}">${typeIcon(wtype, 13)}</div>`)
+        cells.push(`<div class="${cls}" style="cursor:pointer" data-action="goto-activity-date" data-date="${ds}" title="${w.description}">${typeIcon(wtype, 13)}</div>`)
       } else {
-        cells.push(`<div class="${cls}">${isFuture ? '' : day}</div>`)
+        cells.push(`<div class="${cls}" >${isFuture ? '' : day}</div>`)
       }
     } else if (type === 'nutrition') {
       const food = data.food[ds] || []
@@ -646,11 +655,11 @@ export function monthHeatmapHTML(data, monthOffset = 0, type = 'workouts') {
         const diffLabel = absDiff <= onTargetWindow
           ? `On target (${Math.round(input)} / ${Math.round(tdee)} kcal)`
           : `${Math.round(absDiff)} kcal ${diff > 0 ? 'surplus' : 'deficit'} (${Math.round(input)} / ${Math.round(tdee)} kcal)`
-        
+
         cls += ' hm-has'
         cells.push(`<div class="${cls} hm-nutrition" data-action="goto-activity-date" data-date="${ds}" style="cursor:pointer;background:${background};color:${color}" title="${diffLabel}"><span class="hm-day">${day}</span><span class="hm-arrow">${arrow}</span></div>`)
       } else {
-        cells.push(`<div class="${cls}">${isFuture ? '' : day}</div>`)
+        cells.push(`<div class="${cls}" >${isFuture ? '' : day}</div>`)
       }
     }
   }

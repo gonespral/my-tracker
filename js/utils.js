@@ -1,3 +1,17 @@
+// Only write innerHTML when content has actually changed, preventing animation replays on sync.
+function hashStr(s) {
+  let h = 0
+  for (let i = 0; i < s.length; i++) h = (Math.imul(31, h) + s.charCodeAt(i)) | 0
+  return h >>> 0
+}
+export function renderIfChanged(el, html) {
+  if (!el) return
+  const fp = String(hashStr(html))
+  if (el.dataset.fp === fp) return
+  el.dataset.fp = fp
+  el.innerHTML = html
+}
+
 export const dateStr = (d) => {
   d = d || new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`

@@ -429,11 +429,13 @@ body {
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 14px;
-  padding: 12px 8px;
+  padding: 12px 4px;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 4px;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .macro-ring-label {
@@ -513,6 +515,93 @@ body {
   height: auto;
   display: block;
 }
+/* ── Animations ─────────────────────────────────────────────
+   All entrance animations live here. Use --anim-delay on any
+   element or its parent to stagger. JS: see js/animate.js.
+   ─────────────────────────────────────────────────────────── */
+@keyframes anim-fade-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes anim-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes anim-pop {
+  from { opacity: 0; transform: scale(0.4); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes anim-rise {
+  from { transform: scaleY(0); }
+  to   { transform: scaleY(1); }
+}
+@keyframes anim-fill-x {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+@keyframes line-draw {
+  from { stroke-dashoffset: 10000; }
+  to   { stroke-dashoffset: 0; }
+}
+
+/* Card / list item entrance — used by stagger() in animate.js */
+.anim-item {
+  animation: anim-fade-up 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--anim-delay, 0s);
+}
+/* Whole-block fade (charts, heatmap grid) */
+.anim-fade {
+  animation: anim-fade-in 0.35s ease both;
+  animation-delay: var(--anim-delay, 0s);
+}
+/* SVG bar rect rise */
+.anim-rise {
+  transform-box: fill-box;
+  transform-origin: bottom;
+  animation: anim-rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--anim-delay, 0s);
+}
+/* Horizontal fill (macro progress bars) */
+.anim-fill-x {
+  transform-origin: left;
+  animation: anim-fill-x 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--anim-delay, 0s);
+}
+/* Pop (dots, icons) */
+.anim-pop {
+  animation: anim-pop 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--anim-delay, 0s);
+}
+
+/* SVG bar chart */
+.bar-group { cursor: default; }
+.bar-group .bar-rect {
+  transform-box: fill-box;
+  transform-origin: bottom;
+  animation: anim-rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--bar-delay, 0s);
+}
+.bar-group .bar-cal-label {
+  animation: anim-fade-in 0.2s ease both;
+  animation-delay: calc(var(--bar-delay, 0s) + 0.35s);
+}
+/* Macro stacked bars */
+.macro-bar-fill { transform-origin: left; }
+.macro-fill-anim {
+  transform-origin: left;
+  animation: anim-fill-x 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--anim-delay, 0s);
+}
+.macro-bar-rise {
+  transform-box: fill-box;
+  transform-origin: bottom;
+  animation: anim-rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--bar-delay, 0s);
+}
+/* Heatmap grid */
+.heatmap-grid { animation: anim-fade-in 0.35s ease both; }
+/* Line charts */
+.chart-fade-in { animation: anim-fade-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) both; }
 
 /* ── Streak card ───────────────────────────────────────────── */
 .streak-card {
@@ -546,13 +635,18 @@ body {
   margin-top: 2px;
 }
 
+.streak-dot-wrap {
+  animation: anim-pop 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--anim-delay, 0s);
+}
 .streak-dots {
   display: flex;
   gap: 4px;
   flex: 1;
   justify-content: flex-end;
   min-width: 0;
-  overflow: hidden;
+  overflow: visible;
+  padding: 3px;
 }
 
 .streak-dot-wrap {
@@ -565,14 +659,14 @@ body {
 }
 
 .streak-dot {
-  width: 22px;
-  height: 22px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
   background: var(--track);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
+  font-size: 9px;
   flex-shrink: 0;
 }
 

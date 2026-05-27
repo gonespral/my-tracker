@@ -1,6 +1,7 @@
 import { state } from '../state.js'
 import { db } from '../db.js'
 import { dateStr } from '../utils.js'
+import { stagger, renderPanel } from '../animate.js'
 import { calTrendHTML, streakHTML, monthHeatmapHTML, monthNavHTML, activityStatsHTML, activityTypeBreakdownHTML } from '../charts.js'
 import { workoutItem, groupWorkoutsByConflict, workoutStack } from '../renderers.js'
 
@@ -31,7 +32,7 @@ export async function renderWorkouts(monthOffset) {
     if (isToday || ws.length > 0) feedDays.push({ ds, ws, isToday, d })
   }
 
-  const feedHTML = feedDays.map(({ ds, ws, isToday, d }) => {
+  const feedHTML = stagger(feedDays, ({ ds, ws, isToday, d }) => {
     const label = isToday
       ? 'Today'
       : d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })
@@ -42,14 +43,14 @@ export async function renderWorkouts(monthOffset) {
           item.type === 'stack' ? workoutStack(item.entries, ds) : workoutItem(item.entry, ds)
         ).join('')}
       </div>`
-  }).join('')
+  }, 0.06)
 
   const workoutDays = Object.keys(data.workouts || {}).filter(ds => {
     const [y, m] = ds.split('-').map(Number)
     return y === year && m === month + 1 && (data.workouts[ds] || []).some(w => !w.isDuplicate)
   }).length
 
-  panel.innerHTML = `
+  renderPanel(panel, `
     <div class="panel-inner">
       <div class="panel-left">
         ${monthNavHTML(monthOffset)}
@@ -77,5 +78,5 @@ export async function renderWorkouts(monthOffset) {
         <button class="log-add-btn" style="margin-bottom:16px" data-action="open-workout-sheet">+ Log activity</button>
         ${feedHTML || '<div class="empty">No activities this month.</div>'}
       </div>
-    </div>`
+    </div>`)
 }

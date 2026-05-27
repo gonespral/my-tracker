@@ -2,6 +2,7 @@ import { TARGETS, MEAL_ORDER, MEAL_LABEL, MEAL_ICON } from '../config.js'
 import { state } from '../state.js'
 import { db } from '../db.js'
 import { dateStr, sumFood, calculateNetActiveCalories, fmtDateShort } from '../utils.js'
+import { stagger, renderPanel } from '../animate.js'
 import { calRingHTML, macroRingHTML, weekChartHTML, streakHTML, sparklineHTML } from '../charts.js'
 import { foodItem, workoutItem, groupWorkoutsByConflict, workoutStack } from '../renderers.js'
 import { openSheet, showToast, closeMenus } from '../ui.js'
@@ -46,7 +47,7 @@ function renderTodayWeightSection(weights, today) {
   }
   return `
     <button class="log-add-btn" style="margin-bottom:12px" data-action="log-weight">+ Log today's weight</button>
-    ${sparklineHTML(sorted)}
+    ${sparklineHTML(sorted, { compact: false })}
     <div class="weight-entry">
       <div class="weight-entry-date">${fmtDateShort(todayEntry.date)}</div>
       <div class="weight-entry-right">
@@ -83,20 +84,20 @@ export async function renderToday() {
   const calTarget   = TARGETS.calories.rest
   const burnedToday = calculateNetActiveCalories(workouts, TARGETS.calories.bmr)
 
-  document.getElementById('cal-section').innerHTML =
+  renderPanel(document.getElementById('cal-section'),
     calRingHTML(totals.calories, calTarget, burnedToday) +
     `<div class="cal-badges">
        <span class="badge ${training?'training':''}}">${training ? 'Training day' : 'Rest day'}</span>
        <span class="badge">Target: ${(calTarget + burnedToday).toLocaleString()} kcal${burnedToday > 0 ? ' (+'+burnedToday+' burned)' : ''}</span>
-     </div>`
+     </div>`)
 
-  document.getElementById('macro-rings').innerHTML =
+  renderPanel(document.getElementById('macro-rings'),
     macroRingHTML('Protein', totals.protein, TARGETS.protein, 'g', 'var(--accent)') +
     macroRingHTML('Carbs',   totals.carbs,   TARGETS.carbs,   'g', '#3b82f6') +
-    macroRingHTML('Fat',     totals.fat,      TARGETS.fat,      'g', '#f59e0b')
+    macroRingHTML('Fat',     totals.fat,      TARGETS.fat,      'g', '#f59e0b'))
 
-  document.getElementById('week-chart-card').innerHTML  = weekChartHTML(data)
-  document.getElementById('streak-card').innerHTML      = streakHTML(data)
+  renderPanel(document.getElementById('week-chart-card'), weekChartHTML(data))
+  renderPanel(document.getElementById('streak-card'),     streakHTML(data))
 
   const wisdomEl = document.getElementById('wisdom-card')
   if (wisdomEl && !wisdomEl.dataset.loaded) {
@@ -112,18 +113,18 @@ export async function renderToday() {
     })
     .map(({ entry }) => entry)
 
-  document.getElementById('today-logs').innerHTML = `
+  renderPanel(document.getElementById('today-logs'), `
     <div class="section-label">Food</div>
-    ${orderedFood.map(e => foodItem(e, today)).join('') || ''}
+    ${stagger(orderedFood, e => foodItem(e, today))}
     <button class="log-add-btn" data-action="open-food-sheet" data-meal="snack">+ Add meal</button>
     <div class="section-label" style="margin-top:14px">Activities</div>
-    ${groupWorkoutsByConflict(workouts).map(item =>
+    ${stagger(groupWorkoutsByConflict(workouts), item =>
       item.type === 'stack' ? workoutStack(item.entries, today) : workoutItem(item.entry, today)
-    ).join('')}
+    )}
     <button class="log-add-btn" data-action="open-workout-sheet">+ Add activity</button>
     <div class="section-label" style="margin-top:14px">Weight</div>
     ${renderTodayWeightSection(data.weights || [], today)}
-  `
+  `)
 }
 
 export function openFoodSheet(meal = 'snack', date = null) {

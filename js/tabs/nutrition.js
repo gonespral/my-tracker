@@ -2,6 +2,7 @@ import { state } from '../state.js'
 import { db } from '../db.js'
 import { TARGETS } from '../config.js'
 import { dateStr, fmtDateShort, fmt, round, sumFood, calculateNetActiveCalories } from '../utils.js'
+import { stagger, renderPanel } from '../animate.js'
 import { calTrendHTML, mealMacroAvgHTML, sparklineHTML, monthHeatmapHTML, monthNavHTML } from '../charts.js'
 import { foodItem } from '../renderers.js'
 import { materialIcon } from '../icons.js'
@@ -39,7 +40,7 @@ function renderWeightSection(data) {
 
   return `
     <button class="log-add-btn" style="margin-bottom:12px" data-action="log-weight">+ Log today's weight</button>
-    ${sparklineHTML(weights)}
+    ${sparklineHTML(weights, { compact: true })}
     ${entries}
     ${weights.length > 3 ? `<div class="empty" style="padding:8px 0">${weights.length - 3} older entries not shown</div>` : ''}`
 }
@@ -69,7 +70,7 @@ export async function renderNutrition(monthOffset) {
     if (food.length > 0 || isToday) feedDays.push({ ds, food, isToday, d })
   }
 
-  const feedHTML = feedDays.map(({ ds, food, isToday, d }) => {
+  const feedHTML = stagger(feedDays, ({ ds, food, isToday, d }) => {
     const label = isToday
       ? 'Today'
       : d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })
@@ -82,14 +83,14 @@ export async function renderNutrition(monthOffset) {
         <div class="workout-day-hd${isToday ? ' today-hd' : ''}">${label} ${macroSummary}</div>
         ${food.map(e => foodItem(e, ds)).join('')}
       </div>`
-  }).join('')
+  }, 0.06)
 
   const foodDays = Object.keys(data.food || {}).filter(ds => {
     const [y, m] = ds.split('-').map(Number)
     return y === year && m === month + 1 && (data.food[ds] || []).length > 0
   }).length
 
-  panel.innerHTML = `
+  renderPanel(panel, `
     <div class="panel-inner">
       <div class="panel-left">
         ${monthNavHTML(monthOffset)}
@@ -120,5 +121,5 @@ export async function renderNutrition(monthOffset) {
         <button class="log-add-btn" style="margin-bottom:16px" data-action="open-food-sheet">+ Log food</button>
         ${feedHTML || '<div class="empty">No food logged this month.</div>'}
       </div>
-    </div>`
+    </div>`)
 }
