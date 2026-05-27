@@ -50,33 +50,6 @@ Try the demo at [gonespral.github.io/my-tracker](https://gonespral.github.io/my-
 
 A persistent indicator in the header shows which integrations are currently syncing and highlights any that have failed, with a spinner on the refresh button during active sync.
 
-## Architecture
-
-Vanilla JS SPA. Static `index.html` shell; all panels rendered dynamically by JS modules via `innerHTML`. Events delegated from a single top-level listener in `app.js` via `data-action` attributes. No bundler.
-
-| File | Role |
-|:---|:---|
-| `js/app.js` | Entry point — auth, tabs, event delegation |
-| `js/state.js` | Single mutable state object shared across modules |
-| `js/db.js` | Supabase client + all DB operations |
-| `js/ai.js` | Claude API, chat panel, tool execution |
-| `js/strava.js` | Strava OAuth + sync + push + delete |
-| `js/google-health.js` | Google Health OAuth + bidirectional sync + push + delete |
-| `js/sync-status.js` | Sync state indicator (in-progress / failed) |
-| `js/tabs/` | Per-tab renderers (today, nutrition, workouts, settings) |
-
-**Auth:** GitHub or Google OAuth via Supabase. Sign-in overlay shown when no session exists.
-
-**AI chat:** Claude API called directly from the browser using an Anthropic key stored in `localStorage`. Supports tool use (log/edit/delete food, workouts, weight; manage presets; update targets) and image attachments (vision).
-
-## Database
-
-Run migrations in `supabase/migrations/` in order against a fresh Supabase project.
-
-| Migration | What it does |
-|:---|:---|
-| `00001_initial_schema.sql` | Tables (`food_entries`, `workout_entries`, `weight_entries`, `meal_presets`, `workout_presets`, `user_settings`), RLS policies, indexes |
-
 ## Setup
 
 See [SETUP.md](SETUP.md) for full step-by-step instructions.
