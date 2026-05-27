@@ -2,6 +2,35 @@ import { TARGETS, MEAL_ORDER, MEAL_LABEL, ACTIVITY_TYPE, detectActivityType } fr
 import { dateStr, sumFood, fmt, round, calculateNetActiveCalories } from './utils.js'
 import { typeIcon } from './icons.js'
 
+// Fraction of eating day elapsed [0,1]. Eating window: 7am–10pm.
+function timeTargetFraction() {
+  const EATING_START = 7, EATING_END = 22
+  const now = new Date()
+  const t = now.getHours() + now.getMinutes() / 60
+  if (t <= EATING_START) return 0
+  if (t >= EATING_END)   return 1
+  return (t - EATING_START) / (EATING_END - EATING_START)
+}
+
+// Time-aware color: green if on track for time of day, orange/red if too far off either way.
+function progressColor(consumed, target, timeFrac, accentColor = 'var(--accent)') {
+  if (target <= 0) return accentColor
+  const expectedNow = target * Math.max(timeFrac, 0.05)
+  const deviationRatio = Math.abs(consumed - expectedNow) / target
+  if (deviationRatio <= 0.12) return accentColor
+  if (deviationRatio <= 0.25) return '#f59e0b'
+  return '#ef4444'
+}
+
+// SVG dot marking the time-target position on a ring.
+function ringTickSVG(cx, cy, r, sw, timeFrac) {
+  if (timeFrac <= 0 || timeFrac >= 1) return ''
+  const angle = -Math.PI / 2 + timeFrac * 2 * Math.PI
+  const dotX = (cx + r * Math.cos(angle)).toFixed(1)
+  const dotY = (cy + r * Math.sin(angle)).toFixed(1)
+  return `<circle cx="${dotX}" cy="${dotY}" r="${sw > 10 ? 3 : 2}" fill="var(--tx2)" opacity="0.5"/>`
+}
+
 export function calRingHTML(consumed, target, burned = 0) {
   const effectiveTarget = target + burned
   const size = 160, sw = 12, r = (size - sw) / 2
@@ -9,9 +38,8 @@ export function calRingHTML(consumed, target, burned = 0) {
   const pct  = Math.min(consumed / effectiveTarget, 1)
   const off  = circ * (1 - pct)
   const cx = size / 2, cy = size / 2
-  const over  = consumed > effectiveTarget
-  const close = consumed > effectiveTarget * 0.85
-  const color = over ? '#ef4444' : close ? '#f59e0b' : 'var(--accent)'
+  const timeFrac = timeTargetFraction()
+  const color = progressColor(consumed, effectiveTarget, timeFrac)
   const rem   = effectiveTarget - consumed
 
   // Inner ring for burned calories
@@ -28,6 +56,7 @@ export function calRingHTML(consumed, target, burned = 0) {
           stroke-dasharray="${circ.toFixed(2)}" stroke-dashoffset="${off.toFixed(2)}"
           stroke-linecap="round" transform="rotate(-90 ${cx} ${cy})"
           style="--ring-circ:${circ.toFixed(2)};--ring-off:${off.toFixed(2)};animation:ring-fill .7s cubic-bezier(.4,0,.2,1) both"/>
+        ${ringTickSVG(cx, cy, r, sw, timeFrac)}
         ${burned > 0 ? `
         <circle cx="${cx}" cy="${cy}" r="${ri}" fill="none" stroke="var(--track)" stroke-width="${swi}" opacity="0.7"/>
         <circle cx="${cx}" cy="${cy}" r="${ri}" fill="none" stroke="#f97316" stroke-width="${swi}"
@@ -38,7 +67,7 @@ export function calRingHTML(consumed, target, burned = 0) {
       <div class="ring-center">
         <div class="ring-big-num">${round(consumed).toLocaleString()}</div>
         <div class="ring-unit">kcal</div>
-        <div class="ring-remaining ${over?'over':''}">
+        <div class="ring-remaining ${consumed > effectiveTarget ? 'over' : ''}">
           ${rem >= 0 ? round(rem).toLocaleString()+' left' : round(-rem).toLocaleString()+' over'}
         </div>
         ${burned > 0 ? `<div class="ring-burned">🔥 +${round(burned)}</div>` : ''}
@@ -52,9 +81,8 @@ export function macroRingHTML(label, value, target, unit, accentColor) {
   const pct  = Math.min(value / target, 1)
   const off  = circ * (1 - pct)
   const cx = size / 2, cy = size / 2
-  const over  = value > target
-  const close = value > target * 0.85
-  const color = over ? '#ef4444' : close ? '#f59e0b' : accentColor
+  const timeFrac = timeTargetFraction()
+  const color = progressColor(value, target, timeFrac, accentColor)
 
   return `
     <div class="macro-ring-card">
@@ -66,6 +94,7 @@ export function macroRingHTML(label, value, target, unit, accentColor) {
             stroke-dasharray="${circ.toFixed(2)}" stroke-dashoffset="${off.toFixed(2)}"
             stroke-linecap="round" transform="rotate(-90 ${cx} ${cy})"
             style="--ring-circ:${circ.toFixed(2)};--ring-off:${off.toFixed(2)};animation:ring-fill .7s cubic-bezier(.4,0,.2,1) both"/>
+          ${ringTickSVG(cx, cy, r, sw, timeFrac)}
         </svg>
         <div class="ring-center">
           <div style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:15px;color:var(--tx);line-height:1">
@@ -107,7 +136,8 @@ export function weekChartHTML(data) {
     const x  = PL + i * bStep + (bStep - bW) / 2
     const y  = PT + cH - bH
     const pct = d.cals / d.target
-    const fill = d.cals === 0 ? 'var(--track)' : pct > 1.05 ? 'var(--danger)' : 'var(--accent)'
+    const timeFrac = d.isToday ? timeTargetFraction() : 1
+    const fill = d.cals === 0 ? 'var(--track)' : progressColor(d.cals, d.target, timeFrac)
     const opacity = d.cals === 0 ? '1' : pct > 1.05 ? '0.9' : Math.max(0.15, Math.min(pct, 1)).toFixed(2)
     const labelFill = d.isToday ? 'var(--tx)' : 'var(--tx3)'
     const delay = `${(i * 0.06).toFixed(2)}s`
@@ -374,22 +404,27 @@ export function mealMacroAvgHTML(data, nDays = 30) {
     </div>`
 }
 
-export function macroBarsHTML(totals, label = "Today's macros") {
+export function macroBarsHTML(totals, label = "Today's macros", { timeAware = true } = {}) {
   const bars = [
     { label: 'Protein', val: totals.protein, target: TARGETS.protein,  unit: 'g', color: 'var(--accent)' },
     { label: 'Carbs',   val: totals.carbs,   target: TARGETS.carbs,    unit: 'g', color: '#3b82f6' },
     { label: 'Fat',     val: totals.fat,      target: TARGETS.fat,      unit: 'g', color: '#f59e0b' },
   ]
+  const timeFrac = timeAware ? timeTargetFraction() : 1
+  const markerPct = (timeFrac * 100).toFixed(1)
   const rows = bars.map((b, i) => {
     const pct   = Math.min((b.val / b.target) * 100, 100).toFixed(2)
-    const over  = b.val > b.target
-    const color = over ? 'var(--danger)' : b.color
+    const color = progressColor(b.val, b.target, timeFrac, b.color)
     const delay = `${(i * 0.08).toFixed(2)}s`
+    const markerHTML = timeFrac > 0 && timeFrac < 1
+      ? `<div style="position:absolute;top:-2px;bottom:-2px;left:${markerPct}%;width:2px;background:var(--tx2);border-radius:1px;opacity:0.4;transform:translateX(-50%)"></div>`
+      : ''
     return `
       <div class="macro-bar-row">
         <div class="macro-bar-label">${b.label}</div>
-        <div class="macro-bar-track">
+        <div class="macro-bar-track" style="position:relative">
           <div class="macro-bar-fill macro-fill-anim" style="width:${pct}%;background:${color};--anim-delay:${delay}"></div>
+          ${markerHTML}
         </div>
         <div class="macro-bar-val" style="color:${color}">${fmt(b.val)}<span class="macro-bar-unit">/${b.target}${b.unit}</span></div>
       </div>`
@@ -412,7 +447,7 @@ export function macroAvgBarsHTML(data, nDays = 30) {
     carbs:   days.reduce((s,d)=>s+d.carbs,0)/n,
     fat:     days.reduce((s,d)=>s+d.fat,0)/n,
   }
-  return macroBarsHTML(avg, `${nDays}-day avg macros`)
+  return macroBarsHTML(avg, `${nDays}-day avg macros`, { timeAware: false })
 }
 
 export function streakHTML(data) {
