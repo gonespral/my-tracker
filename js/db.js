@@ -617,11 +617,12 @@ if (isDemo) {
 
   // Generate 45 days of historical data
   const now = new Date();
+  const localDateStr = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   let currentWeight = 75.0;
 
   for (let i = 45; i >= 0; i--) {
-    const d = new Date(now.getTime() - i * 86400000);
-    const dateStr = d.toISOString().split('T')[0];
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+    const dateStr = localDateStr(d);
 
     // Weight trending down slightly
     if (i % 3 === 0) {

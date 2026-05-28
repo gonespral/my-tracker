@@ -13,7 +13,7 @@ export const MACRO_COLORS = {
 // Requires overflow="visible" on the parent SVG.
 // mealFrac: pre-computed 0–1 from today.js based on historical meal ratios.
 function ringTickSVG(cx, cy, r, sw, mealFrac) {
-  if (mealFrac <= 0) return ''
+  if (mealFrac <= 0 || mealFrac >= 1) return ''
   const angle = -Math.PI / 2 + mealFrac * 2 * Math.PI
   const dx = Math.cos(angle), dy = Math.sin(angle)
   const px = -dy, py = dx
@@ -23,9 +23,11 @@ function ringTickSVG(cx, cy, r, sw, mealFrac) {
   const tipX  = (cx + tipR  * dx).toFixed(1), tipY  = (cy + tipR  * dy).toFixed(1)
   const b1X   = (cx + baseR * dx + half * px).toFixed(1), b1Y = (cy + baseR * dy + half * py).toFixed(1)
   const b2X   = (cx + baseR * dx - half * px).toFixed(1), b2Y = (cy + baseR * dy - half * py).toFixed(1)
-  return `<polygon points="${tipX},${tipY} ${b1X},${b1Y} ${b2X},${b2Y}"
-    fill="var(--tx2)" stroke="var(--bg)" stroke-width="1.5" stroke-linejoin="round"
-    style="animation:dot-pop .3s ease both .75s"/>`
+  const deg   = (mealFrac * 360).toFixed(1)
+  return `<g style="transform-origin:${cx}px ${cy}px;--ticker-deg:${deg}deg;animation:ticker-rotate 0.8s cubic-bezier(0.22,1,0.36,1) both 0.25s">
+    <polygon points="${tipX},${tipY} ${b1X},${b1Y} ${b2X},${b2Y}"
+      fill="var(--tx2)" stroke="var(--bg)" stroke-width="1.5" stroke-linejoin="round"/>
+  </g>`
 }
 
 export function calRingHTML(consumed, target, burned = 0, mealFrac = 0) {
@@ -271,13 +273,13 @@ function buildCalorieTrendHTML(days, { title, primaryLabel, secondaryLabel, prim
         stroke="var(--border)" stroke-width="1" stroke-opacity=".6"/>
       <line x1="${PL}" y1="${restY.toFixed(1)}" x2="${(W-PR).toFixed(1)}" y2="${restY.toFixed(1)}"
         stroke="var(--border)" stroke-width="1" stroke-dasharray="4 3"/>
-      ${primaryAreaPaths.map(area => `<path d="${area}" fill="url(#cal-grad-primary-${uid})" style="animation:chart-fade-in 0.6s ease both 0.3s"/>`).join('')}
+      ${primaryAreaPaths.map(area => `<path d="${area}" fill="url(#cal-grad-primary-${uid})" style="animation:anim-fade-in 0.6s ease both 0.3s"/>`).join('')}
       ${secondaryPaths.map(p => `<path d="${p}" fill="none" stroke="${secondaryColor}" stroke-width="1.6" stroke-opacity=".55"
         stroke-linecap="round" stroke-linejoin="round"
-        stroke-dasharray="10000" style="animation:line-draw 0.9s cubic-bezier(0.22,1,0.36,1) both 0.1s"/>`).join('')}
+        style="animation:anim-fade-in 0.5s ease both 0.2s"/>`).join('')}
       ${primaryPaths.map(p => `<path d="${p}" fill="none" stroke="${primaryColor}" stroke-width="1.8"
         stroke-linecap="round" stroke-linejoin="round"
-        stroke-dasharray="10000" style="animation:line-draw 0.9s cubic-bezier(0.22,1,0.36,1) both"/>`).join('')}
+        style="animation:anim-fade-in 0.5s ease both 0.1s"/>`).join('')}
       ${todayPt.primaryY !== null ? `<circle cx="${todayPt.x.toFixed(1)}" cy="${todayPt.primaryY.toFixed(1)}" r="3" fill="${primaryColor}" style="animation:dot-pop 0.3s ease both 0.85s"/>` : ''}
       ${todayPt.secondaryY !== null ? `<circle cx="${todayPt.x.toFixed(1)}" cy="${todayPt.secondaryY.toFixed(1)}" r="2.5" fill="${secondaryColor}" fill-opacity=".45" style="animation:dot-pop 0.3s ease both 0.95s"/>` : ''}
       ${tickLabels}
