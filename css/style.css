@@ -352,6 +352,13 @@ body {
 
 .ring-wrap svg {
   display: block;
+  overflow: visible;
+  /* Allow transform-origin and animations on SVG <g> to use element box coordinates */
+  transform-box: fill-box;
+}
+
+.ring-wrap svg g {
+  transform-box: fill-box;
 }
 
 .ring-center {
