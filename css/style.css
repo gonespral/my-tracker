@@ -361,6 +361,22 @@ body {
   transform-box: fill-box;
 }
 
+/* Ticker rotation animation: rotates the <g> element to the computed degree */
+@keyframes ticker-rotate {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(var(--ticker-deg, 0deg)); }
+}
+
+@keyframes anim-pop {
+  0%   { transform: scale(.8) translateY(-6px); opacity: 0 }
+  60%  { transform: scale(1.05) translateY(0); opacity: 1 }
+  100% { transform: scale(1) translateY(0); opacity: 1 }
+}
+
+.ring-wrap svg g { transform-origin: 50% 50%; }
+
+.ring-wrap svg polygon { filter: drop-shadow(0 1px 0 rgba(0,0,0,0.02)); }
+
 .ring-center {
   position: absolute;
   text-align: center;
