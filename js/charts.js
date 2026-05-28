@@ -223,7 +223,6 @@ function buildCalorieTrendHTML(days, { title, primaryLabel, secondaryLabel, prim
   }
   if (secondarySeg) secondaryPaths.push(secondarySeg)
 
-  const restY = tY(TARGETS.calories.rest)
   const activeDays = days.filter(d => d.primary > 0)
   const avg = activeDays.length ? round(activeDays.reduce((s,d)=>s+d.primary,0)/activeDays.length) : 0
   const todayPt = pts[pts.length - 1]
@@ -274,12 +273,9 @@ function buildCalorieTrendHTML(days, { title, primaryLabel, secondaryLabel, prim
           <stop offset="100%" stop-color="${secondaryColor}" stop-opacity=".01"/>
         </linearGradient>
       </defs>
-      <text x="${PL-4}" y="${(restY+3).toFixed(1)}" text-anchor="end" font-size="8" fill="var(--tx3)">${Math.round(TARGETS.calories.rest)}</text>
       <text x="${PL-4}" y="${(PT+cH+3).toFixed(1)}" text-anchor="end" font-size="8" fill="var(--tx3)">0</text>
       <line x1="${PL}" y1="${(PT+cH).toFixed(1)}" x2="${(W-PR).toFixed(1)}" y2="${(PT+cH).toFixed(1)}"
         stroke="var(--border)" stroke-width="1" stroke-opacity=".6"/>
-      <line x1="${PL}" y1="${restY.toFixed(1)}" x2="${(W-PR).toFixed(1)}" y2="${restY.toFixed(1)}"
-        stroke="var(--border)" stroke-width="1" stroke-dasharray="4 3"/>
       ${primaryAreaPaths.map(area => `<path d="${area}" fill="url(#cal-grad-primary-${uid})" style="animation:anim-fade-in 0.6s ease both 0.3s"/>`).join('')}
       ${secondaryPaths.map(p => `<path d="${p}" fill="none" stroke="${secondaryColor}" stroke-width="1.6" stroke-opacity=".55"
         stroke-linecap="round" stroke-linejoin="round"
@@ -295,12 +291,17 @@ function buildCalorieTrendHTML(days, { title, primaryLabel, secondaryLabel, prim
 
 export function calTrendHTML(data, nDays = 30, options = {}) {
   const today = dateStr()
+  const eatbackPct = TARGETS.calories.eatback_pct ?? 50
   const days = []
   for (let i = nDays - 1; i >= 0; i--) {
     const d = new Date(); d.setDate(d.getDate() - i)
     const ds = dateStr(d)
-    
-    const tdee = TARGETS.calories.rest
+
+    const workouts = data.workouts[ds] || []
+    const burned   = calculateNetActiveCalories(workouts, TARGETS.calories.bmr)
+    const eatback  = burned > 0 ? Math.round(burned * eatbackPct / 100) : 0
+    const tdee     = (TARGETS.calories.goal || TARGETS.calories.rest) + eatback
+
     const foodItems = data.food[ds] || []
     const input = foodItems.length > 0 ? sumFood(foodItems).calories : null
 
