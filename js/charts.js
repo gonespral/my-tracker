@@ -32,9 +32,14 @@ function ringTickSVG(cx, cy, r, sw, mealFrac, consumedFrac = 0) {
     ? `animation:anim-pop 0.4s ease both 0.25s`
     : `--ticker-deg:${(frac * 360).toFixed(1)}deg;animation:ticker-rotate 0.8s cubic-bezier(0.22,1,0.36,1) both 0.25s`
 
+  // Draw a short radial line crossing the ring at the meal fraction angle.
+  const innerR = r - sw / 2 - 2
+  const outerR = r + sw / 2 + 2
+  const x1 = (cx + innerR * dx).toFixed(1), y1 = (cy + innerR * dy).toFixed(1)
+  const x2 = (cx + outerR * dx).toFixed(1), y2 = (cy + outerR * dy).toFixed(1)
   return `<g style="transform-origin:${cx}px ${cy}px;${anim}">
-    <polygon points="${tipX},${tipY} ${b1X},${b1Y} ${b2X},${b2Y}"
-      fill="${fill}" stroke="var(--bg)" stroke-width="1.5" stroke-linejoin="round"/>
+    <line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"
+      stroke="${fill}" stroke-width="3" stroke-linecap="round" />
   </g>`
 }
 
