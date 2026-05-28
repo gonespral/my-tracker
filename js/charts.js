@@ -39,7 +39,7 @@ function ringTickSVG(cx, cy, r, sw, mealFrac, consumedFrac = 0) {
 }
 
 export function calRingHTML(consumed, target, burned = 0, mealFrac = 0) {
-  const effectiveTarget = target
+  const effectiveTarget = target + burned
   const size = 160, sw = 12, r = (size - sw) / 2
   const circ = 2 * Math.PI * r
   const pct  = Math.min(consumed / effectiveTarget, 1)
