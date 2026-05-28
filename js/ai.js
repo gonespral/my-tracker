@@ -350,6 +350,11 @@ export async function callClaudeApi(messages, system, signal) {
   return r.json()
 }
 
+// Localized small helper used when rendering a temporary assistant "thinking" message.
+function thinkingVerb() {
+  return 'Thinking'
+}
+
 const CHAT_COLLAPSED_HEIGHT = '18px'
 const CHAT_PEEK_HEIGHT = '75px'
 
