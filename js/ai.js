@@ -437,6 +437,67 @@ export function clearChat() {
   setChatPanelState('collapsed')
 }
 
+async function executeTool(name, input) {
+  const date = input.date || dateStr()
+  try {
+    if (name === 'log_food') {
+      await db.addFood(date, { description: input.description, calories: input.calories||0, protein: input.protein||0, carbs: input.carbs||0, fat: input.fat||0, meal: input.meal||'snack' })
+      db.bust()
+      return `logged for ${date}`
+    }
+    if (name === 'edit_food') {
+      const fields = {}
+      if (input.description !== undefined) fields.description = input.description
+      if (input.calories    !== undefined) fields.calories    = input.calories
+      if (input.protein     !== undefined) fields.protein     = input.protein
+      if (input.carbs       !== undefined) fields.carbs       = input.carbs
+      if (input.fat         !== undefined) fields.fat         = input.fat
+      if (input.meal        !== undefined) fields.meal        = input.meal
+      await db.updateFood(input.id, fields)
+      db.bust()
+      return 'updated'
+    }
+    if (name === 'delete_food')   { await db.deleteFood(input.id); db.bust(); return 'deleted' }
+    if (name === 'log_workout') {
+      await db.addWorkout(date, { description: input.description, intensity: input.intensity,
+        calories_burned: input.calories_burned||null, duration_min: input.duration_min||null,
+        distance_km: input.distance_km||null, heart_rate_avg: input.heart_rate_avg||null,
+        time: nowTime() })
+      db.bust()
+      return `logged for ${date}`
+    }
+    if (name === 'edit_workout') {
+      const fields = {}
+      if (input.description     !== undefined) fields.description     = input.description
+      if (input.intensity       !== undefined) fields.intensity       = input.intensity
+      if (input.calories_burned !== undefined) fields.calories_burned = input.calories_burned
+      if (input.duration_min    !== undefined) fields.duration_min    = input.duration_min
+      if (input.distance_km     !== undefined) fields.distance_km     = input.distance_km
+      if (input.heart_rate_avg  !== undefined) fields.heart_rate_avg  = input.heart_rate_avg
+      await db.updateWorkout(input.id, fields)
+      db.bust()
+      return 'updated'
+    }
+    if (name === 'delete_workout') { await db.deleteWorkout(input.id); db.bust(); return 'deleted' }
+    if (name === 'log_weight')     { await db.upsertWeight({ kg: input.kg, date }); db.bust(); return `logged for ${date}` }
+    if (name === 'save_meal_preset') {
+      await db.addMeal({ name: input.name, calories: input.calories||0, protein: input.protein||0, carbs: input.carbs||0, fat: input.fat||0, meal: input.meal||'snack' })
+      state.mealsCache = null
+      return `saved "${input.name}" as meal preset`
+    }
+    if (name === 'set_targets') {
+      if (input.cal_rest     !== undefined) TARGETS.calories.rest     = input.cal_rest
+      if (input.cal_training !== undefined) TARGETS.calories.training = input.cal_training
+      if (input.protein_g    !== undefined) TARGETS.protein           = input.protein_g
+      if (input.carbs_g      !== undefined) TARGETS.carbs             = input.carbs_g
+      if (input.fat_g        !== undefined) TARGETS.fat               = input.fat_g
+      await db.saveSettings({ cal_rest: TARGETS.calories.rest, cal_training: TARGETS.calories.training, protein_g: TARGETS.protein, carbs_g: TARGETS.carbs, fat_g: TARGETS.fat })
+      return 'targets updated'
+    }
+    return `unknown tool: ${name}`
+  } catch (e) { return `error: ${e.message}` }
+}
+
 export async function sendChatMessage(text, renderActiveFn, images = []) {
   text = text.trim()
   if (!text && !images.length) return
