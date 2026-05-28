@@ -39,7 +39,7 @@ function ringTickSVG(cx, cy, r, sw, mealFrac, consumedFrac = 0) {
 }
 
 export function calRingHTML(consumed, target, burned = 0, mealFrac = 0) {
-  const effectiveTarget = target + burned
+  const effectiveTarget = target  // target is pre-adjusted (goal + eatback); burned is display-only
   const size = 160, sw = 12, r = (size - sw) / 2
   const circ = 2 * Math.PI * r
   const pct  = Math.min(consumed / effectiveTarget, 1)
@@ -120,10 +120,14 @@ export function weekChartHTML(data) {
     const d = new Date(); d.setDate(d.getDate() - i)
     const ds = dateStr(d)
     const food     = data.food[ds]     || []
+    const workouts = data.workouts[ds] || []
+    const dayBurn  = calculateNetActiveCalories(workouts, TARGETS.calories.bmr)
+    const eatbackPct = TARGETS.calories.eatback_pct ?? 50
+    const dayEatback = dayBurn > 0 ? Math.round(dayBurn * eatbackPct / 100) : 0
     days.push({
       ds, isToday: ds === today,
       cals: sumFood(food).calories,
-      target: TARGETS.calories.rest,
+      target: (TARGETS.calories.goal || TARGETS.calories.rest) + dayEatback,
       label: d.toLocaleDateString('en-US', { weekday: 'short' }),
     })
   }
