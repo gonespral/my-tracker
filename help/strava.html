@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Strava and Google Health — MyTracker</title>
+  <link rel="icon" href="/brand/icons/favicon-mono-dark.svg">
+  <script src="page.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="page.css">
+  <style>
+    .flow-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin: 20px 0;
+    }
+    .flow-node {
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      border: 1.5px solid var(--border);
+      background: var(--card);
+      color: var(--tx);
+    }
+    .flow-node.service { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+    .flow-arrow { color: var(--tx3); font-size: 18px; }
+    .spoof-demo {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 24px 20px;
+      margin: 24px 0;
+    }
+    .spoof-inputs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    @media (max-width: 460px) {
+      .spoof-inputs { grid-template-columns: 1fr; }
+    }
+    .spoof-field label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--tx3);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 6px;
+    }
+    .spoof-field input, .spoof-field select {
+      width: 100%;
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--tx);
+      font-size: 14px;
+      font-family: 'DM Sans', sans-serif;
+    }
+    .spoof-result {
+      background: var(--track);
+      border-radius: 10px;
+      padding: 14px 16px;
+      text-align: center;
+    }
+    .spoof-hr {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 36px;
+      font-weight: 700;
+      color: var(--tx);
+      line-height: 1;
+    }
+    .spoof-hr-lbl { font-size: 13px; color: var(--tx3); margin-top: 4px; }
+    .spoof-hr-note { font-size: 12px; color: var(--tx3); margin-top: 8px; }
+  </style>
+</head>
+<body>
+
+<div class="help-page">
+  <h1>Strava and Google Health</h1>
+  <p class="page-subtitle">Import activities automatically and optionally push workouts back with calorie data.</p>
+
+  <h2>Connecting Strava</h2>
+  <p>
+    Go to <strong>Settings &rarr; Strava</strong> and tap <strong>Connect</strong>. You will be redirected
+    to Strava's authorisation page. Once approved, MyTracker imports your last 100 activities on every load
+    and keeps them in sync.
+  </p>
+
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <strong>Open Settings &rarr; Strava, tap Connect</strong>
+        <p>You are sent to Strava's OAuth page to approve the connection. MyTracker requests read-only access
+        to activities plus write access for pushing workouts back.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <strong>Activities are imported on every app load</strong>
+        <p>Strava workouts appear in the Workouts tab and count toward your daily calorie target automatically.
+        Duplicate detection prevents the same workout from being counted twice if it also comes from
+        Google Health.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <strong>Optionally push workouts back to Strava</strong>
+        <p>Workouts you log directly in MyTracker can be pushed to Strava. Enable auto-push in Settings, or
+        tap the push button on an individual workout card.</p>
+      </div>
+    </div>
+  </div>
+
+  <h2>Data flow</h2>
+
+  <div class="flow-row">
+    <div class="flow-node service">Strava</div>
+    <div class="flow-arrow">&#8594;</div>
+    <div class="flow-node">Import on load</div>
+    <div class="flow-arrow">&#8594;</div>
+    <div class="flow-node service">MyTracker</div>
+    <div class="flow-arrow">&#8594;</div>
+    <div class="flow-node">Push (optional)</div>
+    <div class="flow-arrow">&#8594;</div>
+    <div class="flow-node service">Strava</div>
+  </div>
+
+  <h2>Calorie spoofing</h2>
+  <p>
+    Strava does not allow calorie data on manually created activities via their API. When you push a workout
+    from MyTracker to Strava, the calorie count would be lost.
+  </p>
+  <p>
+    <strong>Calorie spoofing</strong> works around this by encoding your calories as a synthetic average
+    heart rate. MyTracker uploads the activity as a TCX file with that heart rate embedded.
+    Strava reads the heart rate data and calculates its own calorie estimate, which ends up close to your
+    logged value.
+  </p>
+
+  <div class="states">
+    <div class="state-row">
+      <span class="state-badge badge-gray">Off</span>
+      <div class="state-body">
+        <strong>Push without calorie spoofing</strong>
+        <p>Activity is pushed as a simple JSON entry. No calorie or heart rate data is included.
+        Strava shows no calorie count for the activity.</p>
+      </div>
+    </div>
+    <div class="state-row">
+      <span class="state-badge badge-green">On</span>
+      <div class="state-body">
+        <strong>Push with calorie spoofing</strong>
+        <p>Activity is uploaded as a TCX file with a synthetic heart rate derived from your calories,
+        weight, age, and sex. Strava calculates calories from the heart rate and shows a number close
+        to what you logged.</p>
+      </div>
+    </div>
+  </div>
+
+  <h2>The heart rate formula</h2>
+  <p>
+    The synthetic HR is estimated using the Keytel (2005) formula, which reverses the relationship
+    between heart rate and calorie expenditure:
+  </p>
+
+  <div class="formula">
+    calPerMin = calories &divide; durationMin<br>
+    <br>
+    HR (male)   = (calPerMin &times; 4.184 + 55.097 &minus; 0.199 &times; weight &minus; 0.202 &times; age) &divide; 0.631<br>
+    HR (female) = (calPerMin &times; 4.184 + 20.402 + 0.126 &times; weight &minus; 0.074 &times; age) &divide; 0.447
+  </div>
+
+  <p>
+    The result is clamped to 60&ndash;200 bpm. If the calculation falls outside that range (for example
+    because the calories or duration look implausible) spoofing is disabled for that upload and the
+    activity is pushed without heart rate data.
+  </p>
+
+  <div class="spoof-demo">
+    <div class="demo-label" style="margin-bottom:16px;display:block">Heart rate estimator</div>
+    <div class="spoof-inputs">
+      <div class="spoof-field">
+        <label>Calories burned</label>
+        <input type="number" id="sp-cal" value="420" min="1">
+      </div>
+      <div class="spoof-field">
+        <label>Duration (minutes)</label>
+        <input type="number" id="sp-dur" value="45" min="1">
+      </div>
+      <div class="spoof-field">
+        <label>Weight (kg)</label>
+        <input type="number" id="sp-wt" value="75" min="30">
+      </div>
+      <div class="spoof-field">
+        <label>Age</label>
+        <input type="number" id="sp-age" value="30" min="15">
+      </div>
+      <div class="spoof-field">
+        <label>Sex</label>
+        <select id="sp-sex">
+          <option value="male">Male</option>
+          <option value="female">Female</option>
+        </select>
+      </div>
+    </div>
+    <div class="spoof-result">
+      <div class="spoof-hr" id="sp-result">140</div>
+      <div class="spoof-hr-lbl">estimated avg heart rate (bpm)</div>
+      <div class="spoof-hr-note" id="sp-note">Used as synthetic HR in the TCX upload to Strava</div>
+    </div>
+  </div>
+
+  <h2>Custom Strava credentials</h2>
+  <p>
+    By default MyTracker uses a shared Strava app registration. If you want to use your own Strava API
+    application (for example to remove the shared app name from your Strava activity feed), enable
+    <strong>Use custom credentials</strong> in Settings and paste your own Client ID and Client Secret.
+  </p>
+
+  <h2>Google Health</h2>
+  <p>
+    Connect via <strong>Settings &rarr; Google Health</strong>. MyTracker pulls activities from Google Fit
+    and other connected Google Health sources. The same duplicate detection that applies to Strava activities
+    applies here, so workouts that appear in both services are only counted once.
+  </p>
+
+  <div class="callout">
+    You can enable automatic cross-push: when a new Strava activity is imported, it can be automatically
+    forwarded to Google Health as well. Toggle this in Settings &rarr; Strava &rarr; Auto-push to Google Health.
+  </div>
+</div>
+
+<script>
+  function calcHR() {
+    const cal = parseFloat(document.getElementById('sp-cal').value)
+    const dur = parseFloat(document.getElementById('sp-dur').value)
+    const wt  = parseFloat(document.getElementById('sp-wt').value)
+    const age = parseFloat(document.getElementById('sp-age').value)
+    const sex = document.getElementById('sp-sex').value
+    const resEl  = document.getElementById('sp-result')
+    const noteEl = document.getElementById('sp-note')
+
+    if (!cal || !dur || !wt || !age) { resEl.textContent = '--'; return }
+
+    const calPerMin = cal / dur
+    let hr
+    if (sex === 'female') {
+      hr = (calPerMin * 4.184 + 20.4022 + 0.1263 * wt - 0.074 * age) / 0.4472
+    } else {
+      hr = (calPerMin * 4.184 + 55.0969 - 0.1988 * wt - 0.2017 * age) / 0.6309
+    }
+    hr = Math.round(hr)
+
+    if (hr >= 60 && hr <= 200) {
+      resEl.textContent = hr
+      noteEl.textContent = 'Used as synthetic HR in the TCX upload to Strava'
+      resEl.style.color = ''
+    } else {
+      resEl.textContent = hr < 60 ? '< 60' : '> 200'
+      noteEl.textContent = 'Out of valid range. Activity will be pushed without heart rate data.'
+      resEl.style.color = 'var(--danger, #cf222e)'
+    }
+  }
+
+  ['sp-cal','sp-dur','sp-wt','sp-age','sp-sex'].forEach(id =>
+    document.getElementById(id).addEventListener('input', calcHR)
+  )
+  calcHR()
+</script>
+
+</body>
+</html>

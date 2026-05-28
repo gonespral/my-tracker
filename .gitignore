@@ -7,3 +7,6 @@ node_modules/
 # Local Claude reference docs (not committed)
 .claude/docs/
 
+# TODO
+TODO.md
+

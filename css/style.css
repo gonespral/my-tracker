@@ -1197,6 +1197,24 @@ body {
 }
 
 /* ── Settings accordion ──────────────────────────────────────────── */
+.settings-docs-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  text-decoration: none;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--tx2);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.settings-docs-btn:hover { background: var(--track); color: var(--tx); }
+
 .accordion {
   border: 1px solid var(--border);
   border-radius: 14px;

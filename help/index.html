@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MyTracker Documentations</title>
+  <link rel="icon" href="/brand/icons/favicon-mono-dark.svg">
+  <script src="page.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="page.css">
+  <style>
+    .doc-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin: 32px 0;
+    }
+    @media (max-width: 500px) {
+      .doc-grid { grid-template-columns: 1fr; }
+    }
+
+    .doc-card {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 18px 18px 16px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      text-decoration: none;
+      color: inherit;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .doc-card:hover {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-soft);
+    }
+
+    .doc-card-icon {
+      font-size: 22px;
+      line-height: 1;
+      margin-bottom: 2px;
+    }
+
+    .doc-card-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--tx);
+    }
+
+    .doc-card-desc {
+      font-size: 13px;
+      color: var(--tx2);
+      line-height: 1.45;
+    }
+
+    .doc-card-arrow {
+      margin-top: auto;
+      padding-top: 10px;
+      font-size: 13px;
+      color: var(--accent);
+      font-weight: 500;
+    }
+
+    .overview-section {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      margin: 24px 0;
+    }
+
+    .overview-row {
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+    }
+
+    .overview-icon {
+      font-size: 20px;
+      line-height: 1;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .overview-row p {
+      margin: 0;
+      font-size: 15px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="help-page">
+  <h1>Documentation</h1>
+  <p class="page-subtitle">How MyTracker works and how to get the most out of it.</p>
+
+  <h2>What is MyTracker?</h2>
+  <p>
+    MyTracker is a personal health dashboard for tracking food, workouts, and weight. Everything is
+    stored in your account and synced across devices. There is no subscription and no ads. Your data
+    belongs to you.
+  </p>
+
+  <div class="overview-section">
+    <div class="overview-row">
+      <div class="overview-icon"><span class="material-symbols-outlined" style="font-size:22px">smart_toy</span></div>
+      <p><strong>AI-powered logging.</strong> Describe a meal or workout in plain language and Claude estimates
+      the numbers. Attach a photo of your plate or speak your log out loud.</p>
+    </div>
+    <div class="overview-row">
+      <div class="overview-icon"><span class="material-symbols-outlined" style="font-size:22px">local_fire_department</span></div>
+      <p><strong>Smart calorie targets.</strong> Your target is calculated from your BMR and activity level.
+      On days you exercise it automatically increases by your net calories burned.</p>
+    </div>
+    <div class="overview-row">
+      <div class="overview-icon"><span class="material-symbols-outlined" style="font-size:22px">schedule</span></div>
+      <p><strong>Calorie clock.</strong> The triangle on the calorie ring shows where you should be in your
+      eating day based on your meal history across the last 30 days.</p>
+    </div>
+    <div class="overview-row">
+      <div class="overview-icon"><span class="material-symbols-outlined" style="font-size:22px">directions_bike</span></div>
+      <p><strong>Strava and Google Health sync.</strong> Import activities automatically and optionally
+      push workouts back with calorie data via a synthetic heart rate.</p>
+    </div>
+    <div class="overview-row">
+      <div class="overview-icon"><span class="material-symbols-outlined" style="font-size:22px">bar_chart</span></div>
+      <p><strong>Nutrition and Workouts tabs.</strong> Calorie trends, macro heatmaps, weight history,
+      activity streaks, and weekly summaries all update as you log.</p>
+    </div>
+  </div>
+
+  <h2>Detailed guides</h2>
+
+  <div class="doc-grid">
+    <a class="doc-card" href="logging.html">
+      <div class="doc-card-icon"><span class="material-symbols-outlined" style="font-size:24px">bolt</span></div>
+      <div class="doc-card-title">Logging food and workouts</div>
+      <div class="doc-card-desc">Text, photo, and voice input. How Claude estimates macros. Meal types and activity detection.</div>
+      <div class="doc-card-arrow">Read guide &rarr;</div>
+    </a>
+
+    <a class="doc-card" href="calorie-targets.html">
+      <div class="doc-card-icon"><span class="material-symbols-outlined" style="font-size:24px">local_fire_department</span></div>
+      <div class="doc-card-title">Calorie targets</div>
+      <div class="doc-card-desc">BMR formula, activity level multipliers, rest vs training day, and net active calorie calculation.</div>
+      <div class="doc-card-arrow">Read guide &rarr;</div>
+    </a>
+
+    <a class="doc-card" href="calorie-clock.html">
+      <div class="doc-card-icon"><span class="material-symbols-outlined" style="font-size:24px">schedule</span></div>
+      <div class="doc-card-title">The calorie clock</div>
+      <div class="doc-card-desc">How the ring ticker learns your meal pattern and positions itself based on what you have logged today.</div>
+      <div class="doc-card-arrow">Read guide &rarr;</div>
+    </a>
+
+    <a class="doc-card" href="strava.html">
+      <div class="doc-card-icon"><span class="material-symbols-outlined" style="font-size:24px">directions_bike</span></div>
+      <div class="doc-card-title">Strava and Google Health</div>
+      <div class="doc-card-desc">Connecting accounts, syncing activities, pushing workouts back, and how calorie spoofing works.</div>
+      <div class="doc-card-arrow">Read guide &rarr;</div>
+    </a>
+  </div>
+
+  <h2>Getting started</h2>
+
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <strong>Sign in with GitHub</strong>
+        <p>Your data is stored in your account and synced across devices. GitHub OAuth is the only
+        sign-in method.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <strong>Add your Anthropic API key</strong>
+        <p>Go to Settings &rarr; Claude and paste your key from console.anthropic.com. The key is
+        stored only on this device and used only to talk to Anthropic's API.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <strong>Set up your calorie profile (optional)</strong>
+        <p>Go to Settings &rarr; Daily Targets and enter your age, sex, height, weight, and activity
+        level. MyTracker will calculate a personalised calorie target.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <strong>Connect Strava or Google Health (optional)</strong>
+        <p>Go to Settings and connect either service to import your workout history automatically.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">5</div>
+      <div class="step-body">
+        <strong>Start logging</strong>
+        <p>Tap the chat bar and describe what you ate or did. The ring charts on the Today tab update
+        immediately.</p>
+      </div>
+    </div>
+  </div>
+
+  <h2>Privacy and data</h2>
+  <p>
+    All health data is stored in Supabase with row-level security, meaning only your account can
+    read or write your entries. Your Anthropic API key and any OAuth tokens are stored in
+    <code style="font-size:13px;background:var(--track);padding:1px 5px;border-radius:4px">localStorage</code>
+    on your device only and are never sent to MyTracker's servers.
+    See the <a href="/privacy.html">Privacy Policy</a> for full details.
+  </p>
+
+  <div class="callout">
+    MyTracker is open source. The full source code is at
+    <a href="https://github.com/gonespral/my-tracker" target="_blank" style="color:inherit;text-decoration:underline">github.com/gonespral/my-tracker</a>.
+  </div>
+</div>
+
+</body>
+</html>

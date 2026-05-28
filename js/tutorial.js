@@ -10,27 +10,32 @@ const SLIDES = [
   {
     icon: 'bolt',
     title: 'Log food & workouts',
-    body: 'Type a meal or activity in the chat bar at the bottom. Claude will estimate calories and macros from a description or photo. Your daily calorie target automatically increases on training days.',
+    body: 'Type a meal or activity in the chat bar at the bottom. Claude estimates calories and macros from a description or photo. You can also speak or attach a photo. <a href="/help/logging.html" target="_blank" style="color:inherit;text-decoration:underline">Learn more →</a>',
+  },
+  {
+    icon: 'schedule',
+    title: 'The calorie clock',
+    body: 'The triangle on your calorie ring shows where you should be in your eating day. It learns your typical meal split over 30 days and advances as you log each meal. <a href="/help/calorie-clock.html" target="_blank" style="color:inherit;text-decoration:underline">Learn more →</a>',
+  },
+  {
+    icon: 'local_fire_department',
+    title: 'Calorie targets',
+    body: 'Your target is calculated from your BMR and activity level. On training days it automatically increases by your net calories burned. <a href="/help/calorie-targets.html" target="_blank" style="color:inherit;text-decoration:underline">Learn more →</a>',
   },
   {
     icon: 'key',
     title: 'Set up Claude API',
-    body: 'Claude needs an Anthropic API key. Get one at console.anthropic.com. Paste it in Settings → Claude. It stays on this device only.',
+    body: 'Claude needs an Anthropic API key. Get one at console.anthropic.com. Paste it in Settings &rarr; Claude. It stays on this device only.',
   },
   {
     icon: 'directions_bike',
     title: 'Connect Strava',
-    body: 'Open Settings → Strava and tap Connect. Activities import on every load and can be pushed to Strava when you log them here.',
-  },
-  {
-    icon: 'local_fire_department',
-    title: 'Calorie spoofing',
-    body: 'Strava does not let you set calories on manually logged activities. Enable "Calorie spoofing" in Settings → Strava. The app estimates a synthetic heart rate from your calories, age, weight, and sex.',
+    body: 'Open Settings &rarr; Strava and tap Connect. Activities import on every load and can be pushed back to Strava with calorie data. <a href="/help/strava.html" target="_blank" style="color:inherit;text-decoration:underline">Learn more →</a>',
   },
   {
     icon: 'monitor_heart',
     title: 'Connect Google Health',
-    body: 'Pull activities from Google Fit and other Google Health sources. Open Settings → Google Health and tap Connect with Google.',
+    body: 'Pull activities from Google Fit and other Google Health sources. Open Settings &rarr; Google Health and tap Connect with Google. <a href="/help/strava.html" target="_blank" style="color:inherit;text-decoration:underline">Learn more →</a>',
   },
   {
     icon: 'favorite',

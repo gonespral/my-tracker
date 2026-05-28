@@ -85,6 +85,7 @@ document.addEventListener('click', async (e) => {
   switch (action) {
     case 'signin': signIn(); break
     case 'signin-google': signInGoogle(); break
+    case 'demo-mode': localStorage.setItem('tracker-demo', '1'); window.location.reload(); break
 
     case 'toggle-menu':
       toggleEntryMenu(actionEl)

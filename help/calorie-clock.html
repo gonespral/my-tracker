@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Calorie Clock — MyTracker</title>
+  <link rel="icon" href="/brand/icons/favicon-mono-dark.svg">
+  <script src="page.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="page.css">
+</head>
+<body>
+
+<div class="help-page">
+  <h1>The Calorie Clock</h1>
+  <p class="page-subtitle">How the ticker on your calorie ring knows where you are in your day.</p>
+
+  <div class="demo-card">
+    <div class="demo-label">Try it — tap meals to log them</div>
+
+    <div class="ring-wrap">
+      <svg id="ring-svg" viewBox="0 0 160 160" aria-hidden="true">
+        <circle cx="80" cy="80" r="68" fill="none" stroke="var(--track)" stroke-width="12"/>
+        <circle cx="80" cy="80" r="68" fill="none"
+          stroke="var(--accent)" stroke-width="12"
+          stroke-linecap="round"
+          stroke-dasharray="427.3"
+          stroke-dashoffset="427.3"
+          id="ring-fill"/>
+        <polygon id="ticker" fill="var(--tx2)" stroke="var(--bg)" stroke-width="1.5" stroke-linejoin="round"/>
+      </svg>
+      <div class="ring-center">
+        <span class="ring-center-cal" id="cal-num">0</span>
+        <span class="ring-center-lbl">kcal</span>
+      </div>
+    </div>
+
+    <div class="meals-row" id="meals-row">
+      <button class="meal-pill" data-meal="breakfast" data-cal="480">🥣 Breakfast</button>
+      <button class="meal-pill" data-meal="lunch"     data-cal="620">🥗 Lunch</button>
+      <button class="meal-pill" data-meal="snack"     data-cal="210">🍎 Snack</button>
+      <button class="meal-pill" data-meal="dinner"    data-cal="730">🍽️ Dinner</button>
+    </div>
+
+    <div class="demo-hint" id="demo-hint"></div>
+  </div>
+
+  <h2>What is the clock?</h2>
+  <p>
+    The small triangle on your calorie ring is a <strong>progress ticker</strong>. It marks where you
+    <em>should</em> be in your eating day based on your meal history. If the ring's filled arc is ahead of the
+    ticker, you are ahead of your typical pace. If it is behind, you have room left for the day.
+  </p>
+
+  <h2>How the position is calculated</h2>
+
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <strong>Looks at your last 30 days of meals</strong>
+        <p>For each meal type (breakfast, lunch, snack, dinner) it sums the calories you logged and counts how many
+        days you actually ate that meal, skipping days where it was not recorded.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <strong>Builds a per-meal average that ignores unlogged days</strong>
+        <p>If you only eat lunch on weekdays, the lunch average is calculated over around 22 days, not 30.
+        Days where you did not log a meal do not drag the average down.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <strong>Each meal gets a calorie weight</strong>
+        <p>The averages are converted into fractions of your total daily intake. For example, 480 kcal breakfast,
+        620 kcal lunch, 210 kcal snack, 730 kcal dinner gives roughly 23%, 30%, 10%, and 36% of the day.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <strong>The ticker advances as you log meals</strong>
+        <p>Log breakfast and the ticker jumps to the 23% mark. Log lunch too and it moves to 53%. Log all four
+        and it reaches 100% at the top of the ring.</p>
+      </div>
+    </div>
+  </div>
+
+  <h2>Three states</h2>
+
+  <div class="states">
+    <div class="state-row">
+      <span class="state-badge badge-gray">Hidden</span>
+      <div class="state-body">
+        <strong>New user, no history yet</strong>
+        <p>Without enough data to calculate meaningful averages the ticker stays hidden. It appears once your
+        30-day meal history builds up.</p>
+      </div>
+    </div>
+    <div class="state-row">
+      <span class="state-badge badge-yellow">Clock mode</span>
+      <div class="state-body">
+        <strong>History exists, nothing logged today</strong>
+        <p>The ticker falls back to a <strong>time-of-day position</strong>, moving linearly from 7 am (0%)
+        to 10 pm (100%). A rough guide for how far through your eating window you are.</p>
+      </div>
+    </div>
+    <div class="state-row">
+      <span class="state-badge badge-green">Meal mode</span>
+      <div class="state-body">
+        <strong>Meals logged today</strong>
+        <p>The ticker switches to your historical meal weights. Each logged meal advances it by that meal's
+        calorie proportion. This is the most accurate mode and kicks in as soon as you log your first meal.</p>
+      </div>
+    </div>
+  </div>
+
+  <h2>Meals you have never logged</h2>
+  <p>
+    If a meal type has no history at all, MyTracker assigns it the <strong>average of your other known meals</strong>
+    as a stand-in, so the ticker fractions still add up to 100%.
+  </p>
+
+  <div class="callout">
+    The ticker is a <em>pace guide</em>, not a strict target. The ring always shows your real logged calories
+    accurately. The ticker just reflects typical-you, not today-you.
+  </div>
+
+  <h2>Why per-meal averages instead of daily totals?</h2>
+  <p>
+    Averaging raw daily calories would be thrown off by days where you only logged one meal.
+    A 600 kcal day might just be an incomplete log, not a real rest day. By computing averages
+    per meal, using only the days each meal was actually logged, MyTracker gets a much more
+    faithful picture of what a typical breakfast or dinner looks like for you.
+  </p>
+</div>
+
+<script>
+  const CIRC = 2 * Math.PI * 68
+  const TOTAL = 2040
+  const MEAL_ORDER = ['breakfast', 'lunch', 'snack', 'dinner']
+  const avgs = { breakfast: 480, lunch: 620, snack: 210, dinner: 730 }
+  const avgsTotal = Object.values(avgs).reduce((s, v) => s + v, 0)
+  const logged = new Set()
+
+  // Random mid-day position so ticker is always visible in demo
+  const DEMO_CLOCK_FRAC = 0.25 + Math.random() * 0.5
+
+  const fillEl  = document.getElementById('ring-fill')
+  const tickerEl = document.getElementById('ticker')
+  const calNum  = document.getElementById('cal-num')
+  const hintEl  = document.getElementById('demo-hint')
+
+  // r=68, sw=12 matching the SVG above
+  const R = 68, SW = 12, CX = 80, CY = 80
+  const GAP = 4, DEPTH = 9, HALF = 5
+  const TIP_R  = R + SW / 2 + GAP
+  const BASE_R = TIP_R + DEPTH
+
+  function tickerPoints(frac) {
+    const angle = -Math.PI / 2 + frac * 2 * Math.PI
+    const dx = Math.cos(angle), dy = Math.sin(angle)
+    const px = -dy, py = dx
+    const tipX  = (CX + TIP_R  * dx).toFixed(1)
+    const tipY  = (CY + TIP_R  * dy).toFixed(1)
+    const b1X   = (CX + BASE_R * dx + HALF * px).toFixed(1)
+    const b1Y   = (CY + BASE_R * dy + HALF * py).toFixed(1)
+    const b2X   = (CX + BASE_R * dx - HALF * px).toFixed(1)
+    const b2Y   = (CY + BASE_R * dy - HALF * py).toFixed(1)
+    return `${tipX},${tipY} ${b1X},${b1Y} ${b2X},${b2Y}`
+  }
+
+  function render() {
+    const loggedCals = MEAL_ORDER.filter(m => logged.has(m)).reduce((s, m) => s + avgs[m], 0)
+    fillEl.setAttribute('stroke-dashoffset', (CIRC * (1 - Math.min(loggedCals / TOTAL, 1))).toFixed(1))
+    calNum.textContent = loggedCals
+
+    let tickFrac
+    if (logged.size === 0) {
+      tickFrac = DEMO_CLOCK_FRAC
+      const h = Math.round(7 + DEMO_CLOCK_FRAC * 15)
+      const label = h >= 12 ? (h === 12 ? '12 pm' : `${h - 12} pm`) : `${h} am`
+      hintEl.textContent = `No meals logged yet. Ticker shows clock position (around ${label}).`
+    } else {
+      tickFrac = MEAL_ORDER.filter(m => logged.has(m)).reduce((s, m) => s + avgs[m] / avgsTotal, 0)
+      hintEl.textContent = 'Ticker now reflects your logged meals, not the clock.'
+    }
+
+    if (tickFrac > 0) {
+      tickerEl.setAttribute('points', tickerPoints(tickFrac))
+      tickerEl.style.display = ''
+    } else {
+      tickerEl.style.display = 'none'
+    }
+  }
+
+  document.getElementById('meals-row').addEventListener('click', e => {
+    const pill = e.target.closest('.meal-pill')
+    if (!pill) return
+    const meal = pill.dataset.meal
+    logged.has(meal) ? logged.delete(meal) : logged.add(meal)
+    pill.classList.toggle('logged', logged.has(meal))
+    render()
+  })
+
+  render()
+</script>
+</body>
+</html>

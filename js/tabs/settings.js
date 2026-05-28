@@ -343,7 +343,7 @@ export async function renderSettings() {
       </div>
     `)}
 
-    ${section('claude', `<span class="settings-provider-title">${CLAUDE_ICON} Claude AI</span>`, `
+    ${section('claude', `<span class="settings-provider-title">${CLAUDE_ICON} Claude API</span>`, `
       <p class="setup-note">Your API key is stored locally and never sent anywhere except Anthropic's API.</p>
       <div class="form-field">
         <label class="form-label" for="settings-apikey-input">Anthropic API Key</label>
@@ -527,12 +527,22 @@ export async function renderSettings() {
       <button id="settings-signout-btn" style="margin-top:10px;width:100%;padding:13px;border:1px solid var(--border);border-radius:12px;background:none;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--danger);cursor:pointer;font-weight:500;">Sign out</button>
     `)}
 
-    <div style="text-align:center; margin-top:32px; margin-bottom:16px; font-size:12px; color:var(--tx3); line-height:1.6">
-      Made by <strong>Gonçalo Nespral</strong><br>
-      <a href="https://github.com/gonespral/my-tracker" target="_blank" style="color:var(--tx2); text-decoration:none">GitHub Repo</a> &nbsp;·&nbsp;
-      <a href="https://gonespral.github.io" target="_blank" style="color:var(--tx2); text-decoration:none">gonespral.github.io</a><br>
-      <a href="privacy.html" target="_blank" style="color:var(--tx3); text-decoration:none">Privacy Policy</a> &nbsp;·&nbsp;
-      <a href="terms.html" target="_blank" style="color:var(--tx3); text-decoration:none">Terms of Service</a>
+    <div style="display:grid; grid-template-columns:1fr auto 1fr; align-items:end; margin-top:32px; margin-bottom:16px; gap:12px">
+      <div style="font-size:11px; color:var(--tx3); line-height:1.8">
+        <a href="privacy.html" target="_blank" style="color:var(--tx3); text-decoration:none">Privacy Policy</a><br>
+        <a href="terms.html" target="_blank" style="color:var(--tx3); text-decoration:none">Terms of Service</a>
+      </div>
+      <div style="font-size:12px; color:var(--tx3); line-height:1.7; text-align:center">
+        Made by <strong style="color:var(--tx2)">Gonçalo Nespral</strong><br>
+        <a href="https://gonespral.github.io" target="_blank" style="color:var(--tx2); text-decoration:none">Portfolio</a> &nbsp;·&nbsp;
+        <a href="https://github.com/gonespral" target="_blank" style="color:var(--tx2); text-decoration:none">GitHub</a>
+      </div>
+      <div style="display:flex; justify-content:flex-end; align-items:flex-end">
+        <a href="/help/" target="_blank" class="settings-docs-btn" title="Documentation">
+          <span class="material-symbols-outlined" style="font-size:15px">menu_book</span>
+          Docs
+        </a>
+      </div>
     </div>
 
   </div>`
