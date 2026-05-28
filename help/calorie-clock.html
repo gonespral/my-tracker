@@ -15,33 +15,45 @@
 
 <div class="help-page">
   <h1>The Calorie Clock</h1>
-  <p class="page-subtitle">How the ticker on your calorie ring knows where you are in your day.</p>
+  <p class="page-subtitle">How the ticker on your calorie ring tracks your expected eating pace.</p>
 
   <div class="demo-card">
-    <div class="demo-label">Try it — tap meals to log them</div>
+    <div class="demo-label">Alex's day — drag to move through time</div>
 
-    <div class="ring-wrap">
-      <svg id="ring-svg" viewBox="0 0 160 160" aria-hidden="true">
-        <circle cx="80" cy="80" r="68" fill="none" stroke="var(--track)" stroke-width="12"/>
-        <circle cx="80" cy="80" r="68" fill="none"
-          stroke="var(--accent)" stroke-width="12"
-          stroke-linecap="round"
-          stroke-dasharray="427.3"
-          stroke-dashoffset="427.3"
-          id="ring-fill"/>
-        <polygon id="ticker" fill="var(--tx2)" stroke="var(--bg)" stroke-width="1.5" stroke-linejoin="round"/>
-      </svg>
-      <div class="ring-center">
-        <span class="ring-center-cal" id="cal-num">0</span>
-        <span class="ring-center-lbl">kcal</span>
+    <div class="demo-body">
+      <!-- Ring -->
+      <div class="demo-ring-side">
+        <div class="ring-wrap" style="width:140px;height:140px">
+          <svg viewBox="0 0 160 160" aria-hidden="true">
+            <circle cx="80" cy="80" r="68" fill="none" stroke="var(--track)" stroke-width="12"/>
+            <circle cx="80" cy="80" r="68" fill="none"
+              stroke="var(--accent)" stroke-width="12"
+              stroke-linecap="round"
+              stroke-dasharray="427.3"
+              stroke-dashoffset="427.3"
+              id="ring-fill"/>
+            <polygon id="ticker" stroke="var(--bg)" stroke-width="1.5" stroke-linejoin="round"/>
+          </svg>
+          <div class="ring-center">
+            <span class="ring-center-cal" id="cal-num" style="font-size:18px">0</span>
+            <span class="ring-center-lbl">kcal</span>
+          </div>
+        </div>
+        <div class="demo-time-label" id="demo-time">7:00 am</div>
+        <div style="font-size:11px;color:var(--tx3);text-align:center">target: 1,800 kcal</div>
+      </div>
+
+      <!-- Meal log -->
+      <div class="demo-meals-side">
+        <div class="demo-meals-title">Food log</div>
+        <div id="demo-meal-list"></div>
+        <div id="demo-total"></div>
       </div>
     </div>
 
-    <div class="meals-row" id="meals-row">
-      <button class="meal-pill" data-meal="breakfast" data-cal="480">🥣 Breakfast</button>
-      <button class="meal-pill" data-meal="lunch"     data-cal="620">🥗 Lunch</button>
-      <button class="meal-pill" data-meal="snack"     data-cal="210">🍎 Snack</button>
-      <button class="meal-pill" data-meal="dinner"    data-cal="730">🍽️ Dinner</button>
+    <div class="demo-slider-row">
+      <div class="demo-slider-labels"><span>7 am</span><span>10 pm</span></div>
+      <input type="range" id="time-slider" min="0" max="100" value="0">
     </div>
 
     <div class="demo-hint" id="demo-hint"></div>
@@ -49,9 +61,14 @@
 
   <h2>What is the clock?</h2>
   <p>
-    The small triangle on your calorie ring is a <strong>progress ticker</strong>. It marks where you
-    <em>should</em> be in your eating day based on your meal history. If the ring's filled arc is ahead of the
-    ticker, you are ahead of your typical pace. If it is behind, you have room left for the day.
+    The small triangle on your calorie ring is a <strong>progress ticker</strong>. It shows how many
+    calories you would typically have eaten <em>by this point in the day</em>, based on your 30-day
+    meal history. The position is always driven by the current time — not by which meals you have
+    logged today.
+  </p>
+  <p>
+    If the ring's filled arc is ahead of the ticker, you are eating faster than your typical pace.
+    If the filled arc is behind, you are pacing slower than usual and have room to spare.
   </p>
 
   <h2>How the position is calculated</h2>
@@ -60,154 +77,215 @@
     <div class="step">
       <div class="step-num">1</div>
       <div class="step-body">
-        <strong>Looks at your last 30 days of meals</strong>
-        <p>For each meal type (breakfast, lunch, snack, dinner) it sums the calories you logged and counts how many
-        days you actually ate that meal, skipping days where it was not recorded.</p>
+        <strong>Builds a per-meal average from the last 30 days</strong>
+        <p>For each meal type (breakfast, lunch, snack, dinner) it sums the calories logged and
+        divides by the number of days that meal was actually recorded. Days where a meal was skipped
+        do not drag the average down.</p>
       </div>
     </div>
     <div class="step">
       <div class="step-num">2</div>
       <div class="step-body">
-        <strong>Builds a per-meal average that ignores unlogged days</strong>
-        <p>If you only eat lunch on weekdays, the lunch average is calculated over around 22 days, not 30.
-        Days where you did not log a meal do not drag the average down.</p>
+        <strong>Maps each meal to a time window</strong>
+        <p>The eating day runs from 7 am to 10 pm. Each meal is expected to be complete by a
+        fixed point: breakfast by 9 am, lunch by 1 pm, snack by 4 pm, dinner by 8 pm.</p>
       </div>
     </div>
     <div class="step">
       <div class="step-num">3</div>
       <div class="step-body">
-        <strong>Each meal gets a calorie weight</strong>
-        <p>The averages are converted into fractions of your total daily intake. For example, 480 kcal breakfast,
-        620 kcal lunch, 210 kcal snack, 730 kcal dinner gives roughly 23%, 30%, 10%, and 36% of the day.</p>
+        <strong>Interpolates expected calories for the current time</strong>
+        <p>Past a meal's deadline its full average is included. Within a meal's window a proportional
+        fraction is counted. The result is the total calories you would typically have consumed by now.</p>
       </div>
     </div>
     <div class="step">
       <div class="step-num">4</div>
       <div class="step-body">
-        <strong>The ticker advances as you log meals</strong>
-        <p>Log breakfast and the ticker jumps to the 23% mark. Log lunch too and it moves to 53%. Log all four
-        and it reaches 100% at the top of the ring.</p>
+        <strong>Divides by today's calorie target</strong>
+        <p>Expected calories ÷ target gives the ring fraction — the exact position of the ticker
+        on the ring.</p>
       </div>
     </div>
   </div>
 
-  <h2>Three states</h2>
+  <h2>Ticker states</h2>
 
   <div class="states">
     <div class="state-row">
       <span class="state-badge badge-gray">Hidden</span>
       <div class="state-body">
-        <strong>New user, no history yet</strong>
-        <p>Without enough data to calculate meaningful averages the ticker stays hidden. It appears once your
-        30-day meal history builds up.</p>
+        <strong>Before 7 am</strong>
+        <p>The eating window has not started. Ticker stays hidden.</p>
       </div>
     </div>
     <div class="state-row">
-      <span class="state-badge badge-yellow">Clock mode</span>
+      <span class="state-badge badge-green">Grey — behind pace</span>
       <div class="state-body">
-        <strong>History exists, nothing logged today</strong>
-        <p>The ticker falls back to a <strong>time-of-day position</strong>, moving linearly from 7 am (0%)
-        to 10 pm (100%). A rough guide for how far through your eating window you are.</p>
+        <strong>You have eaten less than your historical average for this time</strong>
+        <p>The ring's filled arc is behind the ticker. You're eating slower than usual — plenty
+        of room left in the day.</p>
       </div>
     </div>
     <div class="state-row">
-      <span class="state-badge badge-green">Meal mode</span>
+      <span class="state-badge badge-orange">Orange — ahead of pace</span>
       <div class="state-body">
-        <strong>Meals logged today</strong>
-        <p>The ticker switches to your historical meal weights. Each logged meal advances it by that meal's
-        calorie proportion. This is the most accurate mode and kicks in as soon as you log your first meal.</p>
+        <strong>You have eaten more than your historical average for this time</strong>
+        <p>The ring's filled arc has passed the ticker. You're eating faster than usual for this
+        hour. The ticker turns orange as a heads-up.</p>
+      </div>
+    </div>
+    <div class="state-row">
+      <span class="state-badge badge-red">Red — pace exceeds target</span>
+      <div class="state-body">
+        <strong>Your historical eating pace has exceeded today's target</strong>
+        <p>The ticker snaps to 12 o'clock and turns red. This means if you ate at your typical
+        rate, you'd already be over target by now — usually happens late evening or on low-target
+        days.</p>
       </div>
     </div>
   </div>
+
+  <h2>No history yet?</h2>
+  <p>
+    If you have no 30-day meal data, the ticker falls back to a plain time-of-day position —
+    it advances linearly from 0% at 7 am to 100% at 10 pm. This gives a rough orientation until
+    your history builds up.
+  </p>
 
   <h2>Meals you have never logged</h2>
   <p>
-    If a meal type has no history at all, MyTracker assigns it the <strong>average of your other known meals</strong>
-    as a stand-in, so the ticker fractions still add up to 100%.
+    If a particular meal type has no history at all, MyTracker assigns it the
+    <strong>average of your other known meals</strong> as a stand-in so the calculation always
+    has something sensible to work with.
   </p>
 
   <div class="callout">
-    The ticker is a <em>pace guide</em>, not a strict target. The ring always shows your real logged calories
-    accurately. The ticker just reflects typical-you, not today-you.
+    The ticker is a <em>pace guide</em>, not a strict target. The ring always shows your real
+    logged calories accurately. The ticker reflects typical-you at this hour, not a rule about
+    what you must eat.
   </div>
-
-  <h2>Why per-meal averages instead of daily totals?</h2>
-  <p>
-    Averaging raw daily calories would be thrown off by days where you only logged one meal.
-    A 600 kcal day might just be an incomplete log, not a real rest day. By computing averages
-    per meal, using only the days each meal was actually logged, MyTracker gets a much more
-    faithful picture of what a typical breakfast or dinner looks like for you.
-  </p>
 </div>
 
 <script>
   const CIRC = 2 * Math.PI * 68
-  const TOTAL = 2040
+  const TARGET = 1800
+  const CX = 80, CY = 80
+  const TIP_R = 68 + 6 + 4        // r + sw/2 + gap
+  const BASE_R = TIP_R + 9        // + depth
+  const HALF = 5
+
+  // Alex's 30-day historical averages (what the ticker is based on)
+  const HIST = { breakfast: 420, lunch: 580, snack: 200, dinner: 650 }
+  // Fraction of eating window (7am–10pm) at which each meal is expected to be done
+  const MEAL_POS  = { breakfast: 0.133, lunch: 0.4, snack: 0.6, dinner: 0.867 }
   const MEAL_ORDER = ['breakfast', 'lunch', 'snack', 'dinner']
-  const avgs = { breakfast: 480, lunch: 620, snack: 210, dinner: 730 }
-  const avgsTotal = Object.values(avgs).reduce((s, v) => s + v, 0)
-  const logged = new Set()
 
-  // Random mid-day position so ticker is always visible in demo
-  const DEMO_CLOCK_FRAC = 0.25 + Math.random() * 0.5
+  // Alex's actual meals today — appear as slider time passes their logged time
+  const FAKE_MEALS = [
+    { t: 0.1,  icon: 'breakfast_dining', label: 'Breakfast', kcal: 380 },
+    { t: 0.433,icon: 'lunch_dining',     label: 'Lunch',     kcal: 720 },
+    { t: 0.633,icon: 'nutrition',        label: 'Snack',     kcal: 160 },
+    { t: 0.833,icon: 'dinner_dining',    label: 'Dinner',    kcal: 610 },
+  ]
 
-  const fillEl  = document.getElementById('ring-fill')
-  const tickerEl = document.getElementById('ticker')
-  const calNum  = document.getElementById('cal-num')
-  const hintEl  = document.getElementById('demo-hint')
+  const fillEl    = document.getElementById('ring-fill')
+  const tickerEl  = document.getElementById('ticker')
+  const calNum    = document.getElementById('cal-num')
+  const hintEl    = document.getElementById('demo-hint')
+  const timeEl    = document.getElementById('demo-time')
+  const mealList  = document.getElementById('demo-meal-list')
+  const totalEl   = document.getElementById('demo-total')
+  const slider    = document.getElementById('time-slider')
 
-  // r=68, sw=12 matching the SVG above
-  const R = 68, SW = 12, CX = 80, CY = 80
-  const GAP = 4, DEPTH = 9, HALF = 5
-  const TIP_R  = R + SW / 2 + GAP
-  const BASE_R = TIP_R + DEPTH
-
+  // page.css rotates the entire SVG -90deg so the arc starts at 12 o'clock.
+  // Ticker points must match — use frac*2π with no -π/2 offset.
   function tickerPoints(frac) {
-    const angle = -Math.PI / 2 + frac * 2 * Math.PI
+    const angle = frac * 2 * Math.PI
     const dx = Math.cos(angle), dy = Math.sin(angle)
     const px = -dy, py = dx
-    const tipX  = (CX + TIP_R  * dx).toFixed(1)
-    const tipY  = (CY + TIP_R  * dy).toFixed(1)
-    const b1X   = (CX + BASE_R * dx + HALF * px).toFixed(1)
-    const b1Y   = (CY + BASE_R * dy + HALF * py).toFixed(1)
-    const b2X   = (CX + BASE_R * dx - HALF * px).toFixed(1)
-    const b2Y   = (CY + BASE_R * dy - HALF * py).toFixed(1)
+    const tipX = (CX + TIP_R  * dx).toFixed(1), tipY = (CY + TIP_R  * dy).toFixed(1)
+    const b1X  = (CX + BASE_R * dx + HALF * px).toFixed(1), b1Y = (CY + BASE_R * dy + HALF * py).toFixed(1)
+    const b2X  = (CX + BASE_R * dx - HALF * px).toFixed(1), b2Y = (CY + BASE_R * dy - HALF * py).toFixed(1)
     return `${tipX},${tipY} ${b1X},${b1Y} ${b2X},${b2Y}`
   }
 
-  function render() {
-    const loggedCals = MEAL_ORDER.filter(m => logged.has(m)).reduce((s, m) => s + avgs[m], 0)
-    fillEl.setAttribute('stroke-dashoffset', (CIRC * (1 - Math.min(loggedCals / TOTAL, 1))).toFixed(1))
-    calNum.textContent = loggedCals
+  function fmtHour(t) {
+    const totalH = 7 + t * 15
+    const h = Math.floor(totalH), m = Math.round((totalH - h) * 60)
+    const period = h >= 12 ? 'pm' : 'am'
+    const h12 = h > 12 ? h - 12 : h === 0 ? 12 : h
+    return m === 0 ? `${h12} ${period}` : `${h12}:${String(m).padStart(2,'0')} ${period}`
+  }
 
-    let tickFrac
-    if (logged.size === 0) {
-      tickFrac = DEMO_CLOCK_FRAC
-      const h = Math.round(7 + DEMO_CLOCK_FRAC * 15)
-      const label = h >= 12 ? (h === 12 ? '12 pm' : `${h - 12} pm`) : `${h} am`
-      hintEl.textContent = `No meals logged yet. Ticker shows clock position (around ${label}).`
-    } else {
-      tickFrac = MEAL_ORDER.filter(m => logged.has(m)).reduce((s, m) => s + avgs[m] / avgsTotal, 0)
-      hintEl.textContent = 'Ticker now reflects your logged meals, not the clock.'
+  let prevMealCount = 0
+
+  function render() {
+    const t = slider.value / 100
+
+    // ── Ticker: expected calories from historical averages ──
+    let expected = 0
+    for (let i = 0; i < MEAL_ORDER.length; i++) {
+      const m       = MEAL_ORDER[i]
+      const pos     = MEAL_POS[m]
+      const prevPos = i > 0 ? MEAL_POS[MEAL_ORDER[i - 1]] : 0
+      if (t >= pos)          expected += HIST[m]
+      else if (t > prevPos)  expected += HIST[m] * (t - prevPos) / (pos - prevPos)
+    }
+    const mealFrac = expected / TARGET
+    const overflow = mealFrac >= 1
+
+    // ── Ring fill: Alex's actual logged calories ──
+    const logged = FAKE_MEALS.filter(m => t >= m.t)
+    const consumed = logged.reduce((s, m) => s + m.kcal, 0)
+    const consumedFrac = consumed / TARGET
+    const ahead = !overflow && consumedFrac > mealFrac
+
+    // Update ring fill (actual consumed, not expected)
+    fillEl.setAttribute('stroke-dashoffset', (CIRC * (1 - Math.min(consumedFrac, 1))).toFixed(1))
+    calNum.textContent = consumed.toLocaleString()
+    timeEl.textContent = fmtHour(t)
+
+    // ── Ticker color & position ──
+    const tickerColor = overflow ? '#ef4444' : ahead ? '#f97316' : 'var(--tx2)'
+    tickerEl.style.fill = tickerColor
+    tickerEl.setAttribute('points', tickerPoints(overflow ? 0 : mealFrac))
+
+    // ── Meal list ──
+    if (logged.length !== prevMealCount) {
+      prevMealCount = logged.length
+      if (logged.length === 0) {
+        mealList.innerHTML = `<div class="demo-empty">No meals yet</div>`
+        totalEl.innerHTML = ''
+      } else {
+        mealList.innerHTML = logged.map(m =>
+          `<div class="demo-meal-item">
+            <span class="demo-meal-icon material-symbols-outlined">${m.icon}</span>
+            <span class="demo-meal-name">${m.label}</span>
+            <span class="demo-meal-kcal">${m.kcal} kcal</span>
+          </div>`
+        ).join('')
+        totalEl.innerHTML = `<div class="demo-total-row">
+          <span>Total consumed</span>
+          <strong>${consumed.toLocaleString()} kcal</strong>
+        </div>`
+      }
     }
 
-    if (tickFrac > 0) {
-      tickerEl.setAttribute('points', tickerPoints(tickFrac))
-      tickerEl.style.display = ''
+    // ── Hint ──
+    if (t <= 0) {
+      hintEl.innerHTML = 'Start of eating window — ticker at 12 o\'clock, no meals yet.'
+    } else if (overflow) {
+      hintEl.innerHTML = `<strong style="color:#ef4444">Ticker red</strong> — historical pace has exceeded today's target. Ticker locks to 12 o'clock.`
+    } else if (ahead) {
+      hintEl.innerHTML = `<strong style="color:#f97316">Ticker orange</strong> — Alex has eaten more than the historical average for ${fmtHour(t)}.`
     } else {
-      tickerEl.style.display = 'none'
+      const pct = Math.round(mealFrac * 100)
+      hintEl.innerHTML = `Ticker grey — historical average says ${Math.round(expected)} kcal (${pct}% of target) by ${fmtHour(t)}. Alex is behind pace.`
     }
   }
 
-  document.getElementById('meals-row').addEventListener('click', e => {
-    const pill = e.target.closest('.meal-pill')
-    if (!pill) return
-    const meal = pill.dataset.meal
-    logged.has(meal) ? logged.delete(meal) : logged.add(meal)
-    pill.classList.toggle('logged', logged.has(meal))
-    render()
-  })
-
+  slider.addEventListener('input', render)
   render()
 </script>
 </body>

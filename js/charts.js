@@ -11,10 +11,14 @@ export const MACRO_COLORS = {
 
 // SVG triangle marker just outside the ring, pointing inward.
 // Requires overflow="visible" on the parent SVG.
-// mealFrac: pre-computed 0–1 from today.js based on historical meal ratios.
-function ringTickSVG(cx, cy, r, sw, mealFrac) {
-  if (mealFrac <= 0 || mealFrac >= 1) return ''
-  const angle = -Math.PI / 2 + mealFrac * 2 * Math.PI
+// mealFrac:    expected-cals-by-now / target (from today.js). Can exceed 1 (overflow).
+// consumedFrac: consumed / target — used to detect when user is eating ahead of pace.
+function ringTickSVG(cx, cy, r, sw, mealFrac, consumedFrac = 0) {
+  if (mealFrac <= 0) return ''
+  const overflow = mealFrac >= 1
+  const ahead    = !overflow && consumedFrac > mealFrac
+  const frac  = overflow ? 0 : mealFrac
+  const angle = -Math.PI / 2 + frac * 2 * Math.PI
   const dx = Math.cos(angle), dy = Math.sin(angle)
   const px = -dy, py = dx
   const gap = 4, depth = 9, half = 5
@@ -23,10 +27,13 @@ function ringTickSVG(cx, cy, r, sw, mealFrac) {
   const tipX  = (cx + tipR  * dx).toFixed(1), tipY  = (cy + tipR  * dy).toFixed(1)
   const b1X   = (cx + baseR * dx + half * px).toFixed(1), b1Y = (cy + baseR * dy + half * py).toFixed(1)
   const b2X   = (cx + baseR * dx - half * px).toFixed(1), b2Y = (cy + baseR * dy - half * py).toFixed(1)
-  const deg   = (mealFrac * 360).toFixed(1)
-  return `<g style="transform-origin:${cx}px ${cy}px;--ticker-deg:${deg}deg;animation:ticker-rotate 0.8s cubic-bezier(0.22,1,0.36,1) both 0.25s">
+  const fill  = overflow ? '#ef4444' : ahead ? '#f97316' : 'var(--tx2)'
+  const anim  = overflow
+    ? `animation:anim-pop 0.4s ease both 0.25s`
+    : `--ticker-deg:${(frac * 360).toFixed(1)}deg;animation:ticker-rotate 0.8s cubic-bezier(0.22,1,0.36,1) both 0.25s`
+  return `<g style="transform-origin:${cx}px ${cy}px;${anim}">
     <polygon points="${tipX},${tipY} ${b1X},${b1Y} ${b2X},${b2Y}"
-      fill="var(--tx2)" stroke="var(--bg)" stroke-width="1.5" stroke-linejoin="round"/>
+      fill="${fill}" stroke="var(--bg)" stroke-width="1.5" stroke-linejoin="round"/>
   </g>`
 }
 
@@ -53,7 +60,7 @@ export function calRingHTML(consumed, target, burned = 0, mealFrac = 0) {
           stroke-dasharray="${circ.toFixed(2)}" stroke-dashoffset="${off.toFixed(2)}"
           stroke-linecap="round" transform="rotate(-90 ${cx} ${cy})"
           style="--ring-circ:${circ.toFixed(2)};--ring-off:${off.toFixed(2)};animation:ring-fill .7s cubic-bezier(.4,0,.2,1) both"/>
-        ${ringTickSVG(cx, cy, r, sw, mealFrac)}
+        ${ringTickSVG(cx, cy, r, sw, mealFrac, consumed / effectiveTarget)}
         ${burned > 0 ? `
         <circle cx="${cx}" cy="${cy}" r="${ri}" fill="none" stroke="var(--track)" stroke-width="${swi}" opacity="0.7"/>
         <circle cx="${cx}" cy="${cy}" r="${ri}" fill="none" stroke="#f97316" stroke-width="${swi}"

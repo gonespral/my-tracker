@@ -9,8 +9,10 @@ import { openSheet, showToast, closeMenus } from '../ui.js'
 import { fetchDailyWisdom } from '../ai.js'
 import { materialIcon } from '../icons.js'
 
-// Meal order by time of day for the calorie ring ticker.
 const MEAL_TIME_ORDER = ['breakfast', 'lunch', 'snack', 'dinner']
+
+// Fraction of the eating window (7 am–10 pm) at which each meal is expected to be done.
+const MEAL_POS = { breakfast: 0.133, lunch: 0.4, snack: 0.6, dinner: 0.867 }
 
 function timeOfDayFrac() {
   const EATING_START = 7, EATING_END = 22
@@ -21,12 +23,13 @@ function timeOfDayFrac() {
   return (t - EATING_START) / (EATING_END - EATING_START)
 }
 
-// Returns a 0–1 fraction for the calorie ring ticker.
-// - New user (no 30-day history): returns 0 (ticker hidden)
-// - History exists, nothing logged today: returns time-of-day position
-// - History exists, meals logged: returns cumulative meal-ratio fraction
-function computeMealFrac(data, todayFood) {
-  // Aggregate per day: only count calories for a meal on days it was actually logged
+// Returns expected-cals-consumed-by-now / effectiveTarget based on 30-day meal history
+// and the current time of day. Values >1 signal overflow (target already exceeded by pace).
+// Returns 0 before 7 am (ticker hidden).
+function computeMealFrac(data, effectiveTarget) {
+  const t = timeOfDayFrac()
+  if (t <= 0) return 0
+
   const sums     = Object.fromEntries(MEAL_TIME_ORDER.map(m => [m, 0]))
   const daysSeen = Object.fromEntries(MEAL_TIME_ORDER.map(m => [m, 0]))
   for (let i = 1; i <= 30; i++) {
@@ -42,31 +45,29 @@ function computeMealFrac(data, todayFood) {
   }
 
   const totalDays = Object.values(daysSeen).reduce((s, c) => s + c, 0)
-  if (totalDays === 0) return 0  // new user, no history
+  // No history or no target: fall back to raw time-of-day fraction
+  if (totalDays === 0 || effectiveTarget <= 0) return t
 
-  const loggedMeals = new Set(todayFood.map(e => e.meal).filter(Boolean))
-  if (!loggedMeals.size) return timeOfDayFrac()  // history but nothing logged yet
+  // Per-meal average; unknown meals default to the mean of known ones
+  const knownAvgs = MEAL_TIME_ORDER.map(m => daysSeen[m] > 0 ? sums[m] / daysSeen[m] : null)
+  const knownVals = knownAvgs.filter(v => v !== null)
+  const fallback  = knownVals.length > 0 ? knownVals.reduce((s, v) => s + v, 0) / knownVals.length : 0
+  const avgs      = Object.fromEntries(MEAL_TIME_ORDER.map((m, i) => [m, knownAvgs[i] ?? fallback]))
 
-  // avg calories per meal, using only days that meal was logged
-  const avgs = Object.fromEntries(
-    MEAL_TIME_ORDER.map(m => [m, daysSeen[m] > 0 ? sums[m] / daysSeen[m] : null])
-  )
-
-  // Fill unlogged meals with mean of known meals
-  const knownVals = Object.values(avgs).filter(v => v !== null)
-  const fallback  = knownVals.length > 0 ? knownVals.reduce((s, v) => s + v, 0) / knownVals.length : 1
-  for (const m of MEAL_TIME_ORDER) {
-    if (avgs[m] === null) avgs[m] = fallback
+  // Sum expected calories, interpolating through each meal's time window
+  let expected = 0
+  for (let i = 0; i < MEAL_TIME_ORDER.length; i++) {
+    const m       = MEAL_TIME_ORDER[i]
+    const pos     = MEAL_POS[m]
+    const prevPos = i > 0 ? MEAL_POS[MEAL_TIME_ORDER[i - 1]] : 0
+    if (t >= pos) {
+      expected += avgs[m]
+    } else if (t > prevPos) {
+      expected += avgs[m] * (t - prevPos) / (pos - prevPos)
+    }
   }
 
-  const total = Object.values(avgs).reduce((s, v) => s + v, 0)
-  if (total === 0) return 0
-
-  let frac = 0
-  for (const m of MEAL_TIME_ORDER) {
-    if (loggedMeals.has(m)) frac += avgs[m] / total
-  }
-  return Math.min(frac, 1)
+  return expected / effectiveTarget
 }
 
 function wisdomHeader() {
@@ -145,7 +146,7 @@ export async function renderToday() {
   const burnedToday = calculateNetActiveCalories(workouts, TARGETS.calories.bmr)
 
   renderPanel(document.getElementById('cal-section'),
-    calRingHTML(totals.calories, calTarget, burnedToday, computeMealFrac(data, food)) +
+    calRingHTML(totals.calories, calTarget, burnedToday, computeMealFrac(data, calTarget + burnedToday)) +
     `<div class="cal-badges">
        <span class="badge ${training?'training':''}}">${training ? 'Training day' : 'Rest day'}</span>
        <span class="badge">Target: ${(calTarget + burnedToday).toLocaleString()} kcal${burnedToday > 0 ? ' (+'+burnedToday+' burned)' : ''}</span>
