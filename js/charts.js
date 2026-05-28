@@ -18,24 +18,19 @@ function ringTickSVG(cx, cy, r, sw, mealFrac, consumedFrac = 0) {
   const overflow = mealFrac >= 1
   const ahead    = !overflow && consumedFrac > mealFrac
   const frac  = overflow ? 0 : mealFrac
-  const angle = -Math.PI / 2 + frac * 2 * Math.PI
-  const dx = Math.cos(angle), dy = Math.sin(angle)
-  const px = -dy, py = dx
-  const gap = 4, depth = 9, half = 5
-  const tipR  = r + sw / 2 + gap
-  const baseR = tipR + depth
-  // draw polygon relative to ring center and rotate the <g> around center
-  const tipXRel  = (tipR  * dx).toFixed(1), tipYRel  = (tipR  * dy).toFixed(1)
-  const b1XRel   = (baseR * dx + half * px).toFixed(1), b1YRel = (baseR * dy + half * py).toFixed(1)
-  const b2XRel   = (baseR * dx - half * px).toFixed(1), b2YRel = (baseR * dy - half * py).toFixed(1)
+  const angleDeg = Math.min(frac * 360, 360)
+  const gap = 2, depth = 9, half = 5
+  // Keep the marker inside the SVG bounds so it remains visible, but close to the ring edge.
+  const tipR  = r - sw / 2 - gap
+  const baseR = tipR - depth
   const fill  = overflow ? '#ef4444' : ahead ? '#f97316' : 'var(--tx2)'
-  const anim  = overflow
-    ? `animation:anim-pop 0.4s ease both 0.25s`
-    : `--ticker-deg:${(frac * 360).toFixed(1)}deg;animation:ticker-rotate 0.8s cubic-bezier(0.22,1,0.36,1) both 0.25s`
+  const anim = overflow
+    ? `<animateTransform attributeName="transform" type="scale" from="0.9" to="1" dur="0.35s" fill="freeze" begin="0s" />`
+    : `<animateTransform attributeName="transform" type="rotate" from="0 ${cx} ${cy}" to="${angleDeg} ${cx} ${cy}" dur="0.85s" fill="freeze" begin="0s" calcMode="spline" keySplines="0.22 1 0.36 1" />`
 
-  // Use translate to center the group and draw polygon with relative coords so CSS rotation pivots cleanly.
-  return `<g transform="translate(${cx},${cy})" style="${anim};transform-origin:50% 50%">
-    <polygon points="${tipXRel},${tipYRel} ${b1XRel},${b1YRel} ${b2XRel},${b2YRel}"
+  return `<g transform="translate(${cx},${cy}) rotate(0)">
+    ${anim}
+    <polygon points="0,${(-tipR).toFixed(1)} ${half},${(-baseR).toFixed(1)} ${(-half).toFixed(1)},${(-baseR).toFixed(1)}"
       fill="${fill}" stroke="var(--bg)" stroke-width="1.5" stroke-linejoin="round"/>
   </g>`
 }
