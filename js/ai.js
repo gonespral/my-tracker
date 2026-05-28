@@ -192,6 +192,8 @@ export async function buildClaudeSystem() {
     const d = new Date(); d.setDate(d.getDate() - i)
     const ds = dateStr(d)
     const calTarget = TARGETS.calories.goal || TARGETS.calories.rest
+    const df = data.food[ds] || []
+    const dw = data.workouts[ds] || []
     if (!df.length && !dw.length) continue
     recentLines.push(`${fmtDateShort(ds)}${i===0?' (today)':''}`+':')
     df.forEach(e => recentLines.push(`  food     [${e.id}] ${e.description} — ${round(e.calories)} kcal (${e.meal||'snack'})`))
