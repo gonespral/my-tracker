@@ -550,6 +550,7 @@ body {
 
 /* Card / list item entrance — used by stagger() in animate.js */
 .anim-item {
+  position: relative;
   animation: anim-fade-up 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
   animation-delay: var(--anim-delay, 0s);
 }
@@ -1879,6 +1880,7 @@ body {
 .entry-menu-wrap {
   position: relative;
   flex-shrink: 0;
+  z-index: 1;
 }
 
 .entry-menu-btn {
@@ -1901,7 +1903,7 @@ body {
   position: absolute;
   right: 0;
   top: 100%;
-  z-index: 99;
+  z-index: 10000;
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 8px;

@@ -130,10 +130,11 @@ export function closeSheets() {
   state.pendingEditFoodId    = null
   state.pendingEditWorkoutId = null
   state.pendingEditWeightDate = null
+  state.pendingClaudeDraft = null
   const logBtn = document.getElementById('log-food-btn')
   if (logBtn) logBtn.textContent = 'Log Food'
   const wkBtn = document.getElementById('save-workout-btn')
-  if (wkBtn) wkBtn.textContent = 'Log Workout'
+  if (wkBtn) wkBtn.textContent = 'Log Activity'
   // Re-enable date inputs in case they were disabled for edit mode
   const fDate = document.getElementById('f-date')
   if (fDate) fDate.disabled = false
@@ -148,17 +149,24 @@ export function toggleEntryMenu(btn) {
   closeMenus()
   if (!isOpen) {
     menu.classList.add('open')
-    // Lift the card above its stack siblings
-    const stackCard = btn.closest('.conflict-stack-below .log-item')
-    if (stackCard) stackCard.style.zIndex = '100'
-    // Lift the whole conflict-stack above sibling stacks
-    const conflictStack = btn.closest('.conflict-stack')
-    if (conflictStack) conflictStack.style.zIndex = '10'
+    const menuHosts = [
+      btn.closest('.anim-item'),
+      btn.closest('.log-item'),
+      btn.closest('.conflict-stack'),
+      btn.closest('.conflict-stack-below .log-item'),
+    ].filter(Boolean)
+
+    for (const host of menuHosts) {
+      host.style.position = 'relative'
+      host.style.zIndex = '10000'
+    }
   }
 }
 
 export const closeMenus = () => {
   document.querySelectorAll('.entry-menu.open').forEach(m => m.classList.remove('open'))
-  document.querySelectorAll('.conflict-stack-below .log-item').forEach(el => el.style.zIndex = '')
-  document.querySelectorAll('.conflict-stack').forEach(el => el.style.zIndex = '')
+  document.querySelectorAll('.anim-item, .log-item, .conflict-stack').forEach(el => {
+    el.style.position = ''
+    el.style.zIndex = ''
+  })
 }
