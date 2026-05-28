@@ -24,22 +24,19 @@ function ringTickSVG(cx, cy, r, sw, mealFrac, consumedFrac = 0) {
   const gap = 4, depth = 9, half = 5
   const tipR  = r + sw / 2 + gap
   const baseR = tipR + depth
-  const tipX  = (cx + tipR  * dx).toFixed(1), tipY  = (cy + tipR  * dy).toFixed(1)
-  const b1X   = (cx + baseR * dx + half * px).toFixed(1), b1Y = (cy + baseR * dy + half * py).toFixed(1)
-  const b2X   = (cx + baseR * dx - half * px).toFixed(1), b2Y = (cy + baseR * dy - half * py).toFixed(1)
+  // draw polygon relative to ring center and rotate the <g> around center
+  const tipXRel  = (tipR  * dx).toFixed(1), tipYRel  = (tipR  * dy).toFixed(1)
+  const b1XRel   = (baseR * dx + half * px).toFixed(1), b1YRel = (baseR * dy + half * py).toFixed(1)
+  const b2XRel   = (baseR * dx - half * px).toFixed(1), b2YRel = (baseR * dy - half * py).toFixed(1)
   const fill  = overflow ? '#ef4444' : ahead ? '#f97316' : 'var(--tx2)'
   const anim  = overflow
     ? `animation:anim-pop 0.4s ease both 0.25s`
     : `--ticker-deg:${(frac * 360).toFixed(1)}deg;animation:ticker-rotate 0.8s cubic-bezier(0.22,1,0.36,1) both 0.25s`
 
-  // Draw a short radial line crossing the ring at the meal fraction angle.
-  const innerR = r - sw / 2 - 2
-  const outerR = r + sw / 2 + 2
-  const x1 = (cx + innerR * dx).toFixed(1), y1 = (cy + innerR * dy).toFixed(1)
-  const x2 = (cx + outerR * dx).toFixed(1), y2 = (cy + outerR * dy).toFixed(1)
-  return `<g style="transform-origin:${cx}px ${cy}px;${anim}">
-    <line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"
-      stroke="${fill}" stroke-width="3" stroke-linecap="round" />
+  // Use translate to center the group and draw polygon with relative coords so CSS rotation pivots cleanly.
+  return `<g transform="translate(${cx},${cy})" style="${anim};transform-origin:50% 50%">
+    <polygon points="${tipXRel},${tipYRel} ${b1XRel},${b1YRel} ${b2XRel},${b2YRel}"
+      fill="${fill}" stroke="var(--bg)" stroke-width="1.5" stroke-linejoin="round"/>
   </g>`
 }
 
