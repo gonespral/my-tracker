@@ -27,6 +27,10 @@ jobs:
           SHA=$(git rev-parse --short HEAD)
           sed -i "s|style\.css?v=[^\"]*|style.css?v=$SHA|g" index.html
           sed -i "s|app\.js?v=[^\"]*|app.js?v=$SHA|g" index.html
+      - name: Generate version file
+        run: |
+          SHA=$(git rev-parse --short HEAD)
+          echo "export const APP_VERSION = \"$SHA\"" > js/version.js
       - name: Generate env.js from secrets
         run: |
           echo "export const SUPABASE_URL = \"${{ secrets.SUPABASE_URL }}\"" > js/env.js
