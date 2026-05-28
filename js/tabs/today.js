@@ -12,15 +12,20 @@ import { materialIcon } from '../icons.js'
 // Meal order by time of day for the calorie ring ticker.
 const MEAL_TIME_ORDER = ['breakfast', 'lunch', 'snack', 'dinner']
 
-// Returns a 0–1 fraction for the calorie ring ticker based on which meals
-// have been logged today. Position is derived from each meal's historical
-// average calorie share — so the step size reflects how much of your day
-// that meal typically represents. Falls back to equal weights with no history.
-function computeMealFrac(data, todayFood) {
-  if (!todayFood.length) return 0
-  const loggedMeals = new Set(todayFood.map(e => e.meal).filter(Boolean))
-  if (!loggedMeals.size) return 0
+function timeOfDayFrac() {
+  const EATING_START = 7, EATING_END = 22
+  const now = new Date()
+  const t = now.getHours() + now.getMinutes() / 60
+  if (t <= EATING_START) return 0
+  if (t >= EATING_END)   return 1
+  return (t - EATING_START) / (EATING_END - EATING_START)
+}
 
+// Returns a 0–1 fraction for the calorie ring ticker.
+// - New user (no 30-day history): returns 0 (ticker hidden)
+// - History exists, nothing logged today: returns time-of-day position
+// - History exists, meals logged: returns cumulative meal-ratio fraction
+function computeMealFrac(data, todayFood) {
   // Sum calories per meal type across last 30 days (excluding today)
   const sums = Object.fromEntries(MEAL_TIME_ORDER.map(m => [m, 0]))
   const counts = Object.fromEntries(MEAL_TIME_ORDER.map(m => [m, 0]))
@@ -31,15 +36,20 @@ function computeMealFrac(data, todayFood) {
     }
   }
 
+  const totalEntries = Object.values(counts).reduce((s, c) => s + c, 0)
+  if (totalEntries === 0) return 0  // new user, no history
+
+  const loggedMeals = new Set(todayFood.map(e => e.meal).filter(Boolean))
+  if (!loggedMeals.size) return timeOfDayFrac()  // history but nothing logged yet
+
   const avgs = Object.fromEntries(
     MEAL_TIME_ORDER.map(m => [m, counts[m] > 0 ? sums[m] / counts[m] : null])
   )
-  const hasHistory = Object.values(avgs).some(v => v !== null)
 
   // Fill missing meals with equal share of the average daily total so weights sum to 1
   const nonNullSum = Object.values(avgs).reduce((s, v) => s + (v ?? 0), 0)
   const nullCount  = Object.values(avgs).filter(v => v === null).length
-  const fallback   = hasHistory && nullCount > 0 ? nonNullSum / (MEAL_TIME_ORDER.length - nullCount) : null
+  const fallback   = nullCount > 0 ? nonNullSum / (MEAL_TIME_ORDER.length - nullCount) : null
   for (const m of MEAL_TIME_ORDER) {
     if (avgs[m] === null) avgs[m] = fallback ?? 1
   }
