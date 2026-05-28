@@ -4,7 +4,7 @@ import { typeIcon } from './icons.js'
 
 // Consistent macro colors used across all charts.
 export const MACRO_COLORS = {
-  protein: '#8b5cf6',
+  protein: 'var(--accent)',
   carbs:   '#3b82f6',
   fat:     '#f59e0b',
 }
