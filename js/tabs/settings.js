@@ -55,7 +55,7 @@ function formatCalorieProfileSummary(targets, latestWeightKg) {
   const usedLatest = latestWeightKg != null && targets.weight_kg === latestWeightKg
 
   return `
-    <strong>${targets.rest.toLocaleString()} kcal/day</strong> estimated maintenance TDEE.<br>
+    <strong>${targets.rest.toLocaleString()} kcal/day</strong> estimated target.<br>
     BMR helper: ${targets.bmr.toLocaleString()} kcal · ${sexLabel} · ${targets.age} years · ${targets.height_cm} cm · ${weightLabel} · ${activity}${usedLatest ? ` · using latest logged weight (${latestWeightKg.toFixed(2)} kg)` : ''}.
   `
 }
@@ -250,7 +250,7 @@ export async function renderSettings() {
 
       <div id="settings-bmr-calc-section">
         <div class="toggle-row" style="margin-bottom:8px">
-          <div class="toggle-row-label">Use profile-based TDEE</div>
+          <div class="toggle-row-label">Use profile-based target</div>
           <label class="toggle-switch" for="settings-use-bmr-checkbox">
             <input type="checkbox" id="settings-use-bmr-checkbox" ${useBmr ? 'checked' : ''}>
             <span class="toggle-slider"></span>
@@ -260,7 +260,7 @@ export async function renderSettings() {
         <div class="toggle-row" style="margin-bottom:8px">
           <div>
             <div class="toggle-row-label">Calibrate from Google Health</div>
-            <div class="toggle-row-sub">${useGHCalibration ? tdeeCalibratedLabel : 'Use measured TDEE instead of the profile estimate'}</div>
+            <div class="toggle-row-sub">${useGHCalibration ? tdeeCalibratedLabel : 'Use measured target instead of the profile estimate'}</div>
           </div>
           <label class="toggle-switch">
             <input type="checkbox" id="tdee-gh-toggle" ${useGHCalibration ? 'checked' : ''}>
@@ -269,7 +269,7 @@ export async function renderSettings() {
         </div>` : ''}
       <div class="targets-grid">
         <div class="form-field">
-          <label class="form-label" for="t-cal-rest">Maintenance TDEE (kcal)</label>
+          <label class="form-label" for="t-cal-rest">Target (kcal)</label>
           <input class="form-input" id="t-cal-rest" type="number" inputmode="numeric" value="${TARGETS.calories.rest}">
         </div>
         <div class="form-field">
@@ -285,7 +285,7 @@ export async function renderSettings() {
           <input class="form-input" id="t-fat" type="number" inputmode="numeric" value="${TARGETS.fat}">
         </div>
       </div>
-      <button class="btn-primary" id="settings-save-targets-btn" style="margin-top:4px;display:${useBmr || useGHCalibration ? 'none' : ''}">Save TDEE</button>
+      <button class="btn-primary" id="settings-save-targets-btn" style="margin-top:4px;display:${useBmr || useGHCalibration ? 'none' : ''}">Save Target</button>
       <button class="btn-primary" id="tdee-calibrate-btn" style="margin-top:4px;display:${useGHCalibration ? '' : 'none'}">
         ${materialIcon('monitor_heart', 14, { style: 'vertical-align:-2px;flex-shrink:0;color:white' })}
         Calibrate Now
@@ -331,7 +331,7 @@ export async function renderSettings() {
             </div>
           </div>
           <p class="settings-profile-note">This estimate includes everyday movement, so it behaves like a daily TDEE rather than workout-only calories.</p>
-          <button class="btn-primary" id="settings-save-profile-btn" style="margin-top:4px">Save TDEE Settings</button>
+          <button class="btn-primary" id="settings-save-profile-btn" style="margin-top:4px">Save Target Settings</button>
         </div>
       </div>
 

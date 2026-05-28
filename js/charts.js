@@ -75,7 +75,7 @@ export function calRingHTML(consumed, target, burned = 0, mealFrac = 0) {
         <div class="ring-remaining ${consumed > effectiveTarget ? 'over' : ''}">
           ${rem >= 0 ? round(rem).toLocaleString()+' left' : round(-rem).toLocaleString()+' over'}
         </div>
-        ${burned > 0 ? `<div class="ring-burned">🔥 +${round(burned)}</div>` : ''}
+        ${burned > 0 ? `<div class="ring-burned"><span class="material-symbols-outlined ring-burn-icon">local_fire_department</span> +${round(burned)}</div>` : ''}
       </div>
     </div>`
 }
