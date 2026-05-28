@@ -173,8 +173,10 @@ export async function renderSettings() {
   const bmrEnabledKey = `tracker-use-bmr:${state.currentUser.id}`
   const bmrDeficitKey = `tracker-bmr-deficit:${state.currentUser.id}`
   const useGHCalibration = settingsRow?.tdee_source === 'google-health'
-  const useBmr = !useGHCalibration && localStorage.getItem(bmrEnabledKey) !== 'false'
-  const rawDeficit = Number(localStorage.getItem(bmrDeficitKey) || 0)
+  const useBmr = !useGHCalibration && (
+    settingsRow?.use_bmr_target != null ? settingsRow.use_bmr_target : localStorage.getItem(bmrEnabledKey) !== 'false'
+  )
+  const rawDeficit = settingsRow?.bmr_deficit != null ? settingsRow.bmr_deficit : Number(localStorage.getItem(bmrDeficitKey) || 0)
   const bmrDeficit = Number.isFinite(rawDeficit) && rawDeficit >= 0 ? Math.round(rawDeficit) : 0
 
   const calorieProfile = {
@@ -622,7 +624,8 @@ export async function renderSettings() {
     if (bmrDetails) bmrDetails.style.display = enabled ? 'block' : 'none'
     setTargetsReadonly(enabled)
     document.getElementById('settings-save-targets-btn').style.display = enabled ? 'none' : ''
-    localStorage.setItem(bmrEnabledKey, enabled ? 'true' : 'false')
+    state.settings.use_bmr_target = !!enabled
+    db.saveSettings({ use_bmr_target: !!enabled }).catch(() => {})
     if (!enabled) return
     applyEstimatedToTargets(getEstimatedFromInputs() || estimatedProfile)
   }
@@ -641,7 +644,8 @@ export async function renderSettings() {
   useBmrCheckbox?.addEventListener('change', syncBmrUiState)
   deficitInput?.addEventListener('input', () => {
     const value = getDeficitValue()
-    localStorage.setItem(bmrDeficitKey, String(value))
+    state.settings.bmr_deficit = value
+    db.saveSettings({ bmr_deficit: value }).catch(() => {})
     if (useBmrCheckbox?.checked) applyEstimatedToTargets(getEstimatedFromInputs())
   })
   ;['profile-age', 'profile-sex', 'profile-height-cm', 'profile-weight-kg', 'profile-activity-level'].forEach(id => {
@@ -676,8 +680,8 @@ export async function renderSettings() {
   document.getElementById('settings-save-profile-btn')?.addEventListener('click', async () => {
     const useBmrNow = !!useBmrCheckbox?.checked
     const deficitNow = getDeficitValue()
-    localStorage.setItem(bmrEnabledKey, useBmrNow ? 'true' : 'false')
-    localStorage.setItem(bmrDeficitKey, String(deficitNow))
+    state.settings.use_bmr_target = useBmrNow
+    state.settings.bmr_deficit = deficitNow
 
     const profile = {
       age_years: document.getElementById('profile-age').value,
@@ -722,6 +726,8 @@ export async function renderSettings() {
         height_cm: profile.height_cm,
         weight_kg: resolvedWeight,
         activity_level: profile.activity_level,
+        bmr_deficit: deficitNow,
+        use_bmr_target: useBmrNow,
       })
       showToast('✅ TDEE settings saved')
     } catch (e) {
@@ -747,7 +753,8 @@ export async function renderSettings() {
     const pct = Number(e.target.value)
     document.getElementById('eatback-label').textContent = pct + '%'
     TARGETS.calories.eatback_pct = pct
-    localStorage.setItem(`tracker-eatback-pct:${state.currentUser.id}`, pct)
+    state.settings.eatback_pct = pct
+    db.saveSettings({ eatback_pct: pct }).catch(() => {})
   })
 
   conflictPreference?.addEventListener('change', async (event) => {
@@ -758,12 +765,14 @@ export async function renderSettings() {
   })
 
   document.getElementById('strava-pause-sync-toggle')?.addEventListener('change', e => {
-    localStorage.setItem('strava-sync-paused', e.target.checked ? '1' : '0')
+    state.settings.strava_sync_paused = e.target.checked
+    db.saveSettings({ strava_sync_paused: e.target.checked }).catch(() => {})
     showToast(e.target.checked ? '⏸ Strava sync paused' : '▶ Strava sync resumed')
   })
 
   document.getElementById('strava-auto-push-google-toggle')?.addEventListener('change', e => {
-    localStorage.setItem('strava-auto-push-google', e.target.checked ? 'true' : 'false')
+    state.settings.strava_auto_push_google = e.target.checked
+    db.saveSettings({ strava_auto_push_google: e.target.checked }).catch(() => {})
     showToast(e.target.checked ? '✅ Google Health auto push enabled' : 'Google Health auto push disabled')
   })
 
@@ -799,7 +808,8 @@ export async function renderSettings() {
     if (e.target.checked) {
       const bmrCb = document.getElementById('settings-use-bmr-checkbox')
       if (bmrCb) bmrCb.checked = false
-      localStorage.setItem(bmrEnabledKey, 'false')
+      state.settings.use_bmr_target = false
+      db.saveSettings({ use_bmr_target: false }).catch(() => {})
       document.getElementById('settings-bmr-details').style.display = 'none'
       setTargetsReadonly(true)
       document.getElementById('settings-save-targets-btn').style.display = 'none'
@@ -839,7 +849,8 @@ export async function renderSettings() {
   })
 
   document.getElementById('gh-pause-sync-toggle')?.addEventListener('change', e => {
-    localStorage.setItem('google-health-sync-paused', e.target.checked ? '1' : '0')
+    state.settings.gh_sync_paused = e.target.checked
+    db.saveSettings({ gh_sync_paused: e.target.checked }).catch(() => {})
     showToast(e.target.checked ? '⏸ Google Health sync paused' : '▶ Google Health sync resumed')
   })
 
@@ -848,14 +859,16 @@ export async function renderSettings() {
     const pills = e.target.closest('.toggle-row')?.querySelector('.push-source-pills')
     if (e.target.checked) {
       if (!stravaAutoPushEnabled() && !stravaAutoPushGoogleEnabled()) {
-        localStorage.setItem('strava-auto-push', 'true')
+        state.settings.strava_auto_push = true
+        db.saveSettings({ strava_auto_push: true }).catch(() => {})
         const manualCb = pills?.querySelector('[data-source-key="manual"]')
         if (manualCb) { manualCb.checked = true; manualCb.closest('label').style.background = 'var(--track)' }
       }
       if (pills) pills.style.display = ''
     } else {
-      localStorage.setItem('strava-auto-push', 'false')
-      localStorage.setItem('strava-auto-push-google', 'false')
+      state.settings.strava_auto_push = false
+      state.settings.strava_auto_push_google = false
+      db.saveSettings({ strava_auto_push: false, strava_auto_push_google: false }).catch(() => {})
       pills?.querySelectorAll('[data-source-key]').forEach(cb => { cb.checked = false; cb.closest('label').style.background = 'transparent' })
       if (pills) pills.style.display = 'none'
     }
@@ -866,8 +879,8 @@ export async function renderSettings() {
   // Strava source pill changes
   document.getElementById('strava-connected-ui')?.querySelectorAll('[data-source-key]').forEach(cb => {
     cb.addEventListener('change', () => {
-      if (cb.dataset.sourceKey === 'manual') localStorage.setItem('strava-auto-push', cb.checked ? 'true' : 'false')
-      if (cb.dataset.sourceKey === 'google-health') localStorage.setItem('strava-auto-push-google', cb.checked ? 'true' : 'false')
+      if (cb.dataset.sourceKey === 'manual') { state.settings.strava_auto_push = cb.checked; db.saveSettings({ strava_auto_push: cb.checked }).catch(() => {}) }
+      if (cb.dataset.sourceKey === 'google-health') { state.settings.strava_auto_push_google = cb.checked; db.saveSettings({ strava_auto_push_google: cb.checked }).catch(() => {}) }
       cb.closest('label').style.background = cb.checked ? 'var(--track)' : 'transparent'
       // Sync master toggle
       const master = document.getElementById('strava-auto-push-master')
@@ -880,14 +893,16 @@ export async function renderSettings() {
     const pills = e.target.closest('.toggle-row')?.querySelector('.push-source-pills')
     if (e.target.checked) {
       if (!ghAutoPushEnabled() && !ghPushStravaImports()) {
-        localStorage.setItem('google-health-auto-push', '1')
+        state.settings.gh_auto_push = true
+        db.saveSettings({ gh_auto_push: true }).catch(() => {})
         const manualCb = pills?.querySelector('[data-source-key="manual"]')
         if (manualCb) { manualCb.checked = true; manualCb.closest('label').style.background = 'var(--track)' }
       }
       if (pills) pills.style.display = ''
     } else {
-      localStorage.setItem('google-health-auto-push', '0')
-      localStorage.setItem('gh-push-strava', '0')
+      state.settings.gh_auto_push = false
+      state.settings.gh_push_strava = false
+      db.saveSettings({ gh_auto_push: false, gh_push_strava: false }).catch(() => {})
       pills?.querySelectorAll('[data-source-key]').forEach(cb => { cb.checked = false; cb.closest('label').style.background = 'transparent' })
       if (pills) pills.style.display = 'none'
     }
@@ -896,8 +911,8 @@ export async function renderSettings() {
   // GH source pill changes
   document.getElementById('gh-connected-ui')?.querySelectorAll('[data-source-key]').forEach(cb => {
     cb.addEventListener('change', () => {
-      if (cb.dataset.sourceKey === 'manual') localStorage.setItem('google-health-auto-push', cb.checked ? '1' : '0')
-      if (cb.dataset.sourceKey === 'strava') localStorage.setItem('gh-push-strava', cb.checked ? '1' : '0')
+      if (cb.dataset.sourceKey === 'manual') { state.settings.gh_auto_push = cb.checked; db.saveSettings({ gh_auto_push: cb.checked }).catch(() => {}) }
+      if (cb.dataset.sourceKey === 'strava') { state.settings.gh_push_strava = cb.checked; db.saveSettings({ gh_push_strava: cb.checked }).catch(() => {}) }
       cb.closest('label').style.background = cb.checked ? 'var(--track)' : 'transparent'
       const master = document.getElementById('gh-auto-push-master')
       if (master) master.checked = ghAutoPushEnabled() || ghPushStravaImports()

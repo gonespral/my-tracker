@@ -40,4 +40,7 @@ export const state = {
   recognition:   null,
   listening:     false,
   speechHandled: false,
+
+  // Cached Supabase user_settings row (populated on auth, updated on save)
+  settings: {},
 }

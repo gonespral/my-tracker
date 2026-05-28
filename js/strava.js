@@ -1,5 +1,6 @@
 import { nowTime, dateStr } from './utils.js'
 import { db, supabase, parseWorkoutStart } from './db.js'
+import { state } from './state.js'
 import { showToast } from './ui.js'
 import { startSync, endSync, failSync } from './sync-status.js'
 import { STRAVA_CLIENT_ID as DEFAULT_CLIENT_ID, EDGE_FUNCTION_URL } from './config.js'
@@ -333,9 +334,9 @@ export function connectStrava() {
   window.location.href = url.toString()
 }
 
-export const stravaAutoPushEnabled = () => localStorage.getItem('strava-auto-push') === 'true'
-export const stravaAutoPushGoogleEnabled = () => localStorage.getItem('strava-auto-push-google') === 'true'
-export const stravaSyncPaused = () => localStorage.getItem('strava-sync-paused') === '1'
+export const stravaAutoPushEnabled = () => state.settings?.strava_auto_push ?? (localStorage.getItem('strava-auto-push') === 'true')
+export const stravaAutoPushGoogleEnabled = () => state.settings?.strava_auto_push_google ?? (localStorage.getItem('strava-auto-push-google') === 'true')
+export const stravaSyncPaused = () => state.settings?.strava_sync_paused ?? (localStorage.getItem('strava-sync-paused') === '1')
 
 
 // Only sport_type values accepted by Strava's API — combat sports and others
@@ -535,12 +536,12 @@ async function pushViaTcx({ entry, token, sportType, startIso, targetHr, descrip
 }
 
 const S_SPOOF_CALORIES = 'strava-spoof-calories'
-export const stravaSpoofCaloriesEnabled = () => localStorage.getItem(S_SPOOF_CALORIES) === 'true'
-export const setStravaSpoofCalories = v => localStorage.setItem(S_SPOOF_CALORIES, v ? 'true' : 'false')
+export const stravaSpoofCaloriesEnabled = () => state.settings?.strava_spoof_calories ?? (localStorage.getItem(S_SPOOF_CALORIES) === 'true')
+export const setStravaSpoofCalories = v => { state.settings.strava_spoof_calories = !!v; db.saveSettings({ strava_spoof_calories: !!v }).catch(() => {}) }
 
 const S_SYNC_WEIGHT = 'strava-sync-weight'
-export const stravaWeightSyncEnabled = () => localStorage.getItem(S_SYNC_WEIGHT) === 'true'
-export const setStravaWeightSync = v => localStorage.setItem(S_SYNC_WEIGHT, v ? 'true' : 'false')
+export const stravaWeightSyncEnabled = () => state.settings?.strava_weight_sync ?? (localStorage.getItem(S_SYNC_WEIGHT) === 'true')
+export const setStravaWeightSync = v => { state.settings.strava_weight_sync = !!v; db.saveSettings({ strava_weight_sync: !!v }).catch(() => {}) }
 
 export async function updateStravaAthleteWeight(kg) {
   if (!stravaIsConnected() || !stravaWeightSyncEnabled()) return

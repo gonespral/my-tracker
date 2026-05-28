@@ -229,12 +229,14 @@ function resolveWorkoutConflicts(workoutsByDate) {
 }
 
 export function getWorkoutConflictPreference() {
-  const pref = localStorage.getItem(CONFLICT_PREFERENCE_KEY)
+  const pref = state.settings?.conflict_preference ?? localStorage.getItem(CONFLICT_PREFERENCE_KEY)
   return pref === 'google-health' ? 'google-health' : 'strava'
 }
 
 export function setWorkoutConflictPreference(source) {
-  localStorage.setItem(CONFLICT_PREFERENCE_KEY, source === 'google-health' ? 'google-health' : 'strava')
+  const val = source === 'google-health' ? 'google-health' : 'strava'
+  state.settings.conflict_preference = val
+  db.saveSettings({ conflict_preference: val }).catch(() => {})
 }
 
 export function setWorkoutConflictOverride(groupId, source, id) {
@@ -527,24 +529,39 @@ export const db = {
   },
 
   async saveSettings(s) {
-    const current = await this.loadSettings().catch(() => null)
-    const { error } = await supabase.from('user_settings').upsert({
+    const current = state.settings ?? await this.loadSettings().catch(() => null)
+    const merged = {
       user_id: state.currentUser.id,
-      cal_rest: s.cal_rest ?? current?.cal_rest ?? null,
-      cal_training: s.cal_training ?? current?.cal_training ?? null,
-      protein_g: s.protein_g ?? current?.protein_g ?? null,
-      carbs_g: s.carbs_g ?? current?.carbs_g ?? null,
-      fat_g: s.fat_g ?? current?.fat_g ?? null,
-      age_years: s.age_years ?? current?.age_years ?? null,
-      sex: s.sex ?? current?.sex ?? null,
-      height_cm: s.height_cm ?? current?.height_cm ?? null,
-      weight_kg: s.weight_kg ?? current?.weight_kg ?? null,
-      activity_level: s.activity_level ?? current?.activity_level ?? null,
-      tdee_source: s.tdee_source !== undefined ? s.tdee_source : (current?.tdee_source ?? null),
-      tdee_calibrated_at: s.tdee_calibrated_at !== undefined ? s.tdee_calibrated_at : (current?.tdee_calibrated_at ?? null),
+      cal_rest:           s.cal_rest           ?? current?.cal_rest           ?? null,
+      cal_training:       s.cal_training        ?? current?.cal_training       ?? null,
+      protein_g:          s.protein_g           ?? current?.protein_g          ?? null,
+      carbs_g:            s.carbs_g             ?? current?.carbs_g            ?? null,
+      fat_g:              s.fat_g               ?? current?.fat_g              ?? null,
+      age_years:          s.age_years           ?? current?.age_years          ?? null,
+      sex:                s.sex                 ?? current?.sex                ?? null,
+      height_cm:          s.height_cm           ?? current?.height_cm          ?? null,
+      weight_kg:          s.weight_kg           ?? current?.weight_kg          ?? null,
+      activity_level:     s.activity_level      ?? current?.activity_level     ?? null,
+      tdee_source:        s.tdee_source         !== undefined ? s.tdee_source         : (current?.tdee_source         ?? null),
+      tdee_calibrated_at: s.tdee_calibrated_at  !== undefined ? s.tdee_calibrated_at  : (current?.tdee_calibrated_at  ?? null),
+      eatback_pct:        s.eatback_pct         ?? current?.eatback_pct        ?? 50,
+      bmr_deficit:        s.bmr_deficit         ?? current?.bmr_deficit        ?? 0,
+      use_bmr_target:     s.use_bmr_target      !== undefined ? s.use_bmr_target      : (current?.use_bmr_target      ?? true),
+      claude_draft_confirm: s.claude_draft_confirm !== undefined ? s.claude_draft_confirm : (current?.claude_draft_confirm ?? true),
+      conflict_preference:  s.conflict_preference  ?? current?.conflict_preference  ?? 'strava',
+      strava_auto_push:     s.strava_auto_push     !== undefined ? s.strava_auto_push     : (current?.strava_auto_push     ?? false),
+      strava_auto_push_google: s.strava_auto_push_google !== undefined ? s.strava_auto_push_google : (current?.strava_auto_push_google ?? false),
+      strava_sync_paused:   s.strava_sync_paused   !== undefined ? s.strava_sync_paused   : (current?.strava_sync_paused   ?? false),
+      strava_spoof_calories: s.strava_spoof_calories !== undefined ? s.strava_spoof_calories : (current?.strava_spoof_calories ?? false),
+      strava_weight_sync:   s.strava_weight_sync    !== undefined ? s.strava_weight_sync    : (current?.strava_weight_sync    ?? false),
+      gh_auto_push:         s.gh_auto_push          !== undefined ? s.gh_auto_push          : (current?.gh_auto_push          ?? false),
+      gh_sync_paused:       s.gh_sync_paused        !== undefined ? s.gh_sync_paused        : (current?.gh_sync_paused        ?? false),
+      gh_push_strava:       s.gh_push_strava        !== undefined ? s.gh_push_strava        : (current?.gh_push_strava        ?? false),
       updated_at: new Date().toISOString(),
-    }, { onConflict: 'user_id' })
+    }
+    const { error } = await supabase.from('user_settings').upsert(merged, { onConflict: 'user_id' })
     if (error) throw error
+    Object.assign(state.settings, merged)
   },
 
   async getIntegration(provider) {

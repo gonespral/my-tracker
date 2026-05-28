@@ -4,12 +4,11 @@ import { db } from './db.js'
 import { dateStr, nowTime, fmtDate, fmtDateShort, fmt, round, sumFood } from './utils.js'
 import { openSheet, closeSheets, showToast, syncBackdrop } from './ui.js'
 
-const CLAUDE_DRAFT_CONFIRM_KEY = 'tracker-claude-draft-confirm'
-
-export const claudeDraftConfirmationEnabled = () => localStorage.getItem(CLAUDE_DRAFT_CONFIRM_KEY) !== '0'
+export const claudeDraftConfirmationEnabled = () => state.settings?.claude_draft_confirm ?? true
 
 export function setClaudeDraftConfirmationEnabled(enabled) {
-  localStorage.setItem(CLAUDE_DRAFT_CONFIRM_KEY, enabled ? '1' : '0')
+  state.settings.claude_draft_confirm = !!enabled
+  db.saveSettings({ claude_draft_confirm: !!enabled }).catch(() => {})
 }
 
 export const CLAUDE_TOOLS = [

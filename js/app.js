@@ -387,17 +387,27 @@ async function initApp() {
     })
   }
 
-  // Load user's saved targets before any rendering
+  // Load user's saved settings before any rendering
   try {
     const [s, data] = await Promise.all([db.loadSettings(), db.load()])
     if (s) {
-      TARGETS.calories.rest = s.cal_rest
-      TARGETS.protein = s.protein_g
-      TARGETS.carbs = s.carbs_g
-      TARGETS.fat = s.fat_g
+      state.settings = s  // cache full row for synchronous reads throughout the app
+
+      // Calorie targets
+      if (s.cal_rest)    TARGETS.calories.rest = s.cal_rest
+      if (s.protein_g)   TARGETS.protein = s.protein_g
+      if (s.carbs_g)     TARGETS.carbs   = s.carbs_g
+      if (s.fat_g)       TARGETS.fat     = s.fat_g
+
+      // Eat-back % (Supabase wins over localStorage)
+      if (s.eatback_pct != null) TARGETS.calories.eatback_pct = s.eatback_pct
+
+      // BMR deficit (Supabase wins over localStorage)
       const deficitKey = `tracker-bmr-deficit:${state.currentUser.id}`
-      const rawDeficit = Number(localStorage.getItem(deficitKey) || 0)
-      const deficit = Number.isFinite(rawDeficit) && rawDeficit >= 0 ? Math.round(rawDeficit) : 0
+      const deficit = s.bmr_deficit != null
+        ? s.bmr_deficit
+        : Math.max(0, Math.round(Number(localStorage.getItem(deficitKey) || 0)))
+
       const profile = {
         age: s.age_years ?? '',
         sex: s.sex ?? 'other',
@@ -409,10 +419,6 @@ async function initApp() {
       setCalorieDeficit(deficit)
       TARGETS.calories.training = TARGETS.calories.goal
     }
-    const eatbackKey = `tracker-eatback-pct:${state.currentUser.id}`
-    const rawEatback = Number(localStorage.getItem(eatbackKey))
-    if (Number.isFinite(rawEatback) && rawEatback >= 0 && rawEatback <= 100)
-      TARGETS.calories.eatback_pct = Math.round(rawEatback)
   } catch (e) { console.warn('Settings load failed:', e.message) }
 
   if (window.innerWidth >= 768) {

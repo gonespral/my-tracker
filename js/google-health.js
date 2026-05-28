@@ -21,9 +21,9 @@ export const googleHealthCustomId = () => localStorage.getItem(GH_CLIENT_ID) || 
 export const googleHealthCustomSecret = () => localStorage.getItem(GH_CLIENT_SECRET) || ''
 export const googleHealthClientId = () => googleHealthUsesCustom() ? googleHealthCustomId() : DEFAULT_CLIENT_ID
 
-export const ghAutoPushEnabled = () => localStorage.getItem('google-health-auto-push') === '1'
-export const ghSyncPaused = () => localStorage.getItem('google-health-sync-paused') === '1'
-export const ghPushStravaImports = () => localStorage.getItem('gh-push-strava') === '1'
+export const ghAutoPushEnabled = () => state.settings?.gh_auto_push ?? (localStorage.getItem('google-health-auto-push') === '1')
+export const ghSyncPaused = () => state.settings?.gh_sync_paused ?? (localStorage.getItem('google-health-sync-paused') === '1')
+export const ghPushStravaImports = () => state.settings?.gh_push_strava ?? (localStorage.getItem('gh-push-strava') === '1')
 
 export function googleHealthIsConnected() {
   if (googleHealthUsesCustom()) return !!localStorage.getItem(GH_REFRESH_TOKEN)
