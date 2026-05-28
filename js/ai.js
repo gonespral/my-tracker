@@ -180,7 +180,7 @@ export async function buildClaudeSystem() {
   const totals   = sumFood(food)
   const weights  = data.weights || []
   const training  = workouts.some(w => !w.isDuplicate)
-  const calTarget = training ? TARGETS.calories.training : TARGETS.calories.rest
+  const calTarget = TARGETS.calories.goal || TARGETS.calories.rest
   const remaining = calTarget - totals.calories
 
   const mealsList = meals.length
@@ -191,7 +191,7 @@ export async function buildClaudeSystem() {
   for (let i = 0; i < 7; i++) {
     const d = new Date(); d.setDate(d.getDate() - i)
     const ds = dateStr(d)
-    const df = data.food[ds] || [], dw = data.workouts[ds] || []
+    const calTarget = TARGETS.calories.goal || TARGETS.calories.rest
     if (!df.length && !dw.length) continue
     recentLines.push(`${fmtDateShort(ds)}${i===0?' (today)':''}`+':')
     df.forEach(e => recentLines.push(`  food     [${e.id}] ${e.description} — ${round(e.calories)} kcal (${e.meal||'snack'})`))
@@ -199,7 +199,6 @@ export async function buildClaudeSystem() {
   }
 
   const burnedToday = workouts.reduce((s, w) => s + (w.calories_burned || 0), 0)
-  const effectiveTarget = calTarget + burnedToday
 
   const frequent = frequentFoodsNotPreset(data, meals)
   const autoSave  = frequent.filter(f => f.count >= 3)
@@ -213,9 +212,9 @@ export async function buildClaudeSystem() {
 
   return `You are a concise fitness tracking assistant embedded in the user's personal tracker app.
 Today: ${fmtDate(today)} (${today})
-Calories today: ${round(totals.calories)} / ${effectiveTarget} kcal (${round(effectiveTarget - totals.calories)} remaining)${burnedToday > 0 ? ` [base ${calTarget} + ${burnedToday} burned]` : ''}
+Calories today: ${round(totals.calories)} / ${calTarget} kcal (${round(remaining)} remaining)${burnedToday > 0 ? ` [activity ${burnedToday} kcal shown separately]` : ''}
 Protein: ${fmt(totals.protein)}g / ${TARGETS.protein}g  Carbs: ${fmt(totals.carbs)}g / ${TARGETS.carbs}g  Fat: ${fmt(totals.fat)}g / ${TARGETS.fat}g
-Current targets: rest ${TARGETS.calories.rest} kcal / training ${TARGETS.calories.training} kcal / P${TARGETS.protein}g C${TARGETS.carbs}g F${TARGETS.fat}g
+Current targets: maintenance ${TARGETS.calories.rest} kcal / goal ${TARGETS.calories.goal || TARGETS.calories.rest} kcal / P${TARGETS.protein}g C${TARGETS.carbs}g F${TARGETS.fat}g
 Latest weight: ${weights[0] ? weights[0].kg.toFixed(1)+' kg ('+fmtDateShort(weights[0].date)+')' : 'not logged'}
 
 Recent log (last 7 days) — use IDs to edit or delete:
@@ -226,18 +225,12 @@ ${mealsList}
 ${autoSaveSection}${suggestSection}
 Rules:
 - Log food/workouts/weight for ANY date the user mentions. Use YYYY-MM-DD format.
-- To edit, call edit_food or edit_workout with the entry ID. Only send changed fields.
+  Current targets: maintenance ${TARGETS.calories.rest} kcal / goal ${TARGETS.calories.goal || TARGETS.calories.rest} kcal / P${TARGETS.protein}g C${TARGETS.carbs}g F${TARGETS.fat}g
 - You may call multiple tools in one turn.
 - Estimate calories/macros from context; use preset values when name matches.
 - If the AUTO-SAVE REQUIRED section lists any foods, call save_meal_preset for each one in this response — do not wait, do not ask.
 - For foods in the suggest section, mention once that they could be saved as a preset (one short sentence).
 - Reply like a text message: 1-2 sentences max, no markdown, no em dashes, no lists, no headers, no symbols, no formatting of any kind.`
-}
-
-let _abortController = null
-export const isChatLoading = () => _abortController !== null
-export function abortChat() {
-  if (_abortController) { _abortController.abort(); _abortController = null }
 }
 
 export async function fetchDailyWisdom() {
@@ -293,7 +286,7 @@ export async function fetchDailyWisdom() {
   const prompt = `You are a concise health insight generator. Given 7 days of tracking data, output ONE specific observation the user should know. Pick the single most useful insight from: goal adherence, nutrition trends, protein/calorie gaps, training frequency, activity variety, training load/intensity, rest vs training balance, weight trend.
 
 Today: ${fmtDate(today)}
-Targets: ${TARGETS.calories.rest} kcal rest / ${TARGETS.calories.training} kcal training / P${TARGETS.protein}g C${TARGETS.carbs}g F${TARGETS.fat}g
+Targets: ${TARGETS.calories.rest} kcal maintenance / ${TARGETS.calories.goal || TARGETS.calories.rest} kcal goal / P${TARGETS.protein}g C${TARGETS.carbs}g F${TARGETS.fat}g
 7-day nutrition averages (${loggedDays.length} days logged): ${avgCal} kcal / P${avgPro}g C${avgCarb}g F${avgFat}g
 Workout days in last 7: ${workoutDays}/7
 Activity log:
@@ -327,6 +320,15 @@ Rules: one sentence, no markdown, no em dashes, no emojis, no lists, strictly in
   } catch (_) { return null }
 }
 
+let _abortController = null
+export const isChatLoading = () => _abortController !== null
+export function abortChat() {
+  if (_abortController) {
+    _abortController.abort()
+    _abortController = null
+  }
+}
+
 export async function callClaudeApi(messages, system, signal) {
   const key = localStorage.getItem('tracker-anthropic-key') || ''
   if (!key) { openSheet('apikey-sheet'); throw new Error('No API key') }
@@ -348,143 +350,8 @@ export async function callClaudeApi(messages, system, signal) {
   return r.json()
 }
 
-export async function executeTool(name, input) {
-  try {
-    const date = input.date || dateStr()
-    if (name === 'log_food') {
-      if (claudeDraftConfirmationEnabled()) {
-        closeSheets()
-        state.pendingClaudeDraft = { type: 'food', input: { ...input, date } }
-        const title = document.getElementById('food-sheet-title')
-        if (title) title.textContent = 'Review Meal'
-        const saveBtn = document.getElementById('log-food-btn')
-        if (saveBtn) saveBtn.textContent = 'Confirm Meal'
-        const banner = document.getElementById('preset-match-banner')
-        if (banner) {
-          const calories = Number(input.calories) || 0
-          const protein = Number(input.protein) || 0
-          const carbs = Number(input.carbs) || 0
-          const fat = Number(input.fat) || 0
-          banner.textContent = `Claude drafted: ${input.description || 'Meal'} · ${round(calories)} kcal · P${round(protein)} C${round(carbs)} F${round(fat)} · ${date}`
-          banner.style.display = 'block'
-        }
-        const dateInput = document.getElementById('f-date')
-        if (dateInput) dateInput.value = date
-        document.querySelectorAll('#food-sheet .meal-btn').forEach(b =>
-          b.classList.toggle('active', b.dataset.meal === (input.meal || 'snack')))
-        document.getElementById('f-desc').value = input.description || ''
-        document.getElementById('f-cal').value  = input.calories || ''
-        document.getElementById('f-pro').value  = input.protein || ''
-        document.getElementById('f-car').value  = input.carbs || ''
-        document.getElementById('f-fat').value  = input.fat || ''
-        openSheet('food-sheet')
-        showToast('📝 Claude meal drafted for review')
-        return 'drafted for review'
-      }
-      await db.addFood(date, { description: input.description, calories: input.calories||0, protein: input.protein||0, carbs: input.carbs||0, fat: input.fat||0, meal: input.meal||'snack' })
-      return `logged for ${date}`
-    }
-    if (name === 'edit_food') {
-      const fields = {}
-      if (input.description !== undefined) fields.description = input.description
-      if (input.calories    !== undefined) fields.calories    = input.calories
-      if (input.protein     !== undefined) fields.protein     = input.protein
-      if (input.carbs       !== undefined) fields.carbs       = input.carbs
-      if (input.fat         !== undefined) fields.fat         = input.fat
-      if (input.meal        !== undefined) fields.meal        = input.meal
-      await db.updateFood(input.id, fields)
-      return 'updated'
-    }
-    if (name === 'delete_food')    { await db.deleteFood(input.id); return 'deleted' }
-    if (name === 'log_workout') {
-      if (claudeDraftConfirmationEnabled()) {
-        closeSheets()
-        state.pendingClaudeDraft = { type: 'workout', input: { ...input, date } }
-        const title = document.getElementById('workout-sheet-title')
-        if (title) title.textContent = 'Review Activity'
-        const saveBtn = document.getElementById('save-workout-btn')
-        if (saveBtn) saveBtn.textContent = 'Confirm Activity'
-        const banner = document.getElementById('workout-draft-banner')
-        if (banner) {
-          const intensity = input.intensity || 'medium'
-          const duration = Number(input.duration_min) || 0
-          const calories = Number(input.calories_burned) || 0
-          banner.textContent = `Claude drafted: ${input.description || 'Activity'} · ${intensity} intensity${duration ? ` · ${duration} min` : ''}${calories ? ` · ${round(calories)} kcal` : ''} · ${date}`
-          banner.style.display = 'block'
-        }
-        document.getElementById('w-desc').value = input.description || ''
-        document.getElementById('w-date').value = date
-        document.getElementById('w-time').value = ''
-        document.getElementById('w-activity-type').value = ''
-        document.getElementById('w-calories-burned').value = input.calories_burned || ''
-        document.getElementById('w-duration-min').value = input.duration_min || ''
-        document.getElementById('w-distance-km').value = input.distance_km || ''
-        document.getElementById('w-heart-rate').value = input.heart_rate_avg || ''
-        document.querySelectorAll('#intensity-btns-main .intensity-btn').forEach(b =>
-          b.classList.toggle('active', b.dataset.intensity === (input.intensity || 'medium')))
-        openSheet('intensity-sheet')
-        showToast('📝 Claude activity drafted for review')
-        return 'drafted for review'
-      }
-      await db.addWorkout(date, { description: input.description, intensity: input.intensity,
-        calories_burned: input.calories_burned||null, duration_min: input.duration_min||null,
-        distance_km: input.distance_km||null, heart_rate_avg: input.heart_rate_avg||null,
-        time: nowTime() })
-      return `logged for ${date}`
-    }
-    if (name === 'edit_workout') {
-      const fields = {}
-      if (input.description     !== undefined) fields.description     = input.description
-      if (input.intensity       !== undefined) fields.intensity       = input.intensity
-      if (input.calories_burned !== undefined) fields.calories_burned = input.calories_burned
-      if (input.duration_min    !== undefined) fields.duration_min    = input.duration_min
-      if (input.distance_km     !== undefined) fields.distance_km     = input.distance_km
-      if (input.heart_rate_avg  !== undefined) fields.heart_rate_avg  = input.heart_rate_avg
-      await db.updateWorkout(input.id, fields)
-      return 'updated'
-    }
-    if (name === 'delete_workout')  { await db.deleteWorkout(input.id); return 'deleted' }
-    if (name === 'log_weight')      { await db.upsertWeight({ kg: input.kg, date, time: nowTime() }); return `logged for ${date}` }
-    if (name === 'save_meal_preset') {
-      await db.addMeal({ name: input.name, calories: input.calories||0, protein: input.protein||0, carbs: input.carbs||0, fat: input.fat||0, meal: input.meal||'snack' })
-      state.mealsCache = null
-      return `saved "${input.name}" as meal preset`
-    }
-    if (name === 'set_targets') {
-      if (input.cal_rest     !== undefined) TARGETS.calories.rest     = input.cal_rest
-      if (input.cal_training !== undefined) TARGETS.calories.training = input.cal_training
-      if (input.protein_g    !== undefined) TARGETS.protein           = input.protein_g
-      if (input.carbs_g      !== undefined) TARGETS.carbs             = input.carbs_g
-      if (input.fat_g        !== undefined) TARGETS.fat               = input.fat_g
-      await db.saveSettings({
-        cal_rest: TARGETS.calories.rest, cal_training: TARGETS.calories.training,
-        protein_g: TARGETS.protein, carbs_g: TARGETS.carbs, fat_g: TARGETS.fat,
-      })
-      return 'targets updated'
-    }
-    return 'unknown tool'
-  } catch (e) { return `error: ${e.message}` }
-}
-
-const THINKING_VERBS = [
-  'Ruminating','Cogitating','Metamorphosizing','Percolating','Marinating',
-  'Philosophizing','Triangulating','Osmosing','Defragmenting','Manifesting',
-  'Circumnavigating','Vibing','Transubstantiating','Discombobulating',
-  'Recalibrating','Quantum tunneling','Yodeling internally',
-  'Spellchecking the cosmos','Decalcifying','Extrapolating aggressively',
-  'Scheming','Reverse engineering breakfast','Doing math (allegedly)',
-]
-export const thinkingVerb = () => THINKING_VERBS[Math.floor(Math.random() * THINKING_VERBS.length)]
-
 const CHAT_COLLAPSED_HEIGHT = '18px'
 const CHAT_PEEK_HEIGHT = '75px'
-
-function getChatPanelState(panel = document.getElementById('chat-panel')) {
-  if (!panel) return 'collapsed'
-  if (panel.classList.contains('expanded')) return 'expanded'
-  if (panel.classList.contains('peek')) return 'peek'
-  return 'collapsed'
-}
 
 function syncChatPanelLayout(stateName) {
   document.documentElement.style.setProperty('--chat-peek-h', stateName === 'collapsed' ? CHAT_COLLAPSED_HEIGHT : CHAT_PEEK_HEIGHT)
@@ -503,10 +370,6 @@ export function setChatPanelState(nextState) {
   if (inp) inp.placeholder = 'Type something…'
 
   syncChatPanelLayout(nextState)
-
-  if (nextState === 'expanded') {
-    setTimeout(() => document.getElementById('chat-messages')?.scrollTo(0, 999999), 50)
-  }
 }
 
 export function renderChat() {

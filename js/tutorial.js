@@ -20,7 +20,7 @@ const SLIDES = [
   {
     icon: 'local_fire_department',
     title: 'Calorie targets',
-    body: 'Your target is calculated from your BMR and activity level. On training days it automatically increases by your net calories burned. <a href="help/calorie-targets.html" target="_blank" style="color:inherit;text-decoration:underline">Learn more →</a>',
+    body: 'Your target starts with a maintenance TDEE baseline, then you subtract your chosen deficit. Activity calories stay visible for context, but they do not change the goal. <a href="help/calorie-targets.html" target="_blank" style="color:inherit;text-decoration:underline">Learn more →</a>',
   },
   {
     icon: 'key',

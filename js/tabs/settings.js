@@ -6,6 +6,7 @@ import {
   CALORIE_SEX,
   computeCalorieTargets,
   hydrateCalorieTargets,
+  setCalorieDeficit,
   recommendMacros,
 } from '../config.js'
 import { state } from '../state.js'
@@ -54,8 +55,8 @@ function formatCalorieProfileSummary(targets, latestWeightKg) {
   const usedLatest = latestWeightKg != null && targets.weight_kg === latestWeightKg
 
   return `
-    <strong>${targets.rest.toLocaleString()} kcal/day</strong> estimated base maintenance.<br>
-    BMR: ${targets.bmr.toLocaleString()} kcal · ${sexLabel} · ${targets.age} years · ${targets.height_cm} cm · ${weightLabel} · ${activity}${usedLatest ? ` · using latest logged weight (${latestWeightKg.toFixed(2)} kg)` : ''}.
+    <strong>${targets.rest.toLocaleString()} kcal/day</strong> estimated maintenance TDEE.<br>
+    BMR helper: ${targets.bmr.toLocaleString()} kcal · ${sexLabel} · ${targets.age} years · ${targets.height_cm} cm · ${weightLabel} · ${activity}${usedLatest ? ` · using latest logged weight (${latestWeightKg.toFixed(2)} kg)` : ''}.
   `
 }
 
@@ -80,7 +81,7 @@ function formatCalorieProfileSummaryWithDeficit(targets, latestWeightKg, deficit
 
   return `
     <strong>${adjustedTarget.toLocaleString()} kcal/day</strong> target after deficit.<br>
-    Maintenance: ${targets.rest.toLocaleString()} kcal · Deficit: ${Math.round(deficit).toLocaleString()} kcal · BMR: ${targets.bmr.toLocaleString()} kcal · ${sexLabel} · ${targets.age} years · ${targets.height_cm} cm · ${weightLabel} · ${activity}${usedLatest ? ` · using latest logged weight (${latestWeightKg.toFixed(2)} kg)` : ''}.
+    Maintenance: ${targets.rest.toLocaleString()} kcal · Deficit: ${Math.round(deficit).toLocaleString()} kcal · BMR helper: ${targets.bmr.toLocaleString()} kcal · ${sexLabel} · ${targets.age} years · ${targets.height_cm} cm · ${weightLabel} · ${activity}${usedLatest ? ` · using latest logged weight (${latestWeightKg.toFixed(2)} kg)` : ''}.
   `
 }
 
@@ -90,11 +91,11 @@ function setCalorieProfileSummary(targets, latestWeightKg, deficitKcal = 0) {
   summary.innerHTML = formatCalorieProfileSummaryWithDeficit(targets, latestWeightKg, deficitKcal)
 }
 
-function updateProfileTargetInputs(targets) {
+function updateProfileTargetInputs(targets, calorieTarget = targets?.rest) {
   if (!targets) return
   const restInput = document.getElementById('t-cal-rest')
   if (restInput) restInput.value = targets.rest
-  const macros = recommendMacros(targets.rest)
+  const macros = recommendMacros(calorieTarget ?? targets.rest)
   const proInput = document.getElementById('t-protein')
   const carInput = document.getElementById('t-carbs')
   const fatInput = document.getElementById('t-fat')
@@ -249,7 +250,7 @@ export async function renderSettings() {
 
       <div id="settings-bmr-calc-section">
         <div class="toggle-row" style="margin-bottom:8px">
-          <div class="toggle-row-label">Use BMR-based calorie target</div>
+          <div class="toggle-row-label">Use profile-based TDEE</div>
           <label class="toggle-switch" for="settings-use-bmr-checkbox">
             <input type="checkbox" id="settings-use-bmr-checkbox" ${useBmr ? 'checked' : ''}>
             <span class="toggle-slider"></span>
@@ -259,7 +260,7 @@ export async function renderSettings() {
         <div class="toggle-row" style="margin-bottom:8px">
           <div>
             <div class="toggle-row-label">Calibrate from Google Health</div>
-            <div class="toggle-row-sub">${useGHCalibration ? tdeeCalibratedLabel : 'Use measured TDEE instead of BMR'}</div>
+            <div class="toggle-row-sub">${useGHCalibration ? tdeeCalibratedLabel : 'Use measured TDEE instead of the profile estimate'}</div>
           </div>
           <label class="toggle-switch">
             <input type="checkbox" id="tdee-gh-toggle" ${useGHCalibration ? 'checked' : ''}>
@@ -268,7 +269,7 @@ export async function renderSettings() {
         </div>` : ''}
       <div class="targets-grid">
         <div class="form-field">
-          <label class="form-label" for="t-cal-rest">Daily base target (kcal)</label>
+          <label class="form-label" for="t-cal-rest">Maintenance TDEE (kcal)</label>
           <input class="form-input" id="t-cal-rest" type="number" inputmode="numeric" value="${TARGETS.calories.rest}">
         </div>
         <div class="form-field">
@@ -284,7 +285,7 @@ export async function renderSettings() {
           <input class="form-input" id="t-fat" type="number" inputmode="numeric" value="${TARGETS.fat}">
         </div>
       </div>
-      <button class="btn-primary" id="settings-save-targets-btn" style="margin-top:4px;display:${useBmr || useGHCalibration ? 'none' : ''}">Save Targets</button>
+      <button class="btn-primary" id="settings-save-targets-btn" style="margin-top:4px;display:${useBmr || useGHCalibration ? 'none' : ''}">Save TDEE</button>
       <button class="btn-primary" id="tdee-calibrate-btn" style="margin-top:4px;display:${useGHCalibration ? '' : 'none'}">
         ${materialIcon('monitor_heart', 14, { style: 'vertical-align:-2px;flex-shrink:0;color:white' })}
         Calibrate Now
@@ -329,8 +330,8 @@ export async function renderSettings() {
               <input class="form-input" id="profile-deficit-kcal" type="number" inputmode="numeric" min="0" max="1500" step="10" value="${bmrDeficit}">
             </div>
           </div>
-          <p class="settings-profile-note">This estimate includes everyday movement, so it behaves more like Google Health's total calorie burn than workout-only calories.</p>
-          <button class="btn-primary" id="settings-save-profile-btn" style="margin-top:4px">Save BMR Settings</button>
+          <p class="settings-profile-note">This estimate includes everyday movement, so it behaves like a daily TDEE rather than workout-only calories.</p>
+          <button class="btn-primary" id="settings-save-profile-btn" style="margin-top:4px">Save TDEE Settings</button>
         </div>
       </div>
 
@@ -580,17 +581,15 @@ export async function renderSettings() {
 
   const applyEstimatedToTargets = (estimated) => {
     if (!estimated) return
-    const adjusted = {
-      ...estimated,
-      rest: withDeficit(estimated.rest, getDeficitValue()),
-    }
-    TARGETS.calories.rest = adjusted.rest
+    TARGETS.calories.rest = estimated.rest
     TARGETS.calories.bmr = estimated.bmr
-    const macros = recommendMacros(adjusted.rest)
+    const goal = setCalorieDeficit(getDeficitValue())
+    TARGETS.calories.training = goal
+    const macros = recommendMacros(goal)
     TARGETS.protein = macros.protein
     TARGETS.carbs = macros.carbs
     TARGETS.fat = macros.fat
-    updateProfileTargetInputs(adjusted)
+    updateProfileTargetInputs(estimated, goal)
     setCalorieProfileSummary(estimated, latestWeightKg, getDeficitValue())
   }
 
@@ -617,6 +616,7 @@ export async function renderSettings() {
 
   setTargetsReadonly(useBmr || useGHCalibration)
   setCalorieProfileSummary(estimatedProfile, latestWeightKg, bmrDeficit)
+  setCalorieDeficit(bmrDeficit)
   if (useBmr && estimatedProfile) {
     applyEstimatedToTargets(estimatedProfile)
   }
@@ -683,23 +683,24 @@ export async function renderSettings() {
       activity_level: profile.activity_level,
     }, latestWeightKg)
     if (!estimated) {
-      showToast('❌ Enter age, height, and weight to calculate BMR')
+      showToast('❌ Enter age, height, and weight to calculate TDEE')
       return
     }
 
-    const adjustedRest = withDeficit(estimated.rest, deficitNow)
-    TARGETS.calories.rest = adjustedRest
+    TARGETS.calories.rest = estimated.rest
     TARGETS.calories.bmr = estimated.bmr
-    const savedMacros = recommendMacros(adjustedRest)
+    const goal = setCalorieDeficit(deficitNow)
+    TARGETS.calories.training = goal
+    const savedMacros = recommendMacros(goal)
     TARGETS.protein = savedMacros.protein
     TARGETS.carbs = savedMacros.carbs
     TARGETS.fat = savedMacros.fat
-    updateProfileTargetInputs({ ...estimated, rest: adjustedRest })
+    updateProfileTargetInputs(estimated, goal)
     setCalorieProfileSummary(estimated, latestWeightKg, deficitNow)
 
     try {
       await db.saveSettings({
-        cal_rest: useBmrNow ? adjustedRest : TARGETS.calories.rest,
+        cal_rest: TARGETS.calories.rest,
         protein_g: TARGETS.protein,
         carbs_g: TARGETS.carbs,
         fat_g: TARGETS.fat,
@@ -709,7 +710,7 @@ export async function renderSettings() {
         weight_kg: resolvedWeight,
         activity_level: profile.activity_level,
       })
-      showToast('✅ BMR settings saved')
+      showToast('✅ TDEE settings saved')
     } catch (e) {
       showToast('❌ ' + e.message)
     }

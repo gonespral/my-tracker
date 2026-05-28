@@ -39,7 +39,7 @@ function ringTickSVG(cx, cy, r, sw, mealFrac, consumedFrac = 0) {
 }
 
 export function calRingHTML(consumed, target, burned = 0, mealFrac = 0) {
-  const effectiveTarget = target + burned
+  const effectiveTarget = target
   const size = 160, sw = 12, r = (size - sw) / 2
   const circ = 2 * Math.PI * r
   const pct  = Math.min(consumed / effectiveTarget, 1)
@@ -120,11 +120,10 @@ export function weekChartHTML(data) {
     const d = new Date(); d.setDate(d.getDate() - i)
     const ds = dateStr(d)
     const food     = data.food[ds]     || []
-    const workouts = data.workouts[ds] || []
     days.push({
       ds, isToday: ds === today,
       cals: sumFood(food).calories,
-      target: TARGETS.calories.rest + calculateNetActiveCalories(workouts, TARGETS.calories.bmr),
+      target: TARGETS.calories.rest,
       label: d.toLocaleDateString('en-US', { weekday: 'short' }),
     })
   }
@@ -301,9 +300,7 @@ export function calTrendHTML(data, nDays = 30, options = {}) {
     const d = new Date(); d.setDate(d.getDate() - i)
     const ds = dateStr(d)
     
-    // TDEE = Rest Target + Net Active Calories
-    const netActive = calculateNetActiveCalories(data.workouts[ds], TARGETS.calories.bmr)
-    const tdee = TARGETS.calories.rest + netActive
+    const tdee = TARGETS.calories.rest
     const foodItems = data.food[ds] || []
     const input = foodItems.length > 0 ? sumFood(foodItems).calories : null
 
@@ -679,8 +676,7 @@ export function monthHeatmapHTML(data, monthOffset = 0, type = 'workouts') {
       const food = data.food[ds] || []
       if (food.length > 0) {
         const input = sumFood(food).calories
-        const netActive = calculateNetActiveCalories(data.workouts[ds], TARGETS.calories.bmr)
-        const tdee = TARGETS.calories.rest + netActive
+        const tdee = TARGETS.calories.rest
         const diff = input - tdee
 
         const { background, color, onTargetWindow } = nutritionHeatmapStyle(diff, tdee)

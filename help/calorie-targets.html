@@ -112,24 +112,23 @@
 
 <div class="help-page">
   <h1>Calorie targets</h1>
-  <p class="page-subtitle">How MyTracker sets your daily calorie goal and adjusts it on training days.</p>
+  <p class="page-subtitle">How MyTracker sets your daily calorie goal from a static TDEE baseline and a separate deficit.</p>
 
   <h2>Your base target (rest day)</h2>
   <p>
     If you fill in your profile in <strong>Settings &rarr; Calories</strong>, MyTracker uses the
-    Mifflin-St Jeor equation to estimate your Basal Metabolic Rate (BMR) and then multiplies by
-    an activity level factor to get your daily target.
+    Mifflin-St Jeor equation to estimate your maintenance TDEE and then applies your chosen deficit.
   </p>
 
   <div class="formula">
     BMR (male)   = 10 &times; weight(kg) + 6.25 &times; height(cm) &minus; 5 &times; age + 5<br>
     BMR (female) = 10 &times; weight(kg) + 6.25 &times; height(cm) &minus; 5 &times; age &minus; 161<br>
     <br>
-    Rest day target = BMR &times; activity level multiplier
+    Maintenance TDEE = BMR &times; activity level multiplier
   </div>
 
   <p>
-    If you have not filled in your profile, the target defaults to 2150 kcal on rest days and 1800 kcal BMR.
+    If you have not filled in your profile, the target defaults to 2150 kcal maintenance and 0 kcal deficit.
     You can also set a custom target directly in Settings.
   </p>
 
@@ -148,10 +147,9 @@
     </tbody>
   </table>
 
-  <h2>Training days</h2>
+  <h2>Deficit mode</h2>
   <p>
-    When you log a workout, MyTracker automatically adds the net calories burned to your target for that day.
-    This keeps you fuelled for the work you actually did without you having to adjust anything manually.
+    When you set a deficit, MyTracker subtracts it from your maintenance TDEE. Workout calories stay informational only.
   </p>
 
   <div class="target-demo">
@@ -171,23 +169,19 @@
 
   <h2>Net active calories</h2>
   <p>
-    The calories added on training days are <strong>net</strong> active calories, not the gross total
-    from your workout. Your BMR keeps burning during exercise anyway, so only the extra burn on top
-    of that is added.
+    Active calories are still tracked, but they do not change the day's intake target.
   </p>
 
   <div class="net-demo">
     <span class="chip chip-orange">420 kcal gross burn</span>
     <span class="eq">&minus;</span>
-    <span class="chip chip-gray">62 kcal BMR (45 min)</span>
+    <span class="chip chip-gray">62 kcal resting burn (45 min)</span>
     <span class="eq">=</span>
     <span class="chip chip-green">358 kcal added</span>
   </div>
 
   <p>
-    This prevents double-counting your resting metabolism. A 45-minute workout that burns 420 kcal
-    only adds around 358 kcal to your target, because you would have burned 62 kcal just existing
-    during those 45 minutes.
+    This keeps your daily target stable. A workout can still inform your activity context, but your intake goal stays based on TDEE and your chosen deficit.
   </p>
 
   <div class="callout">
