@@ -1,6 +1,6 @@
 import { state } from './state.js'
 import { supabase, db, setWorkoutConflictOverride, dismissWorkoutConflict, reflagWorkoutConflict, isDemo } from './db.js'
-import { TARGETS, hydrateCalorieTargets } from './config.js'
+import { TARGETS, hydrateCalorieTargets, setCalorieDeficit } from './config.js'
 import { dateStr, nowTime } from './utils.js'
 import { showToast, openSheet, closeSheet, closeSheets, toggleEntryMenu, closeMenus, bindSnapDrag } from './ui.js'
 import { startListening, stopListening } from './speech.js'
@@ -392,10 +392,12 @@ async function initApp() {
     const [s, data] = await Promise.all([db.loadSettings(), db.load()])
     if (s) {
       TARGETS.calories.rest = s.cal_rest
-      TARGETS.calories.training = s.cal_training
       TARGETS.protein = s.protein_g
       TARGETS.carbs = s.carbs_g
       TARGETS.fat = s.fat_g
+      const deficitKey = `tracker-bmr-deficit:${state.currentUser.id}`
+      const rawDeficit = Number(localStorage.getItem(deficitKey) || 0)
+      const deficit = Number.isFinite(rawDeficit) && rawDeficit >= 0 ? Math.round(rawDeficit) : 0
       const profile = {
         age: s.age_years ?? '',
         sex: s.sex ?? 'other',
@@ -404,6 +406,8 @@ async function initApp() {
         activity_level: s.activity_level ?? 'moderate',
       }
       hydrateCalorieTargets(profile, data?.weights?.[0]?.kg ?? null)
+      setCalorieDeficit(deficit)
+      TARGETS.calories.training = TARGETS.calories.goal
     }
   } catch (e) { console.warn('Settings load failed:', e.message) }
 

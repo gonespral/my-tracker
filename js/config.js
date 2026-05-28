@@ -10,7 +10,7 @@ export const STRAVA_CLIENT_ID = env.STRAVA_CLIENT_ID
 export const GOOGLE_HEALTH_CLIENT_ID = env.GOOGLE_HEALTH_CLIENT_ID
 
 export const TARGETS = {
-  calories: { rest: 2150, bmr: 1800 },
+  calories: { rest: 2150, bmr: 1800, deficit: 0, goal: 2150 },
   protein: 120,
   carbs: 240,
   fat: 65,
@@ -75,7 +75,19 @@ export function hydrateCalorieTargets(profile, fallbackWeightKg = null) {
 
   TARGETS.calories.rest = targets.rest
   TARGETS.calories.bmr = targets.bmr
+  TARGETS.calories.goal = Math.max(0, Math.round(TARGETS.calories.rest - (TARGETS.calories.deficit || 0)))
   return targets
+}
+
+export function setCalorieDeficit(deficitKcal = 0) {
+  const deficit = Math.max(0, Math.round(Number(deficitKcal) || 0))
+  TARGETS.calories.deficit = deficit
+  TARGETS.calories.goal = Math.max(0, Math.round(TARGETS.calories.rest - deficit))
+  return TARGETS.calories.goal
+}
+
+export function getCalorieGoal() {
+  return TARGETS.calories.goal ?? TARGETS.calories.rest
 }
 
 export const MEAL_ORDER = ['breakfast', 'lunch', 'snack', 'dinner']

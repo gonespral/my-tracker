@@ -4,6 +4,7 @@ import { db } from '../db.js'
 import { dateStr, sumFood, calculateNetActiveCalories, fmtDateShort } from '../utils.js'
 import { stagger, renderPanel } from '../animate.js'
 import { calRingHTML, macroRingHTML, weekChartHTML, streakHTML, sparklineHTML, MACRO_COLORS } from '../charts.js'
+import { getCalorieGoal } from '../config.js'
 import { foodItem, workoutItem, groupWorkoutsByConflict, workoutStack } from '../renderers.js'
 import { openSheet, showToast, closeMenus } from '../ui.js'
 import { fetchDailyWisdom } from '../ai.js'
@@ -141,15 +142,16 @@ export async function renderToday() {
   const food     = data.food[today]     || []
   const workouts = data.workouts[today] || []
   const totals      = sumFood(food)
-  const training    = workouts.some(w => !w.isDuplicate)
-  const calTarget   = TARGETS.calories.rest
+  const maintenanceTarget = TARGETS.calories.rest
+  const calTarget   = getCalorieGoal()
   const burnedToday = calculateNetActiveCalories(workouts, TARGETS.calories.bmr)
 
   renderPanel(document.getElementById('cal-section'),
-    calRingHTML(totals.calories, calTarget, burnedToday, computeMealFrac(data, calTarget + burnedToday)) +
+    calRingHTML(totals.calories, calTarget, burnedToday, computeMealFrac(data, calTarget)) +
     `<div class="cal-badges">
-       <span class="badge ${training?'training':''}}">${training ? 'Training day' : 'Rest day'}</span>
-       <span class="badge">Target: ${(calTarget + burnedToday).toLocaleString()} kcal${burnedToday > 0 ? ' (+'+burnedToday+' burned)' : ''}</span>
+       <span class="badge">Maintenance: ${maintenanceTarget.toLocaleString()} kcal</span>
+       <span class="badge">Goal: ${calTarget.toLocaleString()} kcal${TARGETS.calories.deficit ? ' (-' + TARGETS.calories.deficit + ')' : ''}</span>
+       ${burnedToday > 0 ? `<span class="badge">Activity: +${burnedToday} kcal</span>` : ''}
      </div>`)
 
   renderPanel(document.getElementById('macro-rings'),
