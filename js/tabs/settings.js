@@ -538,7 +538,7 @@ export async function renderSettings() {
         <a href="https://github.com/gonespral" target="_blank" style="color:var(--tx2); text-decoration:none">GitHub</a>
       </div>
       <div style="display:flex; justify-content:flex-end; align-items:flex-end">
-        <a href="/help/" target="_blank" class="settings-docs-btn" title="Documentation">
+        <a href="help/" target="_blank" class="settings-docs-btn" title="Documentation">
           <span class="material-symbols-outlined" style="font-size:15px">menu_book</span>
           Docs
         </a>

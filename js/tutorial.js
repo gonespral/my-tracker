@@ -10,17 +10,17 @@ const SLIDES = [
   {
     icon: 'bolt',
     title: 'Log food & workouts',
-    body: 'Type a meal or activity in the chat bar at the bottom. Claude estimates calories and macros from a description or photo. You can also speak or attach a photo. <a href="/help/logging.html" target="_blank" style="color:inherit;text-decoration:underline">Learn more →</a>',
+    body: 'Type a meal or activity in the chat bar at the bottom. Claude estimates calories and macros from a description or photo. You can also speak or attach a photo. <a href="help/logging.html" target="_blank" style="color:inherit;text-decoration:underline">Learn more →</a>',
   },
   {
     icon: 'schedule',
     title: 'The calorie clock',
-    body: 'The triangle on your calorie ring shows where you should be in your eating day. It learns your typical meal split over 30 days and advances as you log each meal. <a href="/help/calorie-clock.html" target="_blank" style="color:inherit;text-decoration:underline">Learn more →</a>',
+    body: 'The triangle on your calorie ring shows where you should be in your eating day. It learns your typical meal split over 30 days and advances as you log each meal. <a href="help/calorie-clock.html" target="_blank" style="color:inherit;text-decoration:underline">Learn more →</a>',
   },
   {
     icon: 'local_fire_department',
     title: 'Calorie targets',
-    body: 'Your target is calculated from your BMR and activity level. On training days it automatically increases by your net calories burned. <a href="/help/calorie-targets.html" target="_blank" style="color:inherit;text-decoration:underline">Learn more →</a>',
+    body: 'Your target is calculated from your BMR and activity level. On training days it automatically increases by your net calories burned. <a href="help/calorie-targets.html" target="_blank" style="color:inherit;text-decoration:underline">Learn more →</a>',
   },
   {
     icon: 'key',
@@ -30,12 +30,12 @@ const SLIDES = [
   {
     icon: 'directions_bike',
     title: 'Connect Strava',
-    body: 'Open Settings &rarr; Strava and tap Connect. Activities import on every load and can be pushed back to Strava with calorie data. <a href="/help/strava.html" target="_blank" style="color:inherit;text-decoration:underline">Learn more →</a>',
+    body: 'Open Settings &rarr; Strava and tap Connect. Activities import on every load and can be pushed back to Strava with calorie data. <a href="help/strava.html" target="_blank" style="color:inherit;text-decoration:underline">Learn more →</a>',
   },
   {
     icon: 'monitor_heart',
     title: 'Connect Google Health',
-    body: 'Pull activities from Google Fit and other Google Health sources. Open Settings &rarr; Google Health and tap Connect with Google. <a href="/help/strava.html" target="_blank" style="color:inherit;text-decoration:underline">Learn more →</a>',
+    body: 'Pull activities from Google Fit and other Google Health sources. Open Settings &rarr; Google Health and tap Connect with Google. <a href="help/strava.html" target="_blank" style="color:inherit;text-decoration:underline">Learn more →</a>',
   },
   {
     icon: 'favorite',
