@@ -85,7 +85,7 @@ export async function renderToday() {
   const burnedToday = calculateNetActiveCalories(workouts, TARGETS.calories.bmr)
 
   renderPanel(document.getElementById('cal-section'),
-    calRingHTML(totals.calories, calTarget, burnedToday) +
+    calRingHTML(totals.calories, calTarget, burnedToday, food) +
     `<div class="cal-badges">
        <span class="badge ${training?'training':''}}">${training ? 'Training day' : 'Rest day'}</span>
        <span class="badge">Target: ${(calTarget + burnedToday).toLocaleString()} kcal${burnedToday > 0 ? ' (+'+burnedToday+' burned)' : ''}</span>

@@ -9,45 +9,53 @@ export const MACRO_COLORS = {
   fat:     '#f59e0b',
 }
 
-// Fraction of eating day elapsed [0,1]. Eating window: 7am–10pm.
-function timeTargetFraction() {
-  const EATING_START = 7, EATING_END = 22
-  const now = new Date()
-  const t = now.getHours() + now.getMinutes() / 60
-  if (t <= EATING_START) return 0
-  if (t >= EATING_END)   return 1
-  return (t - EATING_START) / (EATING_END - EATING_START)
+// Typical ring-fraction for each meal type (eating window 7am–10pm = 0→1).
+const MEAL_TIME_FRAC = {
+  breakfast: (8    - 7) / 15,  // 8:00 am  → 0.07
+  lunch:     (12.5 - 7) / 15,  // 12:30 pm → 0.37
+  snack:     (15   - 7) / 15,  // 3:00 pm  → 0.53
+  dinner:    (19   - 7) / 15,  // 7:00 pm  → 0.80
 }
 
-// SVG triangle marker just outside the ring, pointing inward at the time-target position.
+// Returns the triangle fraction based on which meal types have been logged today.
+// Advances in a step each time a new (later-timed) meal category appears.
+function mealTargetFraction(food) {
+  if (!food || !food.length) return 0
+  const logged = new Set(food.map(e => e.meal).filter(Boolean))
+  let frac = 0
+  for (const [meal, f] of Object.entries(MEAL_TIME_FRAC)) {
+    if (logged.has(meal) && f > frac) frac = f
+  }
+  return frac
+}
+
+// SVG triangle marker just outside the ring, pointing inward.
 // Placed outside the ring stroke so it's always visible against the page background.
 // Requires overflow="visible" on the parent SVG.
-function ringTickSVG(cx, cy, r, sw, timeFrac) {
-  if (timeFrac <= 0 || timeFrac >= 1) return ''
-  const angle = -Math.PI / 2 + timeFrac * 2 * Math.PI
+function ringTickSVG(cx, cy, r, sw, frac) {
+  if (frac <= 0) return ''
+  const angle = -Math.PI / 2 + frac * 2 * Math.PI
   const dx = Math.cos(angle), dy = Math.sin(angle)
-  const px = -dy, py = dx  // perpendicular to radial direction
-  const isLarge = sw > 10
-  const gap   = 4                        // space between ring outer edge and triangle tip
-  const depth = isLarge ? 9 : 6         // triangle height (pointing inward)
-  const half  = isLarge ? 5 : 3.5       // half-width of triangle base
+  const px = -dy, py = dx
+  const gap = 4, depth = 9, half = 5
   const tipR  = r + sw / 2 + gap
   const baseR = tipR + depth
   const tipX  = (cx + tipR  * dx).toFixed(1), tipY  = (cy + tipR  * dy).toFixed(1)
   const b1X   = (cx + baseR * dx + half * px).toFixed(1), b1Y = (cy + baseR * dy + half * py).toFixed(1)
   const b2X   = (cx + baseR * dx - half * px).toFixed(1), b2Y = (cy + baseR * dy - half * py).toFixed(1)
   return `<polygon points="${tipX},${tipY} ${b1X},${b1Y} ${b2X},${b2Y}"
-    fill="var(--tx2)" stroke="var(--bg)" stroke-width="1.5" stroke-linejoin="round"/>`
+    fill="var(--tx2)" stroke="var(--bg)" stroke-width="1.5" stroke-linejoin="round"
+    style="animation:dot-pop .3s ease both .75s"/>`
 }
 
-export function calRingHTML(consumed, target, burned = 0) {
+export function calRingHTML(consumed, target, burned = 0, food = []) {
   const effectiveTarget = target + burned
   const size = 160, sw = 12, r = (size - sw) / 2
   const circ = 2 * Math.PI * r
   const pct  = Math.min(consumed / effectiveTarget, 1)
   const off  = circ * (1 - pct)
   const cx = size / 2, cy = size / 2
-  const timeFrac = timeTargetFraction()
+  const mealFrac = mealTargetFraction(food)
   const rem   = effectiveTarget - consumed
 
   // Inner ring for burned calories
@@ -64,7 +72,7 @@ export function calRingHTML(consumed, target, burned = 0) {
           stroke-dasharray="${circ.toFixed(2)}" stroke-dashoffset="${off.toFixed(2)}"
           stroke-linecap="round" transform="rotate(-90 ${cx} ${cy})"
           style="--ring-circ:${circ.toFixed(2)};--ring-off:${off.toFixed(2)};animation:ring-fill .7s cubic-bezier(.4,0,.2,1) both"/>
-        ${ringTickSVG(cx, cy, r, sw, timeFrac)}
+        ${ringTickSVG(cx, cy, r, sw, mealFrac)}
         ${burned > 0 ? `
         <circle cx="${cx}" cy="${cy}" r="${ri}" fill="none" stroke="var(--track)" stroke-width="${swi}" opacity="0.7"/>
         <circle cx="${cx}" cy="${cy}" r="${ri}" fill="none" stroke="#f97316" stroke-width="${swi}"
