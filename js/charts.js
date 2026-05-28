@@ -89,20 +89,18 @@ export function macroRingHTML(label, value, target, unit, accentColor) {
   const pct  = Math.min(value / target, 1)
   const off  = circ * (1 - pct)
   const cx = size / 2, cy = size / 2
-  const timeFrac = timeTargetFraction()
   const color = value > target ? 'var(--danger)' : accentColor
 
   return `
     <div class="macro-ring-card">
       <div class="macro-ring-label">${label}</div>
       <div class="ring-wrap" style="width:${size}px;height:${size}px">
-        <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" overflow="visible">
+        <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
           <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--track)" stroke-width="${sw}"/>
           <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${color}" stroke-width="${sw}"
             stroke-dasharray="${circ.toFixed(2)}" stroke-dashoffset="${off.toFixed(2)}"
             stroke-linecap="round" transform="rotate(-90 ${cx} ${cy})"
             style="--ring-circ:${circ.toFixed(2)};--ring-off:${off.toFixed(2)};animation:ring-fill .7s cubic-bezier(.4,0,.2,1) both"/>
-          ${ringTickSVG(cx, cy, r, sw, timeFrac)}
         </svg>
         <div class="ring-center">
           <div style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:15px;color:var(--tx);line-height:1">
