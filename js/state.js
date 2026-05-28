@@ -6,6 +6,7 @@ export const state = {
   mealsCache:   null,
   workoutPresetsCache: null,
   workoutConflictGroups: null,
+  pendingClaudeDraft: null,
   activeTab:    'today',
   heatmapMonthOffset: 0,
 

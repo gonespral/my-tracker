@@ -190,9 +190,15 @@ export async function renderToday() {
 
 export function openFoodSheet(meal = 'snack', date = null) {
   state.pendingEditFoodId = null
+  state.pendingClaudeDraft = null
   state.pendingFoodDate   = date
+  const title = document.getElementById('food-sheet-title')
+  if (title) title.textContent = 'Log Food'
   const banner = document.getElementById('preset-match-banner')
-  if (banner) banner.style.display = 'none'
+  if (banner) {
+    banner.style.display = 'none'
+    banner.textContent = ''
+  }
   const d = date || dateStr()
   document.getElementById('log-food-btn').textContent = 'Log Food'
   document.getElementById('f-date').value = d
@@ -210,7 +216,10 @@ export function openFoodSheet(meal = 'snack', date = null) {
 
 export function openFoodSheetWithPreset(preset) {
   state.pendingEditFoodId = null
+  state.pendingClaudeDraft = null
   state.pendingFoodDate   = null
+  const title = document.getElementById('food-sheet-title')
+  if (title) title.textContent = 'Log Food'
   document.getElementById('log-food-btn').textContent = 'Log Food'
   document.getElementById('f-date').value = dateStr()
   document.querySelectorAll('#food-sheet .meal-btn').forEach(b =>
@@ -229,8 +238,14 @@ export function openFoodSheetWithPreset(preset) {
 
 export function editFood(id, date) {
   closeMenus()
+  state.pendingClaudeDraft = null
   const banner = document.getElementById('preset-match-banner')
-  if (banner) banner.style.display = 'none'
+  if (banner) {
+    banner.style.display = 'none'
+    banner.textContent = ''
+  }
+  const title = document.getElementById('food-sheet-title')
+  if (title) title.textContent = 'Edit Food'
   // Find entry in cache
   let entry = null, entryDate = date
   if (date && state.dbCache?.food[date]) {
@@ -262,7 +277,15 @@ export function editFood(id, date) {
 export function openWorkoutSheet(date = null) {
   closeMenus()
   state.pendingEditWorkoutId = null
+  state.pendingClaudeDraft = null
   state.pendingWorkoutDate   = date
+  const title = document.getElementById('workout-sheet-title')
+  if (title) title.textContent = 'Log Activity'
+  const banner = document.getElementById('workout-draft-banner')
+  if (banner) {
+    banner.style.display = 'none'
+    banner.textContent = ''
+  }
   document.getElementById('w-desc-ac')?.classList.remove('open')
   document.getElementById('w-desc').value = ''
   document.getElementById('w-date').value = date || dateStr()
@@ -281,6 +304,7 @@ export function openWorkoutSheet(date = null) {
 
 export function editWorkout(id, date) {
   closeMenus()
+  state.pendingClaudeDraft = null
   let entry = null, entryDate = date
   if (date && state.dbCache?.workouts[date]) {
     entry = state.dbCache.workouts[date].find(e => e.id === id) || null
@@ -295,6 +319,13 @@ export function editWorkout(id, date) {
 
   state.pendingEditWorkoutId = id
   state.pendingWorkoutDate   = entryDate
+  const title = document.getElementById('workout-sheet-title')
+  if (title) title.textContent = 'Edit Activity'
+  const banner = document.getElementById('workout-draft-banner')
+  if (banner) {
+    banner.style.display = 'none'
+    banner.textContent = ''
+  }
   document.getElementById('w-desc-ac')?.classList.remove('open')
   document.getElementById('w-desc').value = entry.description || ''
   document.getElementById('w-date').value = entryDate

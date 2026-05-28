@@ -12,10 +12,12 @@ import { state } from '../state.js'
 import { supabase, db, getWorkoutConflictPreference, setWorkoutConflictPreference } from '../db.js'
 import { fmt, round, cap } from '../utils.js'
 import { openSheet, showToast, closeMenus, closeSheets } from '../ui.js'
+import { claudeDraftConfirmationEnabled, setClaudeDraftConfirmationEnabled } from '../ai.js'
 import { connectStrava, disconnectStrava, syncStrava, updateStravaSettingsSection, stravaAutoPushEnabled, stravaAutoPushGoogleEnabled, stravaSyncPaused, stravaWeightSyncEnabled, setStravaWeightSync, stravaSpoofCaloriesEnabled, setStravaSpoofCalories } from '../strava.js'
 import { connectGoogleHealth, disconnectGoogleHealth, syncGoogleHealth, updateGoogleHealthSettingsSection, ghAutoPushEnabled, ghSyncPaused, ghPushStravaImports, calibrateTDEETargets, googleHealthIsConnected } from '../google-health.js'
 import { materialIcon } from '../icons.js'
 import { showTutorial } from '../tutorial.js'
+import { APP_VERSION } from '../version.js'
 
 const STRAVA_ICON = materialIcon('directions_bike', 16)
 const GOOGLE_HEALTH_ICON = materialIcon('monitor_heart', 16)
@@ -128,6 +130,8 @@ function setTargetsReadonly(isReadonly) {
 
 export async function renderSettings() {
   const panel = document.getElementById('settings-content')
+  const versionEl = document.getElementById('settings-version')
+  if (versionEl) versionEl.textContent = APP_VERSION
 
   if (!state.currentUser) {
     panel.innerHTML = `
@@ -350,6 +354,14 @@ export async function renderSettings() {
         <input class="form-input" id="settings-apikey-input" type="password"
           placeholder="sk-ant-…" autocomplete="off" value="${apiKey ? '••••••••' : ''}" />
       </div>
+      <div class="toggle-row" style="margin:6px 0 12px">
+        <div class="toggle-row-label" style="font-size:13px">Confirm meal and activity drafts before saving</div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="claude-confirm-toggle" ${claudeDraftConfirmationEnabled() ? 'checked' : ''}>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <p class="setup-note" style="margin-top:0">When enabled, Claude opens the meal or activity editor first so you can review the draft before it is saved.</p>
       <button class="btn-primary" id="settings-save-apikey-btn" style="margin-top:0">Save Key</button>
     `)}
 
@@ -710,6 +722,11 @@ export async function renderSettings() {
     localStorage.setItem('tracker-anthropic-key', key)
     inp.value = '••••••••'
     showToast('✅ API key saved')
+  })
+
+  document.getElementById('claude-confirm-toggle')?.addEventListener('change', e => {
+    setClaudeDraftConfirmationEnabled(e.target.checked)
+    showToast(e.target.checked ? '✅ Claude draft confirmation enabled' : 'Claude drafts will save automatically')
   })
 
   conflictPreference?.addEventListener('change', async (event) => {

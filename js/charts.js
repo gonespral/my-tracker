@@ -1,4 +1,4 @@
-import { TARGETS, MEAL_ORDER, MEAL_LABEL, ACTIVITY_TYPE, detectActivityType } from './config.js'
+import { TARGETS, MEAL_ORDER, MEAL_LABEL, MEAL_ICON, ACTIVITY_TYPE, detectActivityType } from './config.js'
 import { dateStr, sumFood, fmt, round, calculateNetActiveCalories } from './utils.js'
 import { typeIcon } from './icons.js'
 
@@ -31,6 +31,7 @@ function ringTickSVG(cx, cy, r, sw, mealFrac, consumedFrac = 0) {
   const anim  = overflow
     ? `animation:anim-pop 0.4s ease both 0.25s`
     : `--ticker-deg:${(frac * 360).toFixed(1)}deg;animation:ticker-rotate 0.8s cubic-bezier(0.22,1,0.36,1) both 0.25s`
+
   return `<g style="transform-origin:${cx}px ${cy}px;${anim}">
     <polygon points="${tipX},${tipY} ${b1X},${b1Y} ${b2X},${b2Y}"
       fill="${fill}" stroke="var(--bg)" stroke-width="1.5" stroke-linejoin="round"/>

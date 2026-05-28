@@ -796,12 +796,13 @@ async function initApp() {
       meal,
     }
     const editId = state.pendingEditFoodId
+    const fromClaudeDraft = state.pendingClaudeDraft?.type === 'food'
     const dateVal = document.getElementById('f-date').value || dateStr()
     document.getElementById('f-date').disabled = false
     closeSheets()
     try {
       if (editId) { await db.updateFood(editId, entry); showToast(`✅ Updated ${desc}`) }
-      else { await db.addFood(dateVal, entry); showToast(`🍽️ Logged ${desc}`) }
+      else { await db.addFood(dateVal, entry); showToast(fromClaudeDraft ? `✅ Confirmed ${desc}` : `🍽️ Logged ${desc}`) }
       await renderActive()
     } catch (err) { showToast('❌ ' + (err.message || 'Save failed')) }
   })
@@ -828,6 +829,7 @@ async function initApp() {
     const dateVal = document.getElementById('w-date').value || dateStr()
     const timeVal = document.getElementById('w-time').value || null
     const editId = state.pendingEditWorkoutId
+    const fromClaudeDraft = state.pendingClaudeDraft?.type === 'workout'
     btn.disabled = true
     document.getElementById('w-date').disabled = false
     closeSheets()
@@ -846,7 +848,7 @@ async function initApp() {
           calories_burned: calsBurned, duration_min: durationMin, distance_km: distanceKm, heart_rate_avg: heartRate,
           time: timeIso
         })
-        showToast(`${{ low: '😴', medium: '💪', high: '🔥' }[intensity]} Logged ${desc}`)
+        showToast(fromClaudeDraft ? `✅ Confirmed ${desc}` : `${{ low: '😴', medium: '💪', high: '🔥' }[intensity]} Logged ${desc}`)
         const autoPushEntry = { description: desc, activity_type: activityType, date: dateVal, time: timeIso, duration_min: durationMin, calories_burned: calsBurned, distance_km: distanceKm, heart_rate_avg: heartRate }
         if (stravaAutoPushEnabled() && stravaIsConnected() && durationMin) {
           pushActivityToStrava(autoPushEntry)

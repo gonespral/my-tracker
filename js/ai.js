@@ -2,7 +2,15 @@ import { TARGETS } from './config.js'
 import { state } from './state.js'
 import { db } from './db.js'
 import { dateStr, nowTime, fmtDate, fmtDateShort, fmt, round, sumFood } from './utils.js'
-import { openSheet, showToast, syncBackdrop } from './ui.js'
+import { openSheet, closeSheets, showToast, syncBackdrop } from './ui.js'
+
+const CLAUDE_DRAFT_CONFIRM_KEY = 'tracker-claude-draft-confirm'
+
+export const claudeDraftConfirmationEnabled = () => localStorage.getItem(CLAUDE_DRAFT_CONFIRM_KEY) !== '0'
+
+export function setClaudeDraftConfirmationEnabled(enabled) {
+  localStorage.setItem(CLAUDE_DRAFT_CONFIRM_KEY, enabled ? '1' : '0')
+}
 
 export const CLAUDE_TOOLS = [
   {
@@ -344,6 +352,35 @@ export async function executeTool(name, input) {
   try {
     const date = input.date || dateStr()
     if (name === 'log_food') {
+      if (claudeDraftConfirmationEnabled()) {
+        closeSheets()
+        state.pendingClaudeDraft = { type: 'food', input: { ...input, date } }
+        const title = document.getElementById('food-sheet-title')
+        if (title) title.textContent = 'Review Meal'
+        const saveBtn = document.getElementById('log-food-btn')
+        if (saveBtn) saveBtn.textContent = 'Confirm Meal'
+        const banner = document.getElementById('preset-match-banner')
+        if (banner) {
+          const calories = Number(input.calories) || 0
+          const protein = Number(input.protein) || 0
+          const carbs = Number(input.carbs) || 0
+          const fat = Number(input.fat) || 0
+          banner.textContent = `Claude drafted: ${input.description || 'Meal'} · ${round(calories)} kcal · P${round(protein)} C${round(carbs)} F${round(fat)} · ${date}`
+          banner.style.display = 'block'
+        }
+        const dateInput = document.getElementById('f-date')
+        if (dateInput) dateInput.value = date
+        document.querySelectorAll('#food-sheet .meal-btn').forEach(b =>
+          b.classList.toggle('active', b.dataset.meal === (input.meal || 'snack')))
+        document.getElementById('f-desc').value = input.description || ''
+        document.getElementById('f-cal').value  = input.calories || ''
+        document.getElementById('f-pro').value  = input.protein || ''
+        document.getElementById('f-car').value  = input.carbs || ''
+        document.getElementById('f-fat').value  = input.fat || ''
+        openSheet('food-sheet')
+        showToast('📝 Claude meal drafted for review')
+        return 'drafted for review'
+      }
       await db.addFood(date, { description: input.description, calories: input.calories||0, protein: input.protein||0, carbs: input.carbs||0, fat: input.fat||0, meal: input.meal||'snack' })
       return `logged for ${date}`
     }
@@ -360,6 +397,35 @@ export async function executeTool(name, input) {
     }
     if (name === 'delete_food')    { await db.deleteFood(input.id); return 'deleted' }
     if (name === 'log_workout') {
+      if (claudeDraftConfirmationEnabled()) {
+        closeSheets()
+        state.pendingClaudeDraft = { type: 'workout', input: { ...input, date } }
+        const title = document.getElementById('workout-sheet-title')
+        if (title) title.textContent = 'Review Activity'
+        const saveBtn = document.getElementById('save-workout-btn')
+        if (saveBtn) saveBtn.textContent = 'Confirm Activity'
+        const banner = document.getElementById('workout-draft-banner')
+        if (banner) {
+          const intensity = input.intensity || 'medium'
+          const duration = Number(input.duration_min) || 0
+          const calories = Number(input.calories_burned) || 0
+          banner.textContent = `Claude drafted: ${input.description || 'Activity'} · ${intensity} intensity${duration ? ` · ${duration} min` : ''}${calories ? ` · ${round(calories)} kcal` : ''} · ${date}`
+          banner.style.display = 'block'
+        }
+        document.getElementById('w-desc').value = input.description || ''
+        document.getElementById('w-date').value = date
+        document.getElementById('w-time').value = ''
+        document.getElementById('w-activity-type').value = ''
+        document.getElementById('w-calories-burned').value = input.calories_burned || ''
+        document.getElementById('w-duration-min').value = input.duration_min || ''
+        document.getElementById('w-distance-km').value = input.distance_km || ''
+        document.getElementById('w-heart-rate').value = input.heart_rate_avg || ''
+        document.querySelectorAll('#intensity-btns-main .intensity-btn').forEach(b =>
+          b.classList.toggle('active', b.dataset.intensity === (input.intensity || 'medium')))
+        openSheet('intensity-sheet')
+        showToast('📝 Claude activity drafted for review')
+        return 'drafted for review'
+      }
       await db.addWorkout(date, { description: input.description, intensity: input.intensity,
         calories_burned: input.calories_burned||null, duration_min: input.duration_min||null,
         distance_km: input.distance_km||null, heart_rate_avg: input.heart_rate_avg||null,
