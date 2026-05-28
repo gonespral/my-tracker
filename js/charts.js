@@ -9,32 +9,12 @@ export const MACRO_COLORS = {
   fat:     '#f59e0b',
 }
 
-// Typical ring-fraction for each meal type (eating window 7am–10pm = 0→1).
-const MEAL_TIME_FRAC = {
-  breakfast: (8    - 7) / 15,  // 8:00 am  → 0.07
-  lunch:     (12.5 - 7) / 15,  // 12:30 pm → 0.37
-  snack:     (15   - 7) / 15,  // 3:00 pm  → 0.53
-  dinner:    (19   - 7) / 15,  // 7:00 pm  → 0.80
-}
-
-// Returns the triangle fraction based on which meal types have been logged today.
-// Advances in a step each time a new (later-timed) meal category appears.
-function mealTargetFraction(food) {
-  if (!food || !food.length) return 0
-  const logged = new Set(food.map(e => e.meal).filter(Boolean))
-  let frac = 0
-  for (const [meal, f] of Object.entries(MEAL_TIME_FRAC)) {
-    if (logged.has(meal) && f > frac) frac = f
-  }
-  return frac
-}
-
 // SVG triangle marker just outside the ring, pointing inward.
-// Placed outside the ring stroke so it's always visible against the page background.
 // Requires overflow="visible" on the parent SVG.
-function ringTickSVG(cx, cy, r, sw, frac) {
-  if (frac <= 0) return ''
-  const angle = -Math.PI / 2 + frac * 2 * Math.PI
+// mealFrac: pre-computed 0–1 from today.js based on historical meal ratios.
+function ringTickSVG(cx, cy, r, sw, mealFrac) {
+  if (mealFrac <= 0) return ''
+  const angle = -Math.PI / 2 + mealFrac * 2 * Math.PI
   const dx = Math.cos(angle), dy = Math.sin(angle)
   const px = -dy, py = dx
   const gap = 4, depth = 9, half = 5
@@ -48,14 +28,13 @@ function ringTickSVG(cx, cy, r, sw, frac) {
     style="animation:dot-pop .3s ease both .75s"/>`
 }
 
-export function calRingHTML(consumed, target, burned = 0, food = []) {
+export function calRingHTML(consumed, target, burned = 0, mealFrac = 0) {
   const effectiveTarget = target + burned
   const size = 160, sw = 12, r = (size - sw) / 2
   const circ = 2 * Math.PI * r
   const pct  = Math.min(consumed / effectiveTarget, 1)
   const off  = circ * (1 - pct)
   const cx = size / 2, cy = size / 2
-  const mealFrac = mealTargetFraction(food)
   const rem   = effectiveTarget - consumed
 
   // Inner ring for burned calories
@@ -65,7 +44,7 @@ export function calRingHTML(consumed, target, burned = 0, food = []) {
   const burnOff = circi * (1 - burnPct)
 
   return `
-    <div class="ring-wrap" style="width:${size}px;height:${size}px">
+    <div class="ring-wrap" style="width:${size}px;height:${size}px;margin-bottom:16px">
       <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" overflow="visible">
         <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--track)" stroke-width="${sw}"/>
         <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--accent)" stroke-width="${sw}"

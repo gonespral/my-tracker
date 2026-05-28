@@ -9,6 +9,51 @@ import { openSheet, showToast, closeMenus } from '../ui.js'
 import { fetchDailyWisdom } from '../ai.js'
 import { materialIcon } from '../icons.js'
 
+// Meal order by time of day for the calorie ring ticker.
+const MEAL_TIME_ORDER = ['breakfast', 'lunch', 'snack', 'dinner']
+
+// Returns a 0–1 fraction for the calorie ring ticker based on which meals
+// have been logged today. Position is derived from each meal's historical
+// average calorie share — so the step size reflects how much of your day
+// that meal typically represents. Falls back to equal weights with no history.
+function computeMealFrac(data, todayFood) {
+  if (!todayFood.length) return 0
+  const loggedMeals = new Set(todayFood.map(e => e.meal).filter(Boolean))
+  if (!loggedMeals.size) return 0
+
+  // Sum calories per meal type across last 30 days (excluding today)
+  const sums = Object.fromEntries(MEAL_TIME_ORDER.map(m => [m, 0]))
+  const counts = Object.fromEntries(MEAL_TIME_ORDER.map(m => [m, 0]))
+  for (let i = 1; i <= 30; i++) {
+    const d = new Date(); d.setDate(d.getDate() - i)
+    for (const e of (data.food[dateStr(d)] || [])) {
+      if (e.meal && e.meal in sums) { sums[e.meal] += e.calories || 0; counts[e.meal]++ }
+    }
+  }
+
+  const avgs = Object.fromEntries(
+    MEAL_TIME_ORDER.map(m => [m, counts[m] > 0 ? sums[m] / counts[m] : null])
+  )
+  const hasHistory = Object.values(avgs).some(v => v !== null)
+
+  // Fill missing meals with equal share of the average daily total so weights sum to 1
+  const nonNullSum = Object.values(avgs).reduce((s, v) => s + (v ?? 0), 0)
+  const nullCount  = Object.values(avgs).filter(v => v === null).length
+  const fallback   = hasHistory && nullCount > 0 ? nonNullSum / (MEAL_TIME_ORDER.length - nullCount) : null
+  for (const m of MEAL_TIME_ORDER) {
+    if (avgs[m] === null) avgs[m] = fallback ?? 1
+  }
+
+  const total = Object.values(avgs).reduce((s, v) => s + v, 0)
+  if (total === 0) return 0
+
+  let frac = 0
+  for (const m of MEAL_TIME_ORDER) {
+    if (loggedMeals.has(m)) frac += avgs[m] / total
+  }
+  return Math.min(frac, 1)
+}
+
 function wisdomHeader() {
   return `<div class="wisdom-header"><div class="wisdom-title">Claude Wisdom</div><button class="wisdom-reload-btn" data-action="reload-wisdom" aria-label="Regenerate"><span class="material-symbols-outlined" style="font-size:14px">refresh</span></button></div>`
 }
@@ -85,7 +130,7 @@ export async function renderToday() {
   const burnedToday = calculateNetActiveCalories(workouts, TARGETS.calories.bmr)
 
   renderPanel(document.getElementById('cal-section'),
-    calRingHTML(totals.calories, calTarget, burnedToday, food) +
+    calRingHTML(totals.calories, calTarget, burnedToday, computeMealFrac(data, food)) +
     `<div class="cal-badges">
        <span class="badge ${training?'training':''}}">${training ? 'Training day' : 'Rest day'}</span>
        <span class="badge">Target: ${(calTarget + burnedToday).toLocaleString()} kcal${burnedToday > 0 ? ' (+'+burnedToday+' burned)' : ''}</span>
