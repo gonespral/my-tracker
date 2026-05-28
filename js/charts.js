@@ -318,7 +318,8 @@ export function calTrendHTML(data, nDays = 30, options = {}) {
 
 export function mealMacroAvgHTML(data, nDays = 30) {
   const mealKeys = [...MEAL_ORDER, 'uncategorised']
-  const totals = Object.fromEntries(mealKeys.map(meal => [meal, { calories: 0, protein: 0, carbs: 0, fat: 0 }]))
+  const totals    = Object.fromEntries(mealKeys.map(meal => [meal, { calories: 0, protein: 0, carbs: 0, fat: 0 }]))
+  const dayCounts = Object.fromEntries(mealKeys.map(meal => [meal, 0]))
 
   for (let i = nDays - 1; i >= 0; i--) {
     const d = new Date(); d.setDate(d.getDate() - i)
@@ -331,28 +332,30 @@ export function mealMacroAvgHTML(data, nDays = 30) {
     }
 
     for (const meal of mealKeys) {
-      const dayTotals = sumFood(grouped[meal] || [])
+      if (!grouped[meal]?.length) continue
+      dayCounts[meal]++
+      const dayTotals = sumFood(grouped[meal])
       totals[meal].calories += dayTotals.calories
-      totals[meal].protein += dayTotals.protein
-      totals[meal].carbs += dayTotals.carbs
-      totals[meal].fat += dayTotals.fat
+      totals[meal].protein  += dayTotals.protein
+      totals[meal].carbs    += dayTotals.carbs
+      totals[meal].fat      += dayTotals.fat
     }
   }
 
   const averages = mealKeys.map(meal => {
-    const avg = {
-      calories: totals[meal].calories / nDays,
-      protein: totals[meal].protein / nDays,
-      carbs: totals[meal].carbs / nDays,
-      fat: totals[meal].fat / nDays,
-    }
+    const dc = dayCounts[meal]
+    const avg = dc > 0
+      ? { calories: totals[meal].calories / dc, protein: totals[meal].protein / dc,
+          carbs: totals[meal].carbs / dc, fat: totals[meal].fat / dc }
+      : { calories: 0, protein: 0, carbs: 0, fat: 0 }
     return {
       meal,
       label: MEAL_LABEL[meal] || (meal === 'uncategorised' ? 'Other' : meal),
       avg,
       totalMacros: avg.protein + avg.carbs + avg.fat,
+      dayCount: dc,
     }
-  }).filter(row => row.meal !== 'uncategorised' || row.totalMacros > 0 || row.avg.calories > 0)
+  }).filter(row => row.dayCount > 0)
 
   if (!averages.length) return '<div class="empty">No nutrition data yet.</div>'
 

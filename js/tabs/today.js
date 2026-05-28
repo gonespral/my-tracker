@@ -26,32 +26,37 @@ function timeOfDayFrac() {
 // - History exists, nothing logged today: returns time-of-day position
 // - History exists, meals logged: returns cumulative meal-ratio fraction
 function computeMealFrac(data, todayFood) {
-  // Sum calories per meal type across last 30 days (excluding today)
-  const sums = Object.fromEntries(MEAL_TIME_ORDER.map(m => [m, 0]))
-  const counts = Object.fromEntries(MEAL_TIME_ORDER.map(m => [m, 0]))
+  // Aggregate per day: only count calories for a meal on days it was actually logged
+  const sums     = Object.fromEntries(MEAL_TIME_ORDER.map(m => [m, 0]))
+  const daysSeen = Object.fromEntries(MEAL_TIME_ORDER.map(m => [m, 0]))
   for (let i = 1; i <= 30; i++) {
     const d = new Date(); d.setDate(d.getDate() - i)
+    const dayMealCals = {}
     for (const e of (data.food[dateStr(d)] || [])) {
-      if (e.meal && e.meal in sums) { sums[e.meal] += e.calories || 0; counts[e.meal]++ }
+      if (e.meal && e.meal in sums)
+        dayMealCals[e.meal] = (dayMealCals[e.meal] || 0) + (e.calories || 0)
+    }
+    for (const m of MEAL_TIME_ORDER) {
+      if (m in dayMealCals) { sums[m] += dayMealCals[m]; daysSeen[m]++ }
     }
   }
 
-  const totalEntries = Object.values(counts).reduce((s, c) => s + c, 0)
-  if (totalEntries === 0) return 0  // new user, no history
+  const totalDays = Object.values(daysSeen).reduce((s, c) => s + c, 0)
+  if (totalDays === 0) return 0  // new user, no history
 
   const loggedMeals = new Set(todayFood.map(e => e.meal).filter(Boolean))
   if (!loggedMeals.size) return timeOfDayFrac()  // history but nothing logged yet
 
+  // avg calories per meal, using only days that meal was logged
   const avgs = Object.fromEntries(
-    MEAL_TIME_ORDER.map(m => [m, counts[m] > 0 ? sums[m] / counts[m] : null])
+    MEAL_TIME_ORDER.map(m => [m, daysSeen[m] > 0 ? sums[m] / daysSeen[m] : null])
   )
 
-  // Fill missing meals with equal share of the average daily total so weights sum to 1
-  const nonNullSum = Object.values(avgs).reduce((s, v) => s + (v ?? 0), 0)
-  const nullCount  = Object.values(avgs).filter(v => v === null).length
-  const fallback   = nullCount > 0 ? nonNullSum / (MEAL_TIME_ORDER.length - nullCount) : null
+  // Fill unlogged meals with mean of known meals
+  const knownVals = Object.values(avgs).filter(v => v !== null)
+  const fallback  = knownVals.length > 0 ? knownVals.reduce((s, v) => s + v, 0) / knownVals.length : 1
   for (const m of MEAL_TIME_ORDER) {
-    if (avgs[m] === null) avgs[m] = fallback ?? 1
+    if (avgs[m] === null) avgs[m] = fallback
   }
 
   const total = Object.values(avgs).reduce((s, v) => s + v, 0)
