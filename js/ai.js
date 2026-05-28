@@ -201,6 +201,9 @@ export async function buildClaudeSystem() {
   }
 
   const burnedToday = workouts.reduce((s, w) => s + (w.calories_burned || 0), 0)
+  const eatbackPct  = TARGETS.calories.eatback_pct ?? 50
+  const eatback     = burnedToday > 0 ? Math.round(burnedToday * eatbackPct / 100) : 0
+  const effectiveTarget = calTarget + eatback
 
   const frequent = frequentFoodsNotPreset(data, meals)
   const autoSave  = frequent.filter(f => f.count >= 3)
@@ -214,9 +217,9 @@ export async function buildClaudeSystem() {
 
   return `You are a concise fitness tracking assistant embedded in the user's personal tracker app.
 Today: ${fmtDate(today)} (${today})
-Calories today: ${round(totals.calories)} / ${calTarget} kcal (${round(remaining)} remaining)${burnedToday > 0 ? ` [activity ${burnedToday} kcal shown separately]` : ''}
+Calories today: ${round(totals.calories)} / ${effectiveTarget} kcal (${round(effectiveTarget - totals.calories)} remaining)${burnedToday > 0 ? ` [burned ${burnedToday} kcal, eating back ${eatbackPct}% = +${eatback} kcal]` : ''}
 Protein: ${fmt(totals.protein)}g / ${TARGETS.protein}g  Carbs: ${fmt(totals.carbs)}g / ${TARGETS.carbs}g  Fat: ${fmt(totals.fat)}g / ${TARGETS.fat}g
-Current targets: maintenance ${TARGETS.calories.rest} kcal / goal ${TARGETS.calories.goal || TARGETS.calories.rest} kcal / P${TARGETS.protein}g C${TARGETS.carbs}g F${TARGETS.fat}g
+Current targets: goal ${calTarget} kcal + ${eatback} eat-back = ${effectiveTarget} kcal today / P${TARGETS.protein}g C${TARGETS.carbs}g F${TARGETS.fat}g
 Latest weight: ${weights[0] ? weights[0].kg.toFixed(1)+' kg ('+fmtDateShort(weights[0].date)+')' : 'not logged'}
 
 Recent log (last 7 days) — use IDs to edit or delete:

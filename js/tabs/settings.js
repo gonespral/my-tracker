@@ -335,6 +335,19 @@ export async function renderSettings() {
         </div>
       </div>
 
+      <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
+        <div class="toggle-row-label" style="margin-bottom:4px">Activity eat-back</div>
+        <div style="font-size:12px;color:var(--tx3);margin-bottom:10px">How much of your logged activity burn to add back to your daily calorie target.</div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <input type="range" id="eatback-slider" min="0" max="100" step="5" value="${TARGETS.calories.eatback_pct}"
+            style="flex:1;accent-color:var(--accent)">
+          <span id="eatback-label" style="font-size:14px;font-weight:600;color:var(--tx);min-width:36px;text-align:right">${TARGETS.calories.eatback_pct}%</span>
+        </div>
+        <div style="font-size:11px;color:var(--tx3);margin-top:6px">
+          50% recommended — device burn estimates are often 20–40% too high.
+        </div>
+      </div>
+
     `)}
 
     ${section('conflicts', 'Activity Conflicts', `
@@ -728,6 +741,13 @@ export async function renderSettings() {
   document.getElementById('claude-confirm-toggle')?.addEventListener('change', e => {
     setClaudeDraftConfirmationEnabled(e.target.checked)
     showToast(e.target.checked ? '✅ Claude draft confirmation enabled' : 'Claude drafts will save automatically')
+  })
+
+  document.getElementById('eatback-slider')?.addEventListener('input', e => {
+    const pct = Number(e.target.value)
+    document.getElementById('eatback-label').textContent = pct + '%'
+    TARGETS.calories.eatback_pct = pct
+    localStorage.setItem(`tracker-eatback-pct:${state.currentUser.id}`, pct)
   })
 
   conflictPreference?.addEventListener('change', async (event) => {

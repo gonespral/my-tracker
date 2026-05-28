@@ -409,6 +409,10 @@ async function initApp() {
       setCalorieDeficit(deficit)
       TARGETS.calories.training = TARGETS.calories.goal
     }
+    const eatbackKey = `tracker-eatback-pct:${state.currentUser.id}`
+    const rawEatback = Number(localStorage.getItem(eatbackKey))
+    if (Number.isFinite(rawEatback) && rawEatback >= 0 && rawEatback <= 100)
+      TARGETS.calories.eatback_pct = Math.round(rawEatback)
   } catch (e) { console.warn('Settings load failed:', e.message) }
 
   if (window.innerWidth >= 768) {
