@@ -54,7 +54,7 @@ export function calRingHTML(consumed, target, burned = 0, mealFrac = 0) {
   const burnOff = circi * (1 - burnPct)
 
   return `
-    <div class="ring-wrap" style="width:${size}px;height:${size}px;margin-bottom:16px">
+    <div class="ring-wrap" style="width:${size}px;height:${size}px;margin-top:16px;margin-bottom:16px">
       <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" overflow="visible">
         <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--track)" stroke-width="${sw}"/>
         <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--accent)" stroke-width="${sw}"

@@ -85,7 +85,62 @@
 
 <div class="help-page">
   <h1>Strava and Google Health</h1>
-  <p class="page-subtitle">Import activities automatically and optionally push workouts back with calorie data.</p>
+  <p class="page-subtitle">Two-way activity sync: import workouts automatically and push them back with calorie data.</p>
+
+  <h2>Two-way sync</h2>
+  <p>
+    MyTracker syncs activities in both directions with Strava and Google Health. Import pulls workouts
+    recorded on those platforms into MyTracker so they count toward your daily calorie target. Push sends
+    workouts you log directly in MyTracker back to the external service so your activity history stays
+    consistent everywhere.
+  </p>
+
+  <div class="flow-row">
+    <div class="flow-node service">Strava / Google Health</div>
+    <div class="flow-arrow">&#8594;</div>
+    <div class="flow-node">Import on load</div>
+    <div class="flow-arrow">&#8594;</div>
+    <div class="flow-node service">MyTracker</div>
+  </div>
+  <div class="flow-row">
+    <div class="flow-node service">MyTracker</div>
+    <div class="flow-arrow">&#8594;</div>
+    <div class="flow-node">Push (optional)</div>
+    <div class="flow-arrow">&#8594;</div>
+    <div class="flow-node service">Strava / Google Health</div>
+  </div>
+
+  <p>
+    Duplicate detection runs on every import: workouts that exist in both Strava and Google Health are
+    matched by source ID so they are only counted once regardless of which service is the origin.
+  </p>
+
+  <h2>APIs used</h2>
+
+  <div class="states">
+    <div class="state-row">
+      <span class="state-badge badge-orange">Strava</span>
+      <div class="state-body">
+        <strong>Strava API v3</strong>
+        <p>MyTracker reads activities from <code>GET /api/v3/athlete/activities</code> and writes back via
+        <code>POST /api/v3/activities</code> (JSON for plain activities) or <code>POST /api/v3/uploads</code>
+        (TCX file for activities with synthetic heart rate). OAuth uses the standard authorization code flow
+        with scopes <code>activity:read_all</code> and <code>activity:write</code>.</p>
+      </div>
+    </div>
+    <div class="state-row">
+      <span class="state-badge badge-green">Google</span>
+      <div class="state-body">
+        <strong>Google Health API v4</strong>
+        <p>Activities are read from and written to
+        <code>health.googleapis.com/v4/users/me/dataTypes/exercise/dataPoints</code>. OAuth uses the PKCE
+        flow with scopes
+        <code>googlehealth.activity_and_fitness.readonly</code> and
+        <code>googlehealth.activity_and_fitness.writeonly</code>. Token exchange runs through a Supabase
+        Edge Function so client credentials are never exposed in the browser.</p>
+      </div>
+    </div>
+  </div>
 
   <h2>Connecting Strava</h2>
   <p>
@@ -99,7 +154,7 @@
       <div class="step-num">1</div>
       <div class="step-body">
         <strong>Open Settings &rarr; Strava, tap Connect</strong>
-        <p>You are sent to Strava's OAuth page to approve the connection. MyTracker requests read-only access
+        <p>You are sent to Strava's OAuth page to approve the connection. MyTracker requests read access
         to activities plus write access for pushing workouts back.</p>
       </div>
     </div>
@@ -230,14 +285,60 @@
 
   <h2>Google Health</h2>
   <p>
-    Connect via <strong>Settings &rarr; Google Health</strong>. MyTracker pulls activities from Google Fit
-    and other connected Google Health sources. The same duplicate detection that applies to Strava activities
-    applies here, so workouts that appear in both services are only counted once.
+    Connect via <strong>Settings &rarr; Google Health</strong>. MyTracker pulls activities from Google Health
+    (including workouts recorded by Android, Fitbit, and other connected apps). The same duplicate detection
+    that applies to Strava activities applies here, so workouts that appear in both services are only counted once.
   </p>
 
-  <div class="callout">
-    You can enable automatic cross-push: when a new Strava activity is imported, it can be automatically
-    forwarded to Google Health as well. Toggle this in Settings &rarr; Strava &rarr; Auto-push to Google Health.
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <strong>Open Settings &rarr; Google Health, tap Connect</strong>
+        <p>You are sent to Google's OAuth consent screen. MyTracker requests read and write access to your
+        exercise data. Token exchange uses a Supabase Edge Function so your Google client credentials stay
+        server-side.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <strong>Activities are imported on every app load</strong>
+        <p>Google Health workouts appear in the Workouts tab alongside Strava imports. Matching is done by
+        source ID to prevent double-counting when both services hold the same workout.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <strong>Optionally push workouts to Google Health</strong>
+        <p>Enable auto-push in Settings to have workouts you log in MyTracker written back to Google Health
+        automatically. You can also push individual workouts from the workout card.</p>
+      </div>
+    </div>
+  </div>
+
+  <h2>Cross-service push</h2>
+  <p>
+    When both Strava and Google Health are connected you can enable automatic cross-push between them:
+  </p>
+  <div class="states">
+    <div class="state-row">
+      <span class="state-badge badge-orange">Strava → Google</span>
+      <div class="state-body">
+        <strong>Auto-push Strava imports to Google Health</strong>
+        <p>Each new activity imported from Strava is forwarded to Google Health automatically.
+        Toggle in Settings &rarr; Strava &rarr; Auto-push to Google Health.</p>
+      </div>
+    </div>
+    <div class="state-row">
+      <span class="state-badge badge-green">Google → Strava</span>
+      <div class="state-body">
+        <strong>Auto-push Google Health imports to Strava</strong>
+        <p>Each new activity imported from Google Health is forwarded to Strava automatically.
+        Toggle in Settings &rarr; Google Health &rarr; Auto-push to Strava.</p>
+      </div>
+    </div>
   </div>
 </div>
 
