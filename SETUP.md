@@ -9,11 +9,23 @@ Step-by-step instructions for self-hosting MyTracker. You will need accounts on 
 ```bash
 git clone https://github.com/gonespral/my-tracker.git
 cd my-tracker
-cp js/env.example.js js/env.js
-npm run dev   # http://localhost:3000
+npm install
 ```
 
-`js/env.js` is gitignored. Fill it in as you complete the steps below.
+Create a `.env` file in the project root (gitignored):
+
+```
+VITE_SUPABASE_URL=https://yourproject.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key
+VITE_STRAVA_CLIENT_ID=your-strava-client-id
+VITE_GOOGLE_HEALTH_CLIENT_ID=your-google-client-id
+```
+
+Fill in the values as you complete the steps below, then start the dev server:
+
+```bash
+npm run dev   # http://localhost:5173
+```
 
 ---
 
@@ -38,7 +50,7 @@ Go to **Authentication → Providers** and enable:
 
 **GitHub**
 1. Go to [github.com/settings/developers](https://github.com/settings/developers) → OAuth Apps → New OAuth App.
-2. Homepage URL: `https://your-site.com` (or `http://localhost:3000` for local dev)
+2. Homepage URL: `https://your-site.com` (or `http://localhost:5173` for local dev)
 3. Authorization callback URL: copy the callback URL from Supabase (Authentication → Providers → GitHub)
 4. Copy the **Client ID** and generate a **Client Secret** → paste into Supabase.
 
@@ -53,7 +65,7 @@ Go to **Authentication → Providers** and enable:
 In Supabase go to **Authentication → URL Configuration**:
 
 - Site URL: `https://your-site.com`
-- Redirect URLs: add both `https://your-site.com/**` and `http://localhost:3000/**`
+- Redirect URLs: add both `https://your-site.com/**` and `http://localhost:5173/**`
 
 ### 2.5 Deploy edge functions
 
@@ -77,20 +89,20 @@ npx supabase secrets set GOOGLE_HEALTH_CLIENT_SECRET=your_secret
 
 > **Note:** If you prefer not to use the shared edge function approach, you can skip deploying these functions and enter your own client credentials directly in the app's Settings sheet using the "Use custom credentials" option for each integration.
 
-### 2.6 Update env.js
+### 2.6 Fill in .env
 
-```js
-export const SUPABASE_URL = "https://yourproject.supabase.co"
-export const SUPABASE_ANON_KEY = "your-anon-key"
-export const STRAVA_CLIENT_ID = "your-strava-client-id"          // default/shared (optional)
-export const GOOGLE_HEALTH_CLIENT_ID = "your-google-client-id"  // default/shared (optional)
+```
+VITE_SUPABASE_URL=https://yourproject.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key
+VITE_STRAVA_CLIENT_ID=your-strava-client-id          # default/shared (optional)
+VITE_GOOGLE_HEALTH_CLIENT_ID=your-google-client-id  # default/shared (optional)
 ```
 
 ---
 
 ## 3. GitHub Pages deployment
 
-The included workflow (`.github/workflows/deploy.yml`) builds and publishes to GitHub Pages on every push to `main`. It injects the secrets below into a generated `js/env.js` before publishing, so you never commit credentials.
+The included workflow (`.github/workflows/deploy.yml`) installs dependencies, builds with Vite, and publishes the `dist/` output to GitHub Pages on every push to `main`. It injects the secrets below as environment variables before building, so you never commit credentials.
 
 ### 3.1 Enable GitHub Pages
 
@@ -194,7 +206,7 @@ Google Health requires a Google Cloud project with the Health API enabled. For p
 2. Application type: **Web application**.
 3. Authorized redirect URIs — add all that apply:
    - `https://your-site.com/`
-   - `http://localhost:3000/`
+   - `http://localhost:5173/`
 4. Copy the **Client ID** and **Client Secret**.
 
 ### 5.4 Add credentials to the edge function

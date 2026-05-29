@@ -1,6 +1,6 @@
 # MyTracker — brand assets
 
-Single concentric mark (“05 Concentric”) in every variant you’ll need.
+Single concentric mark ("05 Concentric") in every variant you'll need.
 
 ## Files
 
@@ -22,29 +22,28 @@ Single concentric mark (“05 Concentric”) in every variant you’ll need.
 - `icon-512-maskable.png`    — Android adaptive icon (10% safe-zone padding)
 - `site.webmanifest`         — PWA manifest snippet
 
-## Drop-in for tracker.html
+## Drop-in for index.html
 
 Add inside `<head>`:
 
 ```html
-<link rel="icon" href="icons/favicon.svg" type="image/svg+xml" />
-<link rel="icon" href="icons/favicon-32.png" type="image/png" sizes="32x32" />
-<link rel="icon" href="icons/favicon-16.png" type="image/png" sizes="16x16" />
-<link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
-<link rel="manifest" href="icons/site.webmanifest" />
+<link rel="icon" href="brand/icons/favicon.svg" type="image/svg+xml" />
+<link rel="icon" href="brand/icons/favicon-32.png" type="image/png" sizes="32x32" />
+<link rel="icon" href="brand/icons/favicon-16.png" type="image/png" sizes="16x16" />
+<link rel="apple-touch-icon" href="brand/icons/apple-touch-icon.png" />
+<link rel="manifest" href="manifest.json" />
 <meta name="theme-color" content="#1d7a3a" />
 ```
 
-Replace the text wordmark in the topbar with the SVG:
+Replace the text wordmark in the top bar with the SVG:
 
 ```html
-<h1 class="brand">
-  <img src="svg/logo-color.svg" alt="" width="28" height="28" />
+<span class="top-bar-title">
+  <img src="brand/svg/logo-mono-light.svg" alt="MyTracker" class="app-icon app-icon-light" />
+  <img src="brand/svg/logo-mono-dark.svg" alt="MyTracker" class="app-icon app-icon-dark" />
   MyTracker
-</h1>
+</span>
 ```
-
-…and drop the trailing `.dot` since the mark already carries the green accent.
 
 ## Colors used
 
@@ -73,15 +72,15 @@ Same geometry, white + green-2 rings on a dark navy (`#0f172a`) tile. Use for da
 - `icons/icon-512-maskable-dark.png`
 
 ### iOS dark-mode app icon (iOS 18+)
-Apple’s asset catalog accepts a dark variant alongside the light one. For a plain PWA on iOS Safari, you can also media-query the touch icon:
+Apple's asset catalog accepts a dark variant alongside the light one. For a plain PWA on iOS Safari, you can also media-query the touch icon:
 
 ```html
-<link rel="apple-touch-icon" href="icons/apple-touch-icon.png" media="(prefers-color-scheme: light)" />
-<link rel="apple-touch-icon" href="icons/apple-touch-icon-dark.png" media="(prefers-color-scheme: dark)" />
+<link rel="apple-touch-icon" href="brand/icons/apple-touch-icon.png" media="(prefers-color-scheme: light)" />
+<link rel="apple-touch-icon" href="brand/icons/apple-touch-icon-dark.png" media="(prefers-color-scheme: dark)" />
 ```
 
 ### Favicon (auto-switching)
 ```html
-<link rel="icon" href="icons/favicon.svg"      type="image/svg+xml" media="(prefers-color-scheme: light)" />
-<link rel="icon" href="icons/favicon-dark.svg" type="image/svg+xml" media="(prefers-color-scheme: dark)" />
+<link rel="icon" href="brand/icons/favicon.svg"      type="image/svg+xml" media="(prefers-color-scheme: light)" />
+<link rel="icon" href="brand/icons/favicon-dark.svg" type="image/svg+xml" media="(prefers-color-scheme: dark)" />
 ```

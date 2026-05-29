@@ -5,7 +5,7 @@
 	<img src="brand/shots/866_1x_shots_so.png" alt="MyTracker Screenshot 2" width="48%">
 </p>
 
-Self-hosted health and fitness tracker. Vanilla HTML/CSS/JS, Supabase backend, Claude AI assistant for natural-language logging. No framework, no build step, no subscriptions.
+Self-hosted health and fitness tracker. Svelte 4 + Vite frontend, Supabase backend, Claude AI assistant for natural-language logging. No subscriptions.
 
 Try the demo at [gonespral.github.io/my-tracker](https://gonespral.github.io/my-tracker/?demo=1).
 
