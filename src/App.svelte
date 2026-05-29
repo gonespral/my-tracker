@@ -7,6 +7,13 @@
   import Today from './components/tabs/Today.svelte'
   import Nutrition from './components/tabs/Nutrition.svelte'
   import Workouts from './components/tabs/Workouts.svelte'
+  import FoodSheet from './components/sheets/FoodSheet.svelte'
+  import WorkoutSheet from './components/sheets/WorkoutSheet.svelte'
+  import WeightSheet from './components/sheets/WeightSheet.svelte'
+  import MealPresetSheet from './components/sheets/MealPresetSheet.svelte'
+  import WorkoutPresetSheet from './components/sheets/WorkoutPresetSheet.svelte'
+  import ApiKeySheet from './components/sheets/ApiKeySheet.svelte'
+  import SettingsSheet from './components/sheets/SettingsSheet.svelte'
 
   let authReady = false
 
@@ -138,234 +145,14 @@
 <!-- ── Backdrop ────────────────────────────────────────────── -->
 <Backdrop />
 
-<!-- ── Activity sheet ──────────────────────────────────────── -->
-<div class="sheet sheet-form" class:open={$openSheetId === 'intensity-sheet'} id="intensity-sheet">
-  <div class="sheet-handle"></div>
-  <div class="sheet-title" id="workout-sheet-title">Log Activity</div>
-  <div id="workout-draft-banner" class="preset-match-banner" style="display:none"></div>
-  <div class="form-field autocomplete-wrap">
-    <label class="form-label" for="w-desc">Activity</label>
-    <input class="form-input" id="w-desc" type="text" placeholder="e.g. Morning run" autocomplete="off" />
-    <div class="autocomplete-list" id="w-desc-ac"></div>
-  </div>
-  <div style="display:flex;gap:8px">
-    <div class="form-field" style="flex:1">
-      <label class="form-label" for="w-date">Date</label>
-      <input class="form-input" id="w-date" type="date" />
-    </div>
-    <div class="form-field" style="flex:1">
-      <label class="form-label" for="w-time">Time</label>
-      <input class="form-input" id="w-time" type="time" />
-    </div>
-  </div>
-  <div class="form-field">
-    <!-- svelte-ignore a11y-label-has-associated-control -->
-    <label class="form-label">Intensity</label>
-    <div class="intensity-btns" id="intensity-btns-main">
-      <button class="intensity-btn" data-intensity="low" type="button">
-        <span class="material-symbols-outlined" style="font-size:13px;margin-right:4px">signal_cellular_alt_1_bar</span>Low
-      </button>
-      <button class="intensity-btn active" data-intensity="medium" type="button">
-        <span class="material-symbols-outlined" style="font-size:13px;margin-right:4px">signal_cellular_alt</span>Medium
-      </button>
-      <button class="intensity-btn" data-intensity="high" type="button">
-        <span class="material-symbols-outlined" style="font-size:13px;margin-right:4px">trending_up</span>High
-      </button>
-    </div>
-  </div>
-  <div class="form-field">
-    <label class="form-label" for="w-activity-type">Activity type <span style="font-size:11px;color:var(--tx3);font-weight:400">(auto-detected if blank)</span></label>
-    <select class="form-input" id="w-activity-type">
-      <option value="">Auto-detect from name</option>
-      <option value="run">Running</option>
-      <option value="cycle">Cycling</option>
-      <option value="swim">Swimming</option>
-      <option value="walk">Walking</option>
-      <option value="lift">Lifting / Gym</option>
-      <option value="box">Martial arts / Combat</option>
-      <option value="hiit">HIIT / Cardio</option>
-      <option value="yoga">Yoga / Pilates</option>
-      <option value="tennis">Racquet sport</option>
-      <option value="climb">Climbing</option>
-      <option value="row">Rowing / Kayak</option>
-      <option value="ball">Ball sport</option>
-    </select>
-  </div>
-  <div class="form-field">
-    <label class="form-label" for="w-calories-burned">Calories burned (optional)</label>
-    <input id="w-calories-burned" type="number" class="form-input" inputmode="numeric" placeholder="e.g. 350" min="0" />
-  </div>
-  <div class="form-row-2">
-    <div class="form-field">
-      <label class="form-label" for="w-duration-min">Duration (min)</label>
-      <input id="w-duration-min" type="number" class="form-input" inputmode="numeric" placeholder="e.g. 45" min="0" />
-    </div>
-    <div class="form-field">
-      <label class="form-label" for="w-distance-km">Distance (km)</label>
-      <input id="w-distance-km" type="number" class="form-input" inputmode="decimal" placeholder="e.g. 5.2" min="0" step="0.1" />
-    </div>
-  </div>
-  <div class="form-field">
-    <label class="form-label" for="w-heart-rate">Avg heart rate (bpm)</label>
-    <input id="w-heart-rate" type="number" class="form-input" inputmode="numeric" placeholder="e.g. 145" min="0" />
-  </div>
-  <button class="btn-primary" id="save-workout-btn">Log Activity</button>
-</div>
-
-<!-- ── Food sheet ─────────────────────────────────────────── -->
-<div class="sheet sheet-form" class:open={$openSheetId === 'food-sheet'} id="food-sheet">
-  <div class="sheet-handle"></div>
-  <div class="sheet-title" id="food-sheet-title">Log Food</div>
-  <div id="preset-match-banner" class="preset-match-banner" style="display:none"></div>
-  <div class="form-field">
-    <label class="form-label" for="f-date">Date</label>
-    <input class="form-input" id="f-date" type="date" />
-  </div>
-  <div class="form-field">
-    <!-- svelte-ignore a11y-label-has-associated-control -->
-    <label class="form-label">Meal</label>
-    <div class="meal-btns">
-      <button class="meal-btn active" data-meal="breakfast" type="button">Breakfast</button>
-      <button class="meal-btn" data-meal="lunch" type="button">Lunch</button>
-      <button class="meal-btn" data-meal="snack" type="button">Snack</button>
-      <button class="meal-btn" data-meal="dinner" type="button">Dinner</button>
-    </div>
-  </div>
-  <div class="form-field autocomplete-wrap">
-    <label class="form-label" for="f-desc">Description</label>
-    <input class="form-input" id="f-desc" type="text" placeholder="e.g. Pasta pesto + 2 eggs" autocomplete="off" />
-    <div class="autocomplete-list" id="f-desc-ac"></div>
-  </div>
-  <div class="form-field">
-    <label class="form-label" for="f-cal">Calories (kcal)</label>
-    <input class="form-input" id="f-cal" type="number" inputmode="numeric" placeholder="0" min="0" />
-  </div>
-  <div class="form-macros">
-    <div class="form-field">
-      <label class="form-label" for="f-pro">Protein (g)</label>
-      <input class="form-input" id="f-pro" type="number" inputmode="numeric" placeholder="0" min="0" />
-    </div>
-    <div class="form-field">
-      <label class="form-label" for="f-car">Carbs (g)</label>
-      <input class="form-input" id="f-car" type="number" inputmode="numeric" placeholder="0" min="0" />
-    </div>
-    <div class="form-field">
-      <label class="form-label" for="f-fat">Fat (g)</label>
-      <input class="form-input" id="f-fat" type="number" inputmode="numeric" placeholder="0" min="0" />
-    </div>
-  </div>
-  <button class="btn-primary" id="log-food-btn">Log Food</button>
-</div>
-
-<!-- ── Weight sheet ───────────────────────────────────────── -->
-<div class="sheet" class:open={$openSheetId === 'weight-edit-sheet'} id="weight-edit-sheet">
-  <div class="sheet-handle"></div>
-  <div class="sheet-title" id="weight-sheet-title">Log weight</div>
-  <div class="form-field">
-    <label class="form-label" for="w-edit-kg">Weight (kg)</label>
-    <input id="w-edit-kg" type="number" class="form-input" inputmode="decimal" step="0.1" placeholder="e.g. 73.5" />
-  </div>
-  <button class="btn-primary" id="save-weight-btn">Save</button>
-</div>
-
-<!-- ── Meal preset sheet ──────────────────────────────────── -->
-<div class="sheet" class:open={$openSheetId === 'meal-preset-sheet'} id="meal-preset-sheet">
-  <div class="sheet-handle"></div>
-  <div class="sheet-title" id="meal-preset-title">New Meal</div>
-  <div class="form-field">
-    <label class="form-label" for="mp-name">Name</label>
-    <input class="form-input" id="mp-name" type="text" placeholder="e.g. Oats with protein" />
-  </div>
-  <div class="form-field">
-    <label class="form-label" for="mp-cal">Calories (kcal)</label>
-    <input class="form-input" id="mp-cal" type="number" inputmode="numeric" placeholder="0" min="0" />
-  </div>
-  <div class="form-macros">
-    <div class="form-field">
-      <label class="form-label" for="mp-pro">Protein (g)</label>
-      <input class="form-input" id="mp-pro" type="number" inputmode="numeric" placeholder="0" min="0" />
-    </div>
-    <div class="form-field">
-      <label class="form-label" for="mp-car">Carbs (g)</label>
-      <input class="form-input" id="mp-car" type="number" inputmode="numeric" placeholder="0" min="0" />
-    </div>
-    <div class="form-field">
-      <label class="form-label" for="mp-fat">Fat (g)</label>
-      <input class="form-input" id="mp-fat" type="number" inputmode="numeric" placeholder="0" min="0" />
-    </div>
-  </div>
-  <div class="form-field">
-    <!-- svelte-ignore a11y-label-has-associated-control -->
-    <label class="form-label">Default meal</label>
-    <div class="meal-btns" id="mp-meal-btns">
-      <button class="meal-btn" data-meal="breakfast" type="button">Breakfast</button>
-      <button class="meal-btn" data-meal="lunch" type="button">Lunch</button>
-      <button class="meal-btn active" data-meal="snack" type="button">Snack</button>
-      <button class="meal-btn" data-meal="dinner" type="button">Dinner</button>
-    </div>
-  </div>
-  <button class="btn-primary" id="save-preset-btn">Save Meal</button>
-</div>
-
-<!-- ── Workout preset sheet ───────────────────────────────── -->
-<div class="sheet" class:open={$openSheetId === 'workout-preset-sheet'} id="workout-preset-sheet">
-  <div class="sheet-handle"></div>
-  <div class="sheet-title" id="wps-title">New Workout</div>
-  <div class="form-field">
-    <label class="form-label" for="wps-name">Name</label>
-    <input class="form-input" id="wps-name" type="text" placeholder="e.g. Morning swim" />
-  </div>
-  <div class="form-field">
-    <!-- svelte-ignore a11y-label-has-associated-control -->
-    <label class="form-label">Intensity</label>
-    <div class="intensity-btns" id="wps-intensity-btns">
-      <button class="intensity-btn" data-intensity="low" type="button">
-        <span class="material-symbols-outlined" style="font-size:13px;margin-right:4px">signal_cellular_alt_1_bar</span>Low
-      </button>
-      <button class="intensity-btn active" data-intensity="medium" type="button">
-        <span class="material-symbols-outlined" style="font-size:13px;margin-right:4px">signal_cellular_alt</span>Medium
-      </button>
-      <button class="intensity-btn" data-intensity="high" type="button">
-        <span class="material-symbols-outlined" style="font-size:13px;margin-right:4px">trending_up</span>High
-      </button>
-    </div>
-  </div>
-  <div class="form-field">
-    <label class="form-label" for="wps-calories-burned">Calories burned (optional)</label>
-    <input class="form-input" id="wps-calories-burned" type="number" inputmode="numeric" placeholder="e.g. 350" min="0" />
-  </div>
-  <button class="btn-primary" id="save-wps-btn">Save Workout</button>
-</div>
-
-<!-- ── API key sheet ─────────────────────────────────────── -->
-<div class="sheet" class:open={$openSheetId === 'apikey-sheet'} id="apikey-sheet">
-  <div class="sheet-handle"></div>
-  <div class="sheet-title">Set up Claude AI</div>
-  <p class="setup-note">
-    Paste your <a href="https://console.anthropic.com/settings/keys" target="_blank">Anthropic API key</a>.
-    Stored locally — never sent anywhere except Anthropic's API.
-  </p>
-  <div class="form-field">
-    <label class="form-label" for="apikey-input">API key</label>
-    <input class="form-input" id="apikey-input" type="password" placeholder="sk-ant-..." autocomplete="off" />
-  </div>
-  <button class="btn-primary" id="save-apikey-btn">Save</button>
-</div>
-
-<!-- ── Settings sheet ────────────────────────────────────── -->
-<div class="sheet sheet-tall" class:open={$openSheetId === 'settings-sheet'} id="settings-sheet" style="padding-bottom:0">
-  <div class="sheet-handle"></div>
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-    <div class="sheet-title" style="margin:0;display:flex;align-items:baseline;gap:8px">
-      <span>Settings</span>
-      <span id="settings-version" class="settings-version" aria-label="App version"></span>
-    </div>
-    <button id="settings-close-btn" class="chat-close-btn" style="font-size:18px">
-      <span class="material-symbols-outlined" style="font-size:18px">close</span>
-    </button>
-  </div>
-  <div id="settings-content" style="flex:1;overflow-y:auto;min-height:0;margin:0 -20px;padding:0 20px calc(20px + var(--safe-bot))"></div>
-</div>
+<!-- ── Sheet components ────────────────────────────────────── -->
+<WorkoutSheet />
+<FoodSheet />
+<WeightSheet />
+<MealPresetSheet />
+<WorkoutPresetSheet />
+<ApiKeySheet />
+<SettingsSheet />
 
 <!-- ── Toast ──────────────────────────────────────────────── -->
 <Toast />

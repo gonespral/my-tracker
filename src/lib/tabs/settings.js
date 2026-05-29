@@ -897,20 +897,8 @@ export async function renderSettings() {
 }
 
 export function openPresetSheet(id) {
-  closeSheets()
   state.pendingEditPresetId = id
   state.returnToSheetId = 'settings-sheet'
-  const m = id ? (state.mealsCache || []).find(x => x.id === id) : null
-  document.getElementById('meal-preset-title').textContent = m ? 'Edit Meal' : 'New Meal'
-  document.getElementById('mp-name').value = m?.name || ''
-  document.getElementById('mp-cal').value = m?.calories || ''
-  document.getElementById('mp-pro').value = m?.protein || ''
-  document.getElementById('mp-car').value = m?.carbs || ''
-  document.getElementById('mp-fat').value = m?.fat || ''
-  document.querySelectorAll('#mp-meal-btns .meal-btn').forEach(b =>
-    b.classList.toggle('active', b.dataset.meal === (m?.meal || 'snack')))
-  document.getElementById('save-preset-btn').textContent = m ? 'Update Meal' : 'Save Meal'
-  document.getElementById('mp-name-ac')?.classList.remove('open')
   openSheet('meal-preset-sheet')
 }
 
@@ -925,17 +913,8 @@ export async function deletePreset(id) {
 }
 
 export function openWorkoutPresetSheet(id) {
-  closeSheets()
   state.pendingEditWorkoutPresetId = id
   state.returnToSheetId = 'settings-sheet'
-  const w = id ? (state.workoutPresetsCache || []).find(x => x.id === id) : null
-  document.getElementById('wps-title').textContent = w ? 'Edit Activity' : 'New Activity'
-  document.getElementById('wps-name').value = w?.name || ''
-  document.getElementById('wps-calories-burned').value = w?.calories_burned || ''
-  document.querySelectorAll('#wps-intensity-btns .intensity-btn').forEach(b =>
-    b.classList.toggle('active', b.dataset.intensity === (w?.intensity || 'medium')))
-  document.getElementById('save-wps-btn').textContent = w ? 'Update Activity' : 'Save Activity'
-  document.getElementById('wps-name-ac')?.classList.remove('open')
   openSheet('workout-preset-sheet')
 }
 
