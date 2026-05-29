@@ -1,13 +1,12 @@
 import { state } from './state.js'
+import { dataGen } from '../stores.js'
 import { supabase, db, setWorkoutConflictOverride, dismissWorkoutConflict, reflagWorkoutConflict, isDemo } from './db.js'
 import { TARGETS, hydrateCalorieTargets, setCalorieDeficit, getCalorieGoal } from './config.js'
 import { dateStr, nowTime } from './utils.js'
 import { showToast, openSheet, closeSheet, closeSheets, toggleEntryMenu, closeMenus, bindSnapDrag } from './ui.js'
 import { startListening, stopListening } from './speech.js'
 import { openChat, expandChatPanel, collapseChatPanel, hideChatPanel, toggleChatPanel, sendChatMessage, setChatPanelState, isChatLoading, abortChat } from './ai.js'
-import { renderToday, openFoodSheet, openFoodSheetWithPreset, openWorkoutSheet, editFood, editWorkout, saveToMeals, reloadWisdom } from './tabs/today.js'
-import { renderNutrition } from './tabs/nutrition.js'
-import { renderWorkouts } from './tabs/workouts.js'
+import { openFoodSheet, openFoodSheetWithPreset, openWorkoutSheet, editFood, editWorkout, saveToMeals, reloadWisdom } from './tabs/today.js'
 import { renderSettings, openPresetSheet, deletePreset, openWorkoutPresetSheet, deleteWorkoutPreset } from './tabs/settings.js'
 import { handleStravaCallback, syncStrava, stravaIsConnected, pushActivityToStrava, deleteActivityFromStrava, stravaAutoPushEnabled } from './strava.js'
 import { handleGoogleHealthCallback, syncGoogleHealth, googleHealthIsConnected, pushActivityToGoogleHealth, deleteActivityFromGoogleHealth, ghAutoPushEnabled } from './google-health.js'
@@ -30,36 +29,15 @@ function signInGoogle() {
 }
 
 // ── Tab routing ────────────────────────────────────────────────
-const _tabGen = {}
 
-export async function renderActive() {
-  try {
-    if (state.activeTab === 'today') await renderToday()
-    if (state.activeTab === 'nutrition') await renderNutrition()
-    if (state.activeTab === 'workouts') await renderWorkouts()
-    _tabGen[state.activeTab] = state.dataGen
-  } catch (e) {
-    console.error('Render error:', e)
-    showToast('❌ ' + e.message)
-  }
-  restoreExpandedStacks()
-}
-
-function restoreExpandedStacks() {
-  if (!state.expandedConflictGroups.size) return
-  document.querySelectorAll('.conflict-stack:not(.conflict-stack--expanded)').forEach(stack => {
-    if (state.expandedConflictGroups.has(stack.dataset.group)) {
-      stack.classList.add('conflict-stack--expanded')
-      const below = stack.querySelector('.conflict-stack-below')
-      if (below) below.style.overflow = 'visible'
-    }
-  })
+// Signal tab components to re-render (they react to dataGen store)
+export function renderActive() {
+  dataGen.update(n => n + 1)
 }
 
 export function switchTab(tab) {
   state.activeTab = tab
   localStorage.setItem('tracker-tab', tab)
-  if (_tabGen[tab] !== state.dataGen) renderActive()
 }
 
 // ── Event delegation for dynamically-generated content ─────────
@@ -496,8 +474,6 @@ async function initApp() {
   } catch (e) { console.warn('Settings load failed:', e.message) }
 
   if (window.innerWidth >= 768) {
-    const statsSection = document.getElementById('stats-section')
-    if (statsSection) statsSection.style.display = 'block'
     state.statsOpen = true
   }
 
@@ -938,16 +914,6 @@ async function initApp() {
     } catch (err) { showToast('❌ ' + err.message) }
   })
 
-  // ── Mobile stats toggle ──
-  document.getElementById('stats-toggle')?.addEventListener('click', () => {
-    state.statsOpen = !state.statsOpen
-    const sec = document.getElementById('stats-section')
-    const lbl = document.getElementById('toggle-label')
-    const arr = document.getElementById('toggle-arrow')
-    if (window.innerWidth < 768) sec.style.display = state.statsOpen ? 'block' : 'none'
-    lbl.textContent = state.statsOpen ? 'Hide stats' : 'Stats'
-    arr.textContent = state.statsOpen ? 'expand_less' : 'expand_more'
-  })
 
   // ── Meal preset sheet: meal pill selection ──
   document.querySelectorAll('#mp-meal-btns .meal-btn').forEach(b =>

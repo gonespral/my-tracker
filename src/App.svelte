@@ -4,6 +4,9 @@
   import { initAuth, switchTab } from './lib/app-logic.js'
   import Toast from './components/layout/Toast.svelte'
   import Backdrop from './components/layout/Backdrop.svelte'
+  import Today from './components/tabs/Today.svelte'
+  import Nutrition from './components/tabs/Nutrition.svelte'
+  import Workouts from './components/tabs/Workouts.svelte'
 
   let authReady = false
 
@@ -58,29 +61,18 @@
 
   <!-- TODAY -->
   <div class="panel" class:active={$activeTab === 'today'} id="panel-today">
-    <div class="today-inner">
-      <div class="today-left">
-        <div class="cal-section" id="cal-section"></div>
-        <div class="macro-rings" id="macro-rings"></div>
-        <button class="stats-toggle" id="stats-toggle">
-          <span id="toggle-label">Stats</span>
-          <span id="toggle-arrow" class="material-symbols-outlined" style="font-size:16px">expand_more</span>
-        </button>
-        <div class="stats-section" id="stats-section" style="display:none">
-          <div class="chart-card" id="week-chart-card"></div>
-          <div class="streak-card" id="streak-card"></div>
-        </div>
-        <div class="wisdom-card" id="wisdom-card"></div>
-      </div>
-      <div class="today-right" id="today-logs"></div>
-    </div>
+    <Today />
   </div>
 
   <!-- NUTRITION -->
-  <div class="panel" class:active={$activeTab === 'nutrition'} id="panel-nutrition"></div>
+  <div class="panel" class:active={$activeTab === 'nutrition'} id="panel-nutrition">
+    <Nutrition />
+  </div>
 
   <!-- WORKOUTS -->
-  <div class="panel" class:active={$activeTab === 'workouts'} id="panel-workouts"></div>
+  <div class="panel" class:active={$activeTab === 'workouts'} id="panel-workouts">
+    <Workouts />
+  </div>
 
 </main>
 

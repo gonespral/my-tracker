@@ -46,3 +46,6 @@ export const expandedConflictGroups = writable(new Set())
 
 // Speech
 export const listening = writable(false)
+
+// Wisdom reload trigger (incremented by reloadWisdom())
+export const wisdomReloadToken = writable(0)
