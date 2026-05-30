@@ -121,7 +121,7 @@ export function weekChartHTML(data) {
     const ds = dateStr(d)
     const food     = data.food[ds]     || []
     const workouts = data.workouts[ds] || []
-    const dayBurn  = calculateNetActiveCalories(workouts, TARGETS.calories.bmr)
+    const dayBurn  = calculateNetActiveCalories(workouts)
     const eatbackPct = TARGETS.calories.eatback_enabled !== false ? (TARGETS.calories.eatback_pct ?? 50) : 0
     const dayEatback = dayBurn > 0 ? Math.round(dayBurn * eatbackPct / 100) : 0
     days.push({
@@ -302,7 +302,7 @@ export function calTrendHTML(data, nDays = 30, options = {}) {
     const ds = dateStr(d)
 
     const workouts = data.workouts[ds] || []
-    const burned   = calculateNetActiveCalories(workouts, TARGETS.calories.bmr)
+    const burned   = calculateNetActiveCalories(workouts)
     const eatback  = burned > 0 ? Math.round(burned * eatbackPct / 100) : 0
     const tdee     = (TARGETS.calories.goal || TARGETS.calories.rest) + eatback
 
@@ -757,7 +757,7 @@ export function activityStatsHTML(data, nDays = 30) {
     const d = new Date(); d.setDate(d.getDate() - i)
     const ds = dateStr(d)
     const dayWorkouts = data.workouts[ds] || []
-    totalCal += calculateNetActiveCalories(dayWorkouts, TARGETS.calories.bmr)
+    totalCal += calculateNetActiveCalories(dayWorkouts)
     for (const w of dayWorkouts) {
       if (w.isDuplicate) continue
       sessions++

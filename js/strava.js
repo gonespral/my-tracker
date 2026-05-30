@@ -3,7 +3,7 @@ import { db, supabase, parseWorkoutStart } from './db.js'
 import { state } from './state.js'
 import { showToast } from './ui.js'
 import { startSync, endSync, failSync } from './sync-status.js'
-import { STRAVA_CLIENT_ID as DEFAULT_CLIENT_ID, EDGE_FUNCTION_URL } from './config.js'
+import { STRAVA_CLIENT_ID as DEFAULT_CLIENT_ID, EDGE_FUNCTION_URL, TARGETS } from './config.js'
 
 const S_CUSTOM_FLAG = 'strava-use-custom'
 const S_CLIENT_ID = 'strava-client-id'
@@ -215,7 +215,17 @@ function mapActivity(act) {
     description: act.name || act.sport_type || act.sportType || 'Strava activity',
     sport_type: act.sport_type || act.sportType || null,
     intensity,
-    calories_burned: act.calories || act.caloriesBurned || null,
+    // Strava reports gross calories (including resting metabolic burn).
+    // Subtract resting burn for the activity duration to get active-only calories,
+    // consistent with Google Health imports and manual entries.
+    calories_burned: (() => {
+      const gross = act.calories || act.caloriesBurned || null
+      if (!gross) return null
+      const durationMin = secs ? secs / 60 : 0
+      if (!durationMin) return Math.round(gross)
+      const bmrPerMin = (TARGETS.calories.bmr || 1800) / 1440
+      return Math.max(0, Math.round(gross - bmrPerMin * durationMin))
+    })(),
     distance_km: act.distance ? parseFloat((act.distance / 1000).toFixed(1)) : null,
     duration_min: secs ? Math.round(secs / 60) : null,
     source: 'strava',

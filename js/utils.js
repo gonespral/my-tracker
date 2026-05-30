@@ -88,15 +88,13 @@ export const formatTimeTo24H = (val) => {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 
-export const calculateNetActiveCalories = (workouts, bmr) => {
+// All calories_burned values are stored as active calories (resting/BMR component already
+// removed at import time for Strava; Google Health and manual entries are active by nature).
+export const calculateNetActiveCalories = (workouts) => {
   if (!workouts || !workouts.length) return 0
-  const bmrPerMin = (bmr || 1800) / 1440
   const total = workouts.reduce((sum, w) => {
     if (w.isDuplicate) return sum
-    const gross = w.calories_burned || 0
-    const duration = w.duration_min || 0
-    const net = duration > 0 ? Math.max(0, gross - (bmrPerMin * duration)) : gross
-    return sum + net
+    return sum + (w.calories_burned || 0)
   }, 0)
   return Math.round(total)
 }

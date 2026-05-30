@@ -160,21 +160,23 @@
   <h2>Exercise eat-back</h2>
   <p>
     When you log a workout, MyTracker can raise your calorie target for that day by a percentage of
-    the <strong>net active calories</strong> you burned. This is the eat-back. It is on by default
+    the <strong>active calories</strong> you burned. This is the eat-back. It is on by default
     at 50% and can be adjusted or disabled in <strong>Settings &rarr; Calories &rarr; Activity eat-back</strong>.
   </p>
 
   <div class="net-demo">
-    <span class="chip chip-orange">420 kcal gross burn</span>
+    <span class="chip chip-orange">420 kcal total burn</span>
     <span class="eq">&minus;</span>
-    <span class="chip chip-gray">62 kcal resting (45 min at BMR)</span>
+    <span class="chip chip-gray">62 kcal resting (45 min &times; BMR rate)</span>
     <span class="eq">=</span>
-    <span class="chip chip-green">358 kcal net active</span>
+    <span class="chip chip-green">358 kcal active</span>
   </div>
 
   <p>
-    The resting portion is subtracted because your TDEE already accounts for the calories you burn
-    just being alive. Only the <em>extra</em> burn above your resting rate counts as net active.
+    The resting portion is subtracted because your TDEE already accounts for calories burned at rest.
+    Only the extra burn above that baseline counts. MyTracker always works in active calories:
+    Strava imports are converted on the way in (total minus resting burn for the activity duration),
+    Google Health and manually logged workouts report active calories directly.
     At 50% eat-back, 179 kcal would be added to your target for that day.
   </p>
 

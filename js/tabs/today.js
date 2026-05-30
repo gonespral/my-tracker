@@ -143,7 +143,7 @@ export async function renderToday() {
   const workouts = data.workouts[today] || []
   const totals      = sumFood(food)
   const calTarget   = getCalorieGoal()
-  const burnedToday = calculateNetActiveCalories(workouts, TARGETS.calories.bmr)
+  const burnedToday = calculateNetActiveCalories(workouts)
   const eatbackPct  = TARGETS.calories.eatback_enabled !== false ? (TARGETS.calories.eatback_pct ?? 50) : 0
   const eatback     = burnedToday > 0 ? Math.round(burnedToday * eatbackPct / 100) : 0
 

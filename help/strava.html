@@ -125,7 +125,9 @@
         <p>MyTracker reads activities from <code>GET /api/v3/athlete/activities</code> and writes back via
         <code>POST /api/v3/activities</code> (JSON for plain activities) or <code>POST /api/v3/uploads</code>
         (TCX file for activities with synthetic heart rate). OAuth uses the standard authorization code flow
-        with scopes <code>activity:read_all</code> and <code>activity:write</code>.</p>
+        with scopes <code>activity:read_all</code> and <code>activity:write</code>. Strava reports
+        <em>total</em> calories (including resting burn); MyTracker converts these to active-only calories
+        on import by subtracting the BMR burn for the activity duration.</p>
       </div>
     </div>
     <div class="state-row">
