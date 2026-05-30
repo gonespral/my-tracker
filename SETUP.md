@@ -144,9 +144,9 @@ npx supabase secrets set STRAVA_CLIENT_SECRET=your_client_secret
 
 Open MyTracker → Settings → Strava → Connect. You can also enable "Use custom credentials" and paste your own Client ID and Secret to bypass the shared edge function entirely.
 
-### 4.4 Calories
+### 4.4 Calories and heart rate
 
-Activities are always pushed to Strava as TCX file uploads rather than manual API entries. This means the `<Calories>` value from your log is declared directly in the file and Strava uses it as-is — no workarounds needed. If you have a heart rate logged on the activity it is also included in the TCX.
+Activities are pushed to Strava as TCX file uploads. The TCX file includes your logged calorie count and heart rate (if present), which Strava picks up directly from the file.
 
 ---
 
