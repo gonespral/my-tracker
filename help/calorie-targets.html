@@ -22,25 +22,6 @@
       align-items: center;
       gap: 16px;
     }
-    .target-badges {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-      justify-content: center;
-    }
-    .target-badge {
-      padding: 6px 14px;
-      border-radius: 999px;
-      font-size: 14px;
-      font-weight: 600;
-      border: 1.5px solid var(--border);
-      cursor: pointer;
-      font-family: 'DM Sans', sans-serif;
-      transition: background 0.15s, border-color 0.15s;
-    }
-    .target-badge.active-rest    { background: var(--track); color: var(--tx); border-color: var(--tx3); }
-    .target-badge.active-training { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
-    .target-badge:not(.active-rest):not(.active-training) { color: var(--tx2); }
     .target-display {
       text-align: center;
     }
@@ -60,7 +41,34 @@
       font-size: 13px;
       color: var(--tx2);
       text-align: center;
+      line-height: 1.6;
     }
+    .demo-slider-row {
+      width: 100%;
+    }
+    .demo-slider-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--tx3);
+      margin-bottom: 4px;
+    }
+    .demo-controls {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      width: 100%;
+    }
+    .demo-control-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      color: var(--tx2);
+    }
+    .demo-control-row label { flex: 1; }
+    .demo-control-row input[type=range] { flex: 2; }
+    .demo-control-val { min-width: 50px; text-align: right; font-weight: 600; color: var(--tx); font-size: 13px; }
     .activity-table {
       width: 100%;
       border-collapse: collapse;
@@ -112,24 +120,26 @@
 
 <div class="help-page">
   <h1>Calorie targets</h1>
-  <p class="page-subtitle">How MyTracker sets your daily calorie goal from a static TDEE baseline and a separate deficit.</p>
+  <p class="page-subtitle">How MyTracker calculates your daily calorie goal from BMR, activity level, deficit, and exercise eat-back.</p>
 
-  <h2>Your base target (rest day)</h2>
+  <h2>Your base target</h2>
   <p>
-    If you fill in your profile in <strong>Settings &rarr; Calories</strong>, MyTracker uses the
-    Mifflin-St Jeor equation to estimate your maintenance TDEE and then applies your chosen deficit.
+    Fill in your profile under <strong>Settings &rarr; Calories</strong> and MyTracker uses the
+    Mifflin–St Jeor equation to estimate your Basal Metabolic Rate, then scales it by your activity
+    level to get your maintenance TDEE.
   </p>
 
   <div class="formula">
     BMR (male)   = 10 &times; weight(kg) + 6.25 &times; height(cm) &minus; 5 &times; age + 5<br>
     BMR (female) = 10 &times; weight(kg) + 6.25 &times; height(cm) &minus; 5 &times; age &minus; 161<br>
     <br>
-    Maintenance TDEE = BMR &times; activity level multiplier
+    Maintenance TDEE = BMR &times; activity level multiplier<br>
+    Base goal = max(0, TDEE &minus; deficit)
   </div>
 
   <p>
-    If you have not filled in your profile, the target defaults to 2150 kcal maintenance and 0 kcal deficit.
-    You can also set a custom target directly in Settings.
+    If you have not filled in your profile, the target defaults to 2150 kcal with no deficit.
+    You can also set a custom fixed target directly in Settings.
   </p>
 
   <h2>Activity level multipliers</h2>
@@ -139,61 +149,89 @@
       <tr><th>Level</th><th>Multiplier</th><th>Description</th></tr>
     </thead>
     <tbody>
-      <tr><td>Sedentary</td>    <td>1.2x</td><td>Little to no movement</td></tr>
-      <tr><td>Light</td>        <td>1.375x</td><td>Light daily movement</td></tr>
-      <tr><td>Moderate</td>     <td>1.55x</td><td>Typical day with regular movement</td></tr>
-      <tr><td>Active</td>       <td>1.725x</td><td>High movement or frequent training</td></tr>
-      <tr><td>Very active</td>  <td>1.9x</td><td>Very active job or training volume</td></tr>
+      <tr><td>Sedentary</td>    <td>1.2×</td><td>Little to no movement outside of workouts</td></tr>
+      <tr><td>Light</td>        <td>1.375×</td><td>Light daily movement</td></tr>
+      <tr><td>Moderate</td>     <td>1.55×</td><td>Typical day with regular movement</td></tr>
+      <tr><td>Active</td>       <td>1.725×</td><td>High movement or frequent training</td></tr>
+      <tr><td>Very active</td>  <td>1.9×</td><td>Very active job or training volume</td></tr>
     </tbody>
   </table>
 
-  <h2>Deficit mode</h2>
+  <h2>Exercise eat-back</h2>
   <p>
-    When you set a deficit, MyTracker subtracts it from your maintenance TDEE. Workout calories stay informational only.
-  </p>
-
-  <div class="target-demo">
-    <div class="demo-label">Interactive example</div>
-    <div class="target-badges">
-      <button class="target-badge active-rest"     id="btn-rest">Rest day</button>
-      <button class="target-badge"                 id="btn-training">Training day</button>
-    </div>
-    <div class="target-display">
-      <div class="target-number" id="target-num">2150</div>
-      <div class="target-sublabel" id="target-lbl">kcal target</div>
-    </div>
-    <div class="target-breakdown" id="target-breakdown">
-      2150 kcal base target
-    </div>
-  </div>
-
-  <h2>Net active calories</h2>
-  <p>
-    Active calories are still tracked, but they do not change the day's intake target.
+    When you log a workout, MyTracker can raise your calorie target for that day by a percentage of
+    the <strong>net active calories</strong> you burned. This is the eat-back. It is on by default
+    at 50% and can be adjusted or disabled in <strong>Settings &rarr; Calories &rarr; Activity eat-back</strong>.
   </p>
 
   <div class="net-demo">
     <span class="chip chip-orange">420 kcal gross burn</span>
     <span class="eq">&minus;</span>
-    <span class="chip chip-gray">62 kcal resting burn (45 min)</span>
+    <span class="chip chip-gray">62 kcal resting (45 min at BMR)</span>
     <span class="eq">=</span>
-    <span class="chip chip-green">358 kcal added</span>
+    <span class="chip chip-green">358 kcal net active</span>
   </div>
 
   <p>
-    This keeps your daily target stable. A workout can still inform your activity context, but your intake goal stays based on TDEE and your chosen deficit.
+    The resting portion is subtracted because your TDEE already accounts for the calories you burn
+    just being alive. Only the <em>extra</em> burn above your resting rate counts as net active.
+    At 50% eat-back, 179 kcal would be added to your target for that day.
   </p>
 
   <div class="callout">
-    Duplicate workouts (the same activity imported from both Strava and Google Health on the same day)
-    are detected and excluded from the net calories calculation so they do not inflate your target.
+    When eat-back is enabled, your activity level in Settings is automatically locked to
+    <strong>Sedentary</strong>. This prevents double-counting: active-day burn is captured through
+    eat-back from logged workouts rather than baked into your base TDEE multiplier.
+  </div>
+
+  <h2>Interactive example</h2>
+
+  <div class="target-demo">
+    <div class="demo-label">Adjust the sliders to see how your target changes</div>
+    <div class="demo-controls">
+      <div class="demo-control-row">
+        <label>Base goal</label>
+        <input type="range" id="sl-base" min="1200" max="3500" step="50" value="2150">
+        <span class="demo-control-val" id="val-base">2,150 kcal</span>
+      </div>
+      <div class="demo-control-row">
+        <label>Net active burned</label>
+        <input type="range" id="sl-burn" min="0" max="800" step="10" value="358">
+        <span class="demo-control-val" id="val-burn">358 kcal</span>
+      </div>
+      <div class="demo-control-row">
+        <label>Eat-back %</label>
+        <input type="range" id="sl-pct" min="0" max="100" step="5" value="50">
+        <span class="demo-control-val" id="val-pct">50%</span>
+      </div>
+    </div>
+    <div class="target-display">
+      <div class="target-number" id="target-num">2,329</div>
+      <div class="target-sublabel">kcal effective target</div>
+    </div>
+    <div class="target-breakdown" id="target-breakdown"></div>
+  </div>
+
+  <h2>Deficit</h2>
+  <p>
+    A deficit is subtracted from your maintenance TDEE to produce the base goal. It applies every
+    day, regardless of whether you exercise. Eat-back is then added on top of that reduced base on
+    days you log a workout.
+  </p>
+  <p>
+    For example: 2150 kcal TDEE with a 300 kcal deficit gives a 1850 kcal base. On a day with
+    358 net active kcal burned at 50% eat-back, the effective target is 1850 + 179 = 2029 kcal.
+  </p>
+
+  <div class="callout">
+    Duplicate workouts — the same activity imported from both Strava and Google Health — are
+    detected and excluded from the net active calories calculation so they do not inflate your target.
   </div>
 
   <h2>Macronutrient targets</h2>
   <p>
-    Macro targets use a <strong>30% protein / 40% carbs / 30% fat</strong> split applied to your calorie
-    target. The gram values update automatically if your calorie target changes. You can see today's
-    macro breakdown on the ring charts on the Today tab.
+    Macro targets use a <strong>30% protein / 40% carbs / 30% fat</strong> split applied to your
+    base calorie goal. The gram values update automatically if your calorie target changes.
   </p>
 
   <div class="two-col">
@@ -217,30 +255,35 @@
 </div>
 
 <script>
-  const BASE = 2150
-  const BURNED_NET = 358
-  let training = false
-
-  const numEl = document.getElementById('target-num')
-  const lblEl = document.getElementById('target-lbl')
-  const brkEl = document.getElementById('target-breakdown')
-  const btnRest = document.getElementById('btn-rest')
-  const btnTrain = document.getElementById('btn-training')
+  const slBase = document.getElementById('sl-base')
+  const slBurn = document.getElementById('sl-burn')
+  const slPct  = document.getElementById('sl-pct')
+  const valBase = document.getElementById('val-base')
+  const valBurn = document.getElementById('val-burn')
+  const valPct  = document.getElementById('val-pct')
+  const numEl   = document.getElementById('target-num')
+  const brkEl   = document.getElementById('target-breakdown')
 
   function update() {
-    const total = training ? BASE + BURNED_NET : BASE
-    numEl.textContent = total.toLocaleString()
-    lblEl.textContent = 'kcal target'
-    brkEl.textContent = training
-      ? `${BASE} kcal base + ${BURNED_NET} kcal net burn = ${total} kcal`
-      : `${BASE} kcal base target`
+    const base    = parseInt(slBase.value)
+    const burn    = parseInt(slBurn.value)
+    const pct     = parseInt(slPct.value)
+    const eatback = Math.round(burn * pct / 100)
+    const total   = base + eatback
 
-    btnRest.className  = 'target-badge' + (training ? '' : ' active-rest')
-    btnTrain.className = 'target-badge' + (training ? ' active-training' : '')
+    valBase.textContent = base.toLocaleString() + ' kcal'
+    valBurn.textContent = burn.toLocaleString() + ' kcal'
+    valPct.textContent  = pct + '%'
+    numEl.textContent   = total.toLocaleString()
+
+    if (burn === 0 || pct === 0) {
+      brkEl.textContent = `${base.toLocaleString()} kcal base — no eat-back`
+    } else {
+      brkEl.textContent = `${base.toLocaleString()} base + ${eatback.toLocaleString()} eat-back (${pct}% of ${burn.toLocaleString()} net kcal)`
+    }
   }
 
-  btnRest.addEventListener('click',  () => { training = false;  update() })
-  btnTrain.addEventListener('click', () => { training = true;   update() })
+  [slBase, slBurn, slPct].forEach(el => el.addEventListener('input', update))
   update()
 </script>
 

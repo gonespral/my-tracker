@@ -144,7 +144,7 @@ export async function renderToday() {
   const totals      = sumFood(food)
   const calTarget   = getCalorieGoal()
   const burnedToday = calculateNetActiveCalories(workouts, TARGETS.calories.bmr)
-  const eatbackPct  = TARGETS.calories.eatback_pct ?? 50
+  const eatbackPct  = TARGETS.calories.eatback_enabled !== false ? (TARGETS.calories.eatback_pct ?? 50) : 0
   const eatback     = burnedToday > 0 ? Math.round(burnedToday * eatbackPct / 100) : 0
 
   const effectiveTarget = calTarget + eatback
@@ -152,7 +152,7 @@ export async function renderToday() {
     calRingHTML(totals.calories, effectiveTarget, burnedToday, computeMealFrac(data, effectiveTarget)) +
     `<div class="cal-badges">
        <span class="badge">Target: ${effectiveTarget.toLocaleString()} kcal${eatback > 0 ? ` (+${eatback} eat-back)` : ''}</span>
-       ${burnedToday > 0 ? `<span class="badge">🔥 ${burnedToday.toLocaleString()} burned</span>` : ''}
+       ${burnedToday > 0 ? `<span class="badge"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle">local_fire_department</span> ${burnedToday.toLocaleString()} burned</span>` : ''}
      </div>`)
 
   renderPanel(document.getElementById('macro-rings'),

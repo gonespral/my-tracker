@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nutrition tab — MyTracker</title>
+  <link rel="icon" href="/brand/icons/favicon-mono-dark.svg">
+  <script src="page.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="page.css">
+  <style>
+    .icon-list {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      margin: 20px 0;
+    }
+    .icon-row {
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+    }
+    .icon-row .row-icon {
+      flex-shrink: 0;
+      width: 32px;
+      height: 32px;
+      background: var(--accent-soft);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--accent);
+      margin-top: 1px;
+    }
+    .icon-row .row-body { font-size: 15px; line-height: 1.5; }
+    .icon-row .row-body strong { color: var(--tx); }
+    .icon-row .row-body p { color: var(--tx2); margin: 0; }
+
+    /* ── Nutrition calendar ── */
+    .cal-demo {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+      margin: 20px auto;
+      max-width: 260px;
+    }
+    .cal-demo-nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .cal-nav-btn {
+      background: var(--track);
+      border: none;
+      border-radius: 6px;
+      width: 28px;
+      height: 28px;
+      color: var(--tx2);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s;
+    }
+    .cal-nav-btn:hover:not(:disabled) { background: var(--border); }
+    .cal-nav-btn:disabled { opacity: 0.3; cursor: default; }
+    .cal-demo-month { font-size: 13px; font-weight: 600; color: var(--tx); }
+    .cal-demo-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 3px;
+    }
+    .cal-lbl { font-size: 10px; color: var(--tx3); text-align: center; padding-bottom: 3px; }
+    .cal-cell {
+      aspect-ratio: 1;
+      border-radius: 4px;
+      font-size: 10px;
+      color: var(--tx3);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1px;
+      line-height: 1;
+    }
+    .cal-cell.today { outline: 1.5px solid var(--accent); outline-offset: 1px; }
+    .cal-cell.empty { opacity: 0; pointer-events: none; }
+    .cal-cell.future { opacity: 0.25; }
+    .cal-cell .hm-day { font-size: 9px; }
+    .cal-cell .hm-arrow { font-size: 10px; font-weight: 600; }
+
+    /* ── Calorie legend ── */
+    .cal-legend {
+      display: flex;
+      gap: 14px;
+      justify-content: center;
+      margin: 12px 0 20px;
+      flex-wrap: wrap;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 12px;
+      color: var(--tx2);
+    }
+    .legend-swatch {
+      width: 14px;
+      height: 14px;
+      border-radius: 3px;
+    }
+
+    /* ── Calorie intake trend ── */
+    .chart-demo {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      margin: 20px 0;
+    }
+    .chart-demo-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 10px;
+    }
+    .chart-demo-title { font-size: 13px; font-weight: 600; color: var(--tx); }
+    .chart-demo-sub { font-size: 12px; color: var(--tx3); }
+    .chart-svg { width: 100%; display: block; }
+
+    /* ── Meal macro averages ── */
+    .macro-avg-demo {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      margin: 20px 0;
+    }
+    .macro-avg-header {
+      display: flex; justify-content: space-between;
+      margin-bottom: 14px;
+    }
+    .macro-avg-title { font-size: 13px; font-weight: 600; color: var(--tx); }
+    .macro-avg-sub { font-size: 12px; color: var(--tx3); }
+    .meal-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+      font-size: 12px;
+    }
+    .meal-icon { color: var(--tx3); flex-shrink: 0; }
+    .meal-name { color: var(--tx2); width: 68px; flex-shrink: 0; }
+    .meal-bar-wrap { flex: 1; height: 5px; background: var(--track); border-radius: 3px; overflow: hidden; }
+    .meal-bar { height: 100%; border-radius: 3px; background: var(--accent); }
+    .meal-kcal { font-size: 11px; color: var(--tx3); min-width: 48px; text-align: right; }
+
+    /* ── Weight sparkline mock ── */
+    .weight-demo {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      margin: 20px 0;
+    }
+    .weight-demo-header {
+      display: flex; justify-content: space-between; align-items: baseline;
+      margin-bottom: 10px;
+    }
+    .weight-entry-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+    .weight-entry-row:last-child { border-bottom: none; }
+    .weight-date { color: var(--tx3); font-size: 12px; }
+    .weight-val { font-family: 'Space Grotesk', sans-serif; font-weight: 600; color: var(--tx); }
+    .weight-delta { font-size: 11px; padding: 1px 6px; border-radius: 10px; }
+    .delta-down { background: var(--accent-soft); color: var(--accent); }
+    .delta-up   { background: #fff3cd; color: #856404; }
+    [data-theme="dark"] .delta-up { background: #341a00; color: #d29922; }
+  </style>
+</head>
+<body>
+
+<div class="help-page">
+  <h1>Nutrition tab</h1>
+  <p class="page-subtitle">Calorie heatmap, food log, macro averages, and weight tracking.</p>
+
+  <h2>Layout</h2>
+  <p>
+    The tab is split into two columns. The <strong>left</strong> has the nutrition calendar, stats,
+    and weight log. The <strong>right</strong> is the food log — entries for the selected month in
+    reverse order, with daily calorie and macro totals in each day header.
+  </p>
+
+  <h2>Nutrition calendar</h2>
+  <p>
+    A monthly grid colour-coded by how close your calorie intake was to your target each day.
+    Full green means within ±25% of target; the colour fades toward grey as you drift further —
+    there's no hard cutoff, just intensity. Each logged day shows the day number and an arrow
+    (↑ surplus · ✓ on target · ↓ deficit). Use ‹ › to navigate months.
+  </p>
+
+  <div class="cal-demo">
+    <div class="cal-demo-nav">
+      <button class="cal-nav-btn" id="cal-prev">
+        <span class="material-symbols-outlined" style="font-size:16px">chevron_left</span>
+      </button>
+      <span class="cal-demo-month" id="cal-month-label"></span>
+      <button class="cal-nav-btn" id="cal-next">
+        <span class="material-symbols-outlined" style="font-size:16px">chevron_right</span>
+      </button>
+    </div>
+    <div class="cal-demo-grid" id="cal-grid">
+      <div class="cal-lbl">M</div><div class="cal-lbl">T</div><div class="cal-lbl">W</div>
+      <div class="cal-lbl">T</div><div class="cal-lbl">F</div><div class="cal-lbl">S</div><div class="cal-lbl">S</div>
+    </div>
+  </div>
+
+  <div class="cal-legend">
+    <div class="legend-item"><div class="legend-swatch" style="background:var(--accent)"></div> On target (±25%)</div>
+    <div class="legend-item"><div class="legend-swatch" style="background:var(--accent);opacity:0.4"></div> Off target</div>
+    <div class="legend-item"><div class="legend-swatch" style="background:var(--track);border:1px solid var(--border)"></div> Far off</div>
+  </div>
+
+  <h2>Stats</h2>
+  <p>
+    Tap the <strong>Stats</strong> button below the calendar to expand. It contains:
+  </p>
+
+  <div class="icon-list">
+    <div class="icon-row">
+      <div class="row-icon"><span class="material-symbols-outlined" style="font-size:18px">show_chart</span></div>
+      <div class="row-body">
+        <strong>Caloric intake trend</strong>
+        <p>Line chart of calories logged per day over the last 30 days, with a dashed line for your base target.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="chart-demo">
+    <div class="chart-demo-header">
+      <span class="chart-demo-title">Caloric intake</span>
+      <span class="chart-demo-sub" style="display:flex;gap:12px;align-items:center">
+        <span style="display:flex;align-items:center;gap:4px"><span style="display:inline-block;width:10px;height:2px;background:var(--accent);border-radius:1px"></span>intake</span>
+        <span style="display:flex;align-items:center;gap:4px"><span style="display:inline-block;width:10px;height:2px;background:#8b949e;border-radius:1px"></span>burned</span>
+      </span>
+    </div>
+    <svg class="chart-svg" viewBox="0 0 320 80" preserveAspectRatio="none">
+      <defs>
+        <linearGradient id="cal-grad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="var(--accent)" stop-opacity="0.2"/>
+          <stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      <!-- Target line -->
+      <line x1="0" y1="38" x2="320" y2="38" stroke="var(--border)" stroke-width="1" stroke-dasharray="4 3"/>
+      <!-- Intake area -->
+      <path d="M0,42 L11,35 L22,50 L33,30 L44,45 L55,38 L66,28 L77,42 L88,55 L99,32 L110,40 L121,48 L132,35 L143,25 L154,38 L165,52 L176,36 L187,30 L198,44 L209,38 L220,28 L231,42 L242,50 L253,33 L264,40 L275,55 L286,38 L297,30 L308,42 L320,36 L320,80 L0,80 Z"
+        fill="url(#cal-grad)"/>
+      <!-- Intake line -->
+      <path d="M0,42 L11,35 L22,50 L33,30 L44,45 L55,38 L66,28 L77,42 L88,55 L99,32 L110,40 L121,48 L132,35 L143,25 L154,38 L165,52 L176,36 L187,30 L198,44 L209,38 L220,28 L231,42 L242,50 L253,33 L264,40 L275,55 L286,38 L297,30 L308,42 L320,36"
+        fill="none" stroke="var(--accent)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      <!-- Burn line (secondary, muted) -->
+      <path d="M0,70 L11,68 L22,58 L33,70 L44,70 L55,52 L66,48 L77,70 L88,70 L99,55 L110,50 L121,70 L132,70 L143,42 L154,36 L165,70 L176,68 L187,54 L198,70 L209,70 L220,44 L231,40 L242,70 L253,68 L264,58 L275,70 L286,70 L297,46 L308,40 L320,70"
+        fill="none" stroke="#8b949e" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 2" opacity="0.7"/>
+    </svg>
+  </div>
+
+  <div class="icon-list">
+    <div class="icon-row">
+      <div class="row-icon"><span class="material-symbols-outlined" style="font-size:18px">restaurant</span></div>
+      <div class="row-body">
+        <strong>Meal macro averages</strong>
+        <p>Average calories per meal type (breakfast, lunch, snack, dinner) across the last 30 days, shown as bars with macro breakdown.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="macro-avg-demo">
+    <div class="macro-avg-header">
+      <span class="macro-avg-title">Avg per meal · last 30 days</span>
+    </div>
+    <div class="meal-row">
+      <span class="material-symbols-outlined meal-icon" style="font-size:15px">breakfast_dining</span>
+      <span class="meal-name">Breakfast</span>
+      <div class="meal-bar-wrap"><div class="meal-bar" style="width:52%"></div></div>
+      <span class="meal-kcal">420 kcal</span>
+    </div>
+    <div class="meal-row">
+      <span class="material-symbols-outlined meal-icon" style="font-size:15px">lunch_dining</span>
+      <span class="meal-name">Lunch</span>
+      <div class="meal-bar-wrap"><div class="meal-bar" style="width:72%"></div></div>
+      <span class="meal-kcal">580 kcal</span>
+    </div>
+    <div class="meal-row">
+      <span class="material-symbols-outlined meal-icon" style="font-size:15px">cookie</span>
+      <span class="meal-name">Snack</span>
+      <div class="meal-bar-wrap"><div class="meal-bar" style="width:25%"></div></div>
+      <span class="meal-kcal">200 kcal</span>
+    </div>
+    <div class="meal-row">
+      <span class="material-symbols-outlined meal-icon" style="font-size:15px">dinner_dining</span>
+      <span class="meal-name">Dinner</span>
+      <div class="meal-bar-wrap"><div class="meal-bar" style="width:81%"></div></div>
+      <span class="meal-kcal">650 kcal</span>
+    </div>
+  </div>
+
+  <h2>Weight</h2>
+  <p>
+    Below the stats section, the left column has a weight log with a sparkline of your recent trend
+    and your last few weigh-ins. Tap <strong>+ Log today's weight</strong> to add an entry.
+  </p>
+
+  <div class="weight-demo">
+    <div class="weight-demo-header">
+      <svg viewBox="0 0 260 50" style="width:100%;display:block;margin-bottom:10px">
+        <defs>
+          <linearGradient id="wt-grad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="var(--accent)" stop-opacity="0.15"/>
+            <stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        <path d="M0,35 L32,32 L65,28 L97,30 L130,22 L162,18 L195,20 L227,14 L260,10 L260,50 L0,50 Z" fill="url(#wt-grad)"/>
+        <path d="M0,35 L32,32 L65,28 L97,30 L130,22 L162,18 L195,20 L227,14 L260,10"
+          fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="260" cy="10" r="3" fill="var(--accent)"/>
+      </svg>
+    </div>
+    <div class="weight-entry-row">
+      <span class="weight-date">Today</span>
+      <span class="weight-delta delta-down">−0.30 kg</span>
+      <span class="weight-val">83.20 kg</span>
+    </div>
+    <div class="weight-entry-row">
+      <span class="weight-date">Yesterday</span>
+      <span class="weight-delta delta-down">−0.15 kg</span>
+      <span class="weight-val">83.50 kg</span>
+    </div>
+    <div class="weight-entry-row">
+      <span class="weight-date">May 28</span>
+      <span class="weight-delta delta-up">+0.10 kg</span>
+      <span class="weight-val">83.65 kg</span>
+    </div>
+  </div>
+
+  <div class="callout">
+    The meal macro averages are the same data the <a href="calorie-clock.html">Calorie Clock</a> uses
+    to position its pace ticker — your 30-day per-meal history drives both.
+  </div>
+</div>
+
+<script>
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const todayStr = today.toISOString().slice(0, 10)
+  const TARGET = 2100
+
+  // Fake daily calorie data: offset from today → kcal eaten
+  const FOOD = {}
+  const OFFSETS = [
+    [0, 2050], [-1, 1920], [-2, 2300], [-3, 1850], [-4, 2150], [-5, 2400], [-6, 1780],
+    [-7, 2100], [-8, 1950], [-9, 2250], [-10, 1800], [-11, 2050], [-12, 2350], [-13, 1900],
+    [-14, 2100], [-15, 2200], [-16, 1750], [-17, 2050], [-18, 2400], [-19, 1900], [-20, 2150],
+    [-21, 2050], [-22, 1850], [-23, 2300], [-24, 2100], [-25, 1950], [-26, 2250], [-27, 2050],
+    [-28, 1800], [-29, 2100], [-30, 2350], [-31, 1900], [-32, 2050], [-33, 2200], [-34, 1850],
+    [-35, 2100], [-36, 2400], [-37, 1950], [-38, 2150], [-39, 1800], [-40, 2050], [-41, 2300],
+    [-42, 1900], [-43, 2100], [-44, 2250], [-45, 1850], [-46, 2050], [-47, 2350], [-48, 1780], [-49, 2100],
+  ]
+  for (const [off, kcal] of OFFSETS) {
+    const d = new Date(today); d.setDate(today.getDate() + off)
+    FOOD[d.toISOString().slice(0, 10)] = kcal
+  }
+
+  // Matches nutritionHeatmapStyle() in charts.js exactly:
+  // onTargetWindow = max(50, target * 0.25)
+  // closeness = 1 when within window, fades via scale = max(target*0.8, 400), floor 0.12
+  // background = mix(track, accent, closeness); text white when closeness > 0.7
+  function mixRgb(base, top, t) {
+    return `rgb(${Math.round(base[0]+(top[0]-base[0])*t)} ${Math.round(base[1]+(top[1]-base[1])*t)} ${Math.round(base[2]+(top[2]-base[2])*t)})`
+  }
+  function cellStyle(kcal) {
+    // Read actual CSS vars so it works in dark mode too
+    const cs = getComputedStyle(document.documentElement)
+    function parseVar(v) {
+      const s = cs.getPropertyValue(v).trim()
+      const m = s.match(/\d+/g)
+      return m && m.length >= 3 ? [+m[0],+m[1],+m[2]] : null
+    }
+    const accent = parseVar('--accent') || [26,127,55]
+    const track  = parseVar('--track')  || [233,236,242]
+
+    const absDiff = Math.abs(kcal - TARGET)
+    const onTargetWindow = Math.max(50, TARGET * 0.25)
+    const scale = Math.max(TARGET * 0.8, 400)
+    const closeness = absDiff <= onTargetWindow ? 1 : Math.min(1, Math.max(0.12, 1 - (absDiff - onTargetWindow) / scale))
+    return {
+      background: mixRgb(track, accent, closeness),
+      color: closeness > 0.7 ? '#fff' : 'var(--tx)',
+    }
+  }
+
+  let monthOffset = 0
+
+  function renderCalendar() {
+    const ref = new Date(today.getFullYear(), today.getMonth() + monthOffset, 1)
+    const year = ref.getFullYear(), month = ref.getMonth()
+    const label = ref.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+    document.getElementById('cal-month-label').textContent = label
+    document.getElementById('cal-prev').disabled = false
+    document.getElementById('cal-next').disabled = monthOffset >= 0
+
+    const grid = document.getElementById('cal-grid')
+    const headers = Array.from(grid.querySelectorAll('.cal-lbl'))
+    grid.innerHTML = ''
+    headers.forEach(h => grid.appendChild(h))
+
+    const firstDow = (new Date(year, month, 1).getDay() + 6) % 7
+    const daysInMonth = new Date(year, month + 1, 0).getDate()
+
+    for (let i = 0; i < firstDow; i++) {
+      const el = document.createElement('div'); el.className = 'cal-cell empty'; grid.appendChild(el)
+    }
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const ds = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+      const el = document.createElement('div')
+      const isFuture = ds > todayStr
+      const isToday  = ds === todayStr
+      const kcal     = FOOD[ds]
+
+      let cls = 'cal-cell'
+      if (isFuture) cls += ' future'
+      if (isToday)  cls += ' today'
+      el.className = cls
+
+      if (kcal && !isFuture) {
+        const { background, color } = cellStyle(kcal)
+        el.style.background = background
+        el.style.color = color
+        const diff = kcal - TARGET
+        const arrow = Math.abs(diff) <= TARGET * 0.05 ? '✓' : diff > 0 ? '↑' : '↓'
+        el.innerHTML = `<span class="hm-day">${day}</span><span class="hm-arrow">${arrow}</span>`
+      } else {
+        el.textContent = isFuture ? '' : day
+      }
+      grid.appendChild(el)
+    }
+  }
+
+  document.getElementById('cal-prev').addEventListener('click', () => { monthOffset--; renderCalendar() })
+  document.getElementById('cal-next').addEventListener('click', () => { if (monthOffset < 0) { monthOffset++; renderCalendar() } })
+
+  renderCalendar()
+</script>
+
+</body>
+</html>

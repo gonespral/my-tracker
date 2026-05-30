@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Activities tab — MyTracker</title>
+  <link rel="icon" href="/brand/icons/favicon-mono-dark.svg">
+  <script src="page.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="page.css">
+  <style>
+    .icon-list {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      margin: 20px 0;
+    }
+    .icon-row {
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+    }
+    .icon-row .row-icon {
+      flex-shrink: 0;
+      width: 32px;
+      height: 32px;
+      background: var(--accent-soft);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--accent);
+      margin-top: 1px;
+    }
+    .icon-row .row-body { font-size: 15px; line-height: 1.5; }
+    .icon-row .row-body strong { color: var(--tx); }
+    .icon-row .row-body p { color: var(--tx2); margin: 0; }
+
+    /* ── Calendar ── */
+    .cal-demo {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+      margin: 20px auto;
+      max-width: 260px;
+    }
+    .cal-demo-nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .cal-nav-btn {
+      background: var(--track);
+      border: none;
+      border-radius: 6px;
+      width: 28px;
+      height: 28px;
+      color: var(--tx2);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s;
+    }
+    .cal-nav-btn:hover:not(:disabled) { background: var(--border); }
+    .cal-nav-btn:disabled { opacity: 0.3; cursor: default; }
+    .cal-demo-month { font-size: 13px; font-weight: 600; color: var(--tx); }
+    .cal-demo-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 3px;
+    }
+    .cal-lbl { font-size: 10px; color: var(--tx3); text-align: center; padding-bottom: 3px; }
+    .cal-cell {
+      aspect-ratio: 1;
+      border-radius: 4px;
+      font-size: 10px;
+      color: var(--tx3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .cal-cell.has { background: var(--accent-soft); color: var(--accent); }
+    .cal-cell.today { outline: 1.5px solid var(--accent); outline-offset: 1px; }
+    .cal-cell.empty { opacity: 0; pointer-events: none; }
+    .cal-cell.future { opacity: 0.25; }
+
+    /* ── Streak widget ── */
+    .streak-demo {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 16px;
+      margin: 20px 0;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+    .streak-num-wrap { text-align: center; flex-shrink: 0; }
+    .streak-big {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 44px;
+      font-weight: 700;
+      color: var(--tx);
+      line-height: 1;
+    }
+    .streak-lbl { font-size: 11px; color: var(--tx3); margin-top: 3px; }
+    .streak-dots { display: flex; gap: 5px; }
+    .streak-dot-col { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+    .streak-dot {
+      width: 26px; height: 26px;
+      border-radius: 50%;
+      background: var(--track);
+      border: 1.5px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; color: var(--tx3);
+    }
+    .streak-dot.filled { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .streak-dot.today { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .streak-dot.future { opacity: 0.3; }
+    .dot-day { font-size: 9px; color: var(--tx3); }
+
+    /* ── Type breakdown ── */
+    .type-demo {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      margin: 20px 0;
+    }
+    .type-header {
+      display: flex; justify-content: space-between; align-items: baseline;
+      margin-bottom: 14px;
+    }
+    .type-header-title { font-size: 13px; font-weight: 600; color: var(--tx); }
+    .type-header-sub { font-size: 12px; color: var(--tx3); }
+    .type-row {
+      display: flex; align-items: center; gap: 10px; margin-bottom: 9px;
+    }
+    .type-icon { color: var(--accent); flex-shrink: 0; line-height: 1; }
+    .type-lbl { font-size: 12px; color: var(--tx2); width: 64px; flex-shrink: 0; }
+    .type-track { flex: 1; height: 5px; background: var(--track); border-radius: 3px; overflow: hidden; }
+    .type-fill { height: 100%; border-radius: 3px; }
+    .type-count { font-size: 11px; font-weight: 600; color: var(--tx3); min-width: 14px; text-align: right; }
+
+    /* ── 30-day stats ── */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin: 20px 0;
+    }
+    .stat-tile {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 10px;
+      text-align: center;
+    }
+    .stat-val {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--tx);
+      line-height: 1;
+    }
+    .stat-unit { font-size: 11px; color: var(--tx3); margin-left: 1px; }
+    .stat-lbl { font-size: 11px; color: var(--tx3); margin-top: 4px; }
+
+    /* ── Calorie burn trend (SVG) ── */
+    .burn-demo {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      margin: 20px 0;
+    }
+    .burn-header {
+      display: flex; justify-content: space-between; align-items: baseline;
+      margin-bottom: 10px;
+    }
+    .burn-title { font-size: 13px; font-weight: 600; color: var(--tx); }
+    .burn-sub { font-size: 12px; color: var(--tx3); }
+    .burn-svg { width: 100%; display: block; }
+  </style>
+</head>
+<body>
+
+<div class="help-page">
+  <h1>Activities tab</h1>
+  <p class="page-subtitle">Calendar view, activity log, streak, and stats — all in one tab.</p>
+
+  <h2>Layout</h2>
+  <p>
+    The tab is split into two columns. The <strong>left</strong> has the calendar and stats widgets.
+    The <strong>right</strong> is the activity log — activities for the selected month in reverse
+    chronological order, with a <strong>+ Log activity</strong> button at the top.
+  </p>
+
+  <h2>Calendar</h2>
+  <p>
+    A monthly grid (Mon–Sun) showing when you trained. Days with an activity show the activity type
+    icon. Tapping a day scrolls the log to that date. Use ‹ › to go back through previous months.
+  </p>
+
+  <div class="cal-demo">
+    <div class="cal-demo-nav">
+      <button class="cal-nav-btn" id="cal-prev">
+        <span class="material-symbols-outlined" style="font-size:16px">chevron_left</span>
+      </button>
+      <span class="cal-demo-month" id="cal-month-label"></span>
+      <button class="cal-nav-btn" id="cal-next">
+        <span class="material-symbols-outlined" style="font-size:16px">chevron_right</span>
+      </button>
+    </div>
+    <div class="cal-demo-grid" id="cal-grid">
+      <div class="cal-lbl">M</div><div class="cal-lbl">T</div><div class="cal-lbl">W</div>
+      <div class="cal-lbl">T</div><div class="cal-lbl">F</div><div class="cal-lbl">S</div><div class="cal-lbl">S</div>
+    </div>
+  </div>
+
+  <h2>Stats</h2>
+  <p>
+    Tap the <strong>Stats</strong> button below the calendar to expand. It contains:
+  </p>
+
+  <div class="icon-list">
+
+    <div class="icon-row">
+      <div class="row-icon"><span class="material-symbols-outlined" style="font-size:18px">bar_chart</span></div>
+      <div class="row-body">
+        <strong>By type</strong>
+        <p>Bar chart of your activities for the selected month, broken down by type with counts.</p>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="type-demo">
+    <div class="type-header">
+      <span class="type-header-title">By type</span>
+      <span class="type-header-sub">14 total</span>
+    </div>
+    <div class="type-row">
+      <span class="material-symbols-outlined type-icon" style="font-size:15px;color:#3b82f6">directions_run</span>
+      <span class="type-lbl">Running</span>
+      <div class="type-track"><div class="type-fill" style="width:57%;background:#3b82f6"></div></div>
+      <span class="type-count">8</span>
+    </div>
+    <div class="type-row">
+      <span class="material-symbols-outlined type-icon" style="font-size:15px;color:#f97316">fitness_center</span>
+      <span class="type-lbl">Lifting</span>
+      <div class="type-track"><div class="type-fill" style="width:29%;background:#f97316"></div></div>
+      <span class="type-count">4</span>
+    </div>
+    <div class="type-row">
+      <span class="material-symbols-outlined type-icon" style="font-size:15px;color:#10b981">directions_bike</span>
+      <span class="type-lbl">Cycling</span>
+      <div class="type-track"><div class="type-fill" style="width:14%;background:#10b981"></div></div>
+      <span class="type-count">2</span>
+    </div>
+  </div>
+
+  <div class="icon-list">
+
+    <div class="icon-row">
+      <div class="row-icon"><span class="material-symbols-outlined" style="font-size:18px">local_fire_department</span></div>
+      <div class="row-body">
+        <strong>Week streak</strong>
+        <p>Consecutive weeks with at least one activity logged. The current week counts even if only partially elapsed. Resets if a full Mon–Sun week passes with nothing logged. Dots show each day of the current week.</p>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="streak-demo">
+    <div class="streak-num-wrap">
+      <div class="streak-big">6</div>
+      <div class="streak-lbl">week streak</div>
+    </div>
+    <div class="streak-dots">
+      <div class="streak-dot-col">
+        <div class="streak-dot filled"><span class="material-symbols-outlined" style="font-size:11px">check</span></div>
+        <div class="dot-day">M</div>
+      </div>
+      <div class="streak-dot-col">
+        <div class="streak-dot filled"><span class="material-symbols-outlined" style="font-size:11px">check</span></div>
+        <div class="dot-day">T</div>
+      </div>
+      <div class="streak-dot-col">
+        <div class="streak-dot filled"><span class="material-symbols-outlined" style="font-size:11px">check</span></div>
+        <div class="dot-day">W</div>
+      </div>
+      <div class="streak-dot-col">
+        <div class="streak-dot today filled"><span class="material-symbols-outlined" style="font-size:11px">check</span></div>
+        <div class="dot-day">T</div>
+      </div>
+      <div class="streak-dot-col">
+        <div class="streak-dot future"></div>
+        <div class="dot-day">F</div>
+      </div>
+      <div class="streak-dot-col">
+        <div class="streak-dot future"></div>
+        <div class="dot-day">S</div>
+      </div>
+      <div class="streak-dot-col">
+        <div class="streak-dot future"></div>
+        <div class="dot-day">S</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="icon-list">
+
+    <div class="icon-row">
+      <div class="row-icon"><span class="material-symbols-outlined" style="font-size:18px">monitoring</span></div>
+      <div class="row-body">
+        <strong>Last 30 days</strong>
+        <p>Sessions, net active calories burned, average duration, total distance, and average heart rate — whichever fields have data.</p>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-tile">
+      <div class="stat-val">18</div>
+      <div class="stat-lbl">Sessions</div>
+    </div>
+    <div class="stat-tile">
+      <div class="stat-val">4,820<span class="stat-unit">kcal</span></div>
+      <div class="stat-lbl">Cal burned</div>
+    </div>
+    <div class="stat-tile">
+      <div class="stat-val">48<span class="stat-unit">min</span></div>
+      <div class="stat-lbl">Avg duration</div>
+    </div>
+  </div>
+
+  <div class="icon-list">
+
+    <div class="icon-row">
+      <div class="row-icon"><span class="material-symbols-outlined" style="font-size:18px">show_chart</span></div>
+      <div class="row-body">
+        <strong>Calorie burn trend</strong>
+        <p>Line chart of net active calories burned per day over the last 30 days.</p>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="burn-demo">
+    <div class="burn-header">
+      <span class="burn-title">Calorie burn</span>
+      <span class="burn-sub" style="display:flex;gap:12px;align-items:center">
+        <span style="display:flex;align-items:center;gap:4px"><span style="display:inline-block;width:10px;height:2px;background:var(--accent);border-radius:1px"></span>burned</span>
+        <span style="display:flex;align-items:center;gap:4px"><span style="display:inline-block;width:10px;height:2px;background:#8b949e;border-radius:1px"></span>intake</span>
+      </span>
+    </div>
+    <svg class="burn-svg" viewBox="0 0 320 80" preserveAspectRatio="none">
+      <defs>
+        <linearGradient id="burn-grad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="var(--accent)" stop-opacity="0.2"/>
+          <stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      <!-- Burn area -->
+      <path d="M0,70 L11,68 L22,55 L33,70 L44,70 L55,40 L66,35 L77,70 L88,70 L99,45 L110,38 L121,70 L132,70 L143,28 L154,22 L165,70 L176,65 L187,42 L198,70 L209,70 L220,30 L231,25 L242,70 L253,68 L264,50 L275,70 L286,70 L297,35 L308,28 L320,70 L320,80 L0,80 Z"
+        fill="url(#burn-grad)"/>
+      <!-- Burn line -->
+      <path d="M0,70 L11,68 L22,55 L33,70 L44,70 L55,40 L66,35 L77,70 L88,70 L99,45 L110,38 L121,70 L132,70 L143,28 L154,22 L165,70 L176,65 L187,42 L198,70 L209,70 L220,30 L231,25 L242,70 L253,68 L264,50 L275,70 L286,70 L297,35 L308,28 L320,70"
+        fill="none" stroke="var(--accent)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      <!-- Intake line (secondary, muted) -->
+      <path d="M0,38 L11,34 L22,42 L33,30 L44,40 L55,36 L66,28 L77,38 L88,46 L99,32 L110,36 L121,44 L132,33 L143,24 L154,36 L165,48 L176,34 L187,28 L198,40 L209,36 L220,26 L231,38 L242,46 L253,31 L264,37 L275,50 L286,35 L297,28 L308,40 L320,34"
+        fill="none" stroke="#8b949e" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 2" opacity="0.7"/>
+    </svg>
+  </div>
+
+  <div class="callout">
+    Duplicate activities — the same activity imported from both Strava and Google Health — are excluded
+    from all counts and calorie totals.
+  </div>
+</div>
+
+<script>
+  const ICONS = {
+    run:   'directions_run',
+    lift:  'fitness_center',
+    cycle: 'directions_bike',
+    swim:  'pool',
+    box:   'sports_martial_arts',
+    walk:  'directions_walk',
+    hiit:  'bolt',
+    yoga:  'self_improvement',
+  }
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const WORKOUTS = {}
+  const PATTERN = [
+    { d:   0, t: 'run'   },
+    { d:  -2, t: 'lift'  },
+    { d:  -3, t: 'box'   },
+    { d:  -6, t: 'run'   },
+    { d:  -8, t: 'box'   },
+    { d: -10, t: 'cycle' },
+    { d: -11, t: 'lift'  },
+    { d: -13, t: 'box'   },
+    { d: -15, t: 'run'   },
+    { d: -18, t: 'hiit'  },
+    { d: -20, t: 'box'   },
+    { d: -22, t: 'swim'  },
+    { d: -24, t: 'lift'  },
+    { d: -25, t: 'box'   },
+    { d: -27, t: 'run'   },
+    { d: -30, t: 'yoga'  },
+    { d: -32, t: 'box'   },
+    { d: -34, t: 'cycle' },
+    { d: -37, t: 'lift'  },
+    { d: -39, t: 'box'   },
+    { d: -41, t: 'run'   },
+    { d: -44, t: 'walk'  },
+    { d: -45, t: 'box'   },
+    { d: -47, t: 'lift'  },
+    { d: -49, t: 'run'   },
+    { d: -51, t: 'box'   },
+    { d: -54, t: 'swim'  },
+    { d: -56, t: 'hiit'  },
+    { d: -58, t: 'box'   },
+    { d: -60, t: 'cycle' },
+    { d: -62, t: 'lift'  },
+    { d: -63, t: 'run'   },
+    { d: -65, t: 'box'   },
+    { d: -68, t: 'yoga'  },
+    { d: -70, t: 'lift'  },
+    { d: -72, t: 'box'   },
+    { d: -74, t: 'run'   },
+    { d: -76, t: 'cycle' },
+    { d: -79, t: 'box'   },
+    { d: -81, t: 'swim'  },
+    { d: -83, t: 'lift'  },
+    { d: -85, t: 'run'   },
+    { d: -86, t: 'box'   },
+    { d: -89, t: 'hiit'  },
+    { d: -91, t: 'box'   },
+    { d: -93, t: 'cycle' },
+    { d: -95, t: 'lift'  },
+    { d: -97, t: 'run'   },
+    { d: -99, t: 'box'   },
+    { d:-102, t: 'walk'  },
+    { d:-104, t: 'lift'  },
+    { d:-106, t: 'box'   },
+    { d:-108, t: 'run'   },
+    { d:-110, t: 'yoga'  },
+    { d:-112, t: 'box'   },
+    { d:-115, t: 'cycle' },
+    { d:-117, t: 'lift'  },
+    { d:-119, t: 'box'   },
+    { d:-121, t: 'run'   },
+    { d:-124, t: 'swim'  },
+    { d:-126, t: 'box'   },
+    { d:-128, t: 'lift'  },
+    { d:-130, t: 'hiit'  },
+    { d:-132, t: 'box'   },
+    { d:-134, t: 'run'   },
+    { d:-137, t: 'cycle' },
+    { d:-139, t: 'box'   },
+    { d:-141, t: 'lift'  },
+    { d:-143, t: 'run'   },
+    { d:-146, t: 'box'   },
+    { d:-148, t: 'yoga'  },
+    { d:-150, t: 'lift'  },
+    { d:-153, t: 'box'   },
+    { d:-155, t: 'run'   },
+    { d:-157, t: 'cycle' },
+    { d:-160, t: 'box'   },
+    { d:-162, t: 'swim'  },
+    { d:-164, t: 'lift'  },
+    { d:-167, t: 'box'   },
+    { d:-169, t: 'run'   },
+    { d:-171, t: 'hiit'  },
+    { d:-174, t: 'box'   },
+    { d:-176, t: 'lift'  },
+  ]
+  for (const { d, t } of PATTERN) {
+    const dt = new Date(today); dt.setDate(today.getDate() + d)
+    WORKOUTS[dt.toISOString().slice(0, 10)] = ICONS[t]
+  }
+
+  const todayStr = today.toISOString().slice(0, 10)
+  let monthOffset = 0  // 0 = current month
+
+  function getMonthRef(offset) {
+    const d = new Date(today.getFullYear(), today.getMonth() + offset, 1)
+    return { year: d.getFullYear(), month: d.getMonth() }
+  }
+
+  function renderCalendar() {
+    const { year, month } = getMonthRef(monthOffset)
+    const label = new Date(year, month, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+    document.getElementById('cal-month-label').textContent = label
+
+    document.getElementById('cal-prev').disabled = false
+    document.getElementById('cal-next').disabled = monthOffset >= 0
+
+    const grid = document.getElementById('cal-grid')
+    // Keep the day-label headers, remove old cells
+    const headers = Array.from(grid.querySelectorAll('.cal-lbl'))
+    grid.innerHTML = ''
+    headers.forEach(h => grid.appendChild(h))
+
+    const firstDow = (new Date(year, month, 1).getDay() + 6) % 7  // Mon=0
+    const daysInMonth = new Date(year, month + 1, 0).getDate()
+
+    for (let i = 0; i < firstDow; i++) {
+      const el = document.createElement('div')
+      el.className = 'cal-cell empty'
+      grid.appendChild(el)
+    }
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const ds = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+      const el = document.createElement('div')
+      const isFuture = ds > todayStr
+      const isToday  = ds === todayStr
+      const workout  = WORKOUTS[ds]
+
+      let cls = 'cal-cell'
+      if (isFuture) cls += ' future'
+      if (isToday)  cls += ' today'
+      if (workout && !isFuture) cls += ' has'
+      el.className = cls
+
+      if (workout && !isFuture) {
+        const icon = document.createElement('span')
+        icon.className = 'material-symbols-outlined'
+        icon.style.cssText = 'font-size:13px;color:#fff'
+        icon.textContent = workout
+        el.appendChild(icon)
+      } else {
+        el.textContent = isFuture ? '' : day
+      }
+
+      grid.appendChild(el)
+    }
+  }
+
+  document.getElementById('cal-prev').addEventListener('click', () => {
+    monthOffset--
+    renderCalendar()
+  })
+  document.getElementById('cal-next').addEventListener('click', () => {
+    if (monthOffset < 0) { monthOffset++; renderCalendar() }
+  })
+
+  renderCalendar()
+</script>
+
+</body>
+</html>

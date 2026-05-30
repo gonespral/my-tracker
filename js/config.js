@@ -10,7 +10,7 @@ export const STRAVA_CLIENT_ID = env.STRAVA_CLIENT_ID
 export const GOOGLE_HEALTH_CLIENT_ID = env.GOOGLE_HEALTH_CLIENT_ID
 
 export const TARGETS = {
-  calories: { rest: 2150, bmr: 1800, deficit: 0, goal: 2150, eatback_pct: 50 },
+  calories: { rest: 2150, bmr: 1800, deficit: 0, goal: 2150, eatback_pct: 50, eatback_enabled: true },
   protein: 120,
   carbs: 240,
   fat: 65,

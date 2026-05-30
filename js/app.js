@@ -399,8 +399,9 @@ async function initApp() {
       if (s.carbs_g)     TARGETS.carbs   = s.carbs_g
       if (s.fat_g)       TARGETS.fat     = s.fat_g
 
-      // Eat-back % (Supabase wins over localStorage)
+      // Eat-back (Supabase wins over localStorage)
       if (s.eatback_pct != null) TARGETS.calories.eatback_pct = s.eatback_pct
+      if (s.eatback_enabled != null) TARGETS.calories.eatback_enabled = s.eatback_enabled
 
       // BMR deficit (Supabase wins over localStorage)
       const deficitKey = `tracker-bmr-deficit:${state.currentUser.id}`

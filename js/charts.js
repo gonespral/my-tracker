@@ -122,7 +122,7 @@ export function weekChartHTML(data) {
     const food     = data.food[ds]     || []
     const workouts = data.workouts[ds] || []
     const dayBurn  = calculateNetActiveCalories(workouts, TARGETS.calories.bmr)
-    const eatbackPct = TARGETS.calories.eatback_pct ?? 50
+    const eatbackPct = TARGETS.calories.eatback_enabled !== false ? (TARGETS.calories.eatback_pct ?? 50) : 0
     const dayEatback = dayBurn > 0 ? Math.round(dayBurn * eatbackPct / 100) : 0
     days.push({
       ds, isToday: ds === today,
@@ -295,7 +295,7 @@ function buildCalorieTrendHTML(days, { title, primaryLabel, secondaryLabel, prim
 
 export function calTrendHTML(data, nDays = 30, options = {}) {
   const today = dateStr()
-  const eatbackPct = TARGETS.calories.eatback_pct ?? 50
+  const eatbackPct = TARGETS.calories.eatback_enabled !== false ? (TARGETS.calories.eatback_pct ?? 50) : 0
   const days = []
   for (let i = nDays - 1; i >= 0; i--) {
     const d = new Date(); d.setDate(d.getDate() - i)

@@ -27,7 +27,7 @@ Try the demo at [gonespral.github.io/my-tracker](https://gonespral.github.io/my-
 - **Push to Strava:** Manually logged workouts can be pushed to Strava directly from the Workouts tab.
 - **Auto-push:** Optionally push every new locally logged activity to Strava automatically.
 - **Cross-push:** Optionally push Google Health imports to Strava automatically.
-- **Calorie spoofing:** Strava doesn't allow setting calories on manually created activities via the API. When enabled, the app derives a synthetic heart rate from your logged calories, duration, weight, age, and sex (Keytel et al. 2005), uploads the activity as a TCX file, and lets Strava compute the calories from heart rate data. Requires weight, age, and sex set in Settings → Profile.
+- **Calories preserved:** Activities are pushed as TCX file uploads rather than manual API entries, so your logged calorie value is included directly in the file and honoured by Strava.
 - **Delete from Strava:** Delete synced activities from Strava directly within the app, with a confirmation prompt.
 - **Sync controls:** Pause/resume Strava sync without disconnecting.
 - **Duplicate detection:** Activities already in your Supabase database are never re-imported.

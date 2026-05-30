@@ -123,8 +123,6 @@ The Strava integration supports two-way sync: pull activities from Strava and pu
 - **Cross-push from Google Health** — toggle to automatically push Google Health imports to Strava.
 - **Delete from Strava** — delete a synced activity from Strava directly in the app (with confirmation prompt).
 - **Pause sync** — pause/resume Strava sync without disconnecting.
-- **Calorie spoofing** — see below.
-
 ### 4.1 Create a Strava app
 
 1. Go to [strava.com/settings/api](https://www.strava.com/settings/api).
@@ -146,15 +144,9 @@ npx supabase secrets set STRAVA_CLIENT_SECRET=your_client_secret
 
 Open MyTracker → Settings → Strava → Connect. You can also enable "Use custom credentials" and paste your own Client ID and Secret to bypass the shared edge function entirely.
 
-### 4.4 Calorie spoofing
+### 4.4 Calories
 
-Strava's API does not allow setting calories on manually created activities. When calorie spoofing is enabled, the app:
-
-1. Derives a target heart rate from your logged calories, duration, weight, age, and sex using the Keytel et al. (2005) formula.
-2. Builds a TCX file with synthetic heart rate trackpoints.
-3. Uploads it to Strava as a file upload (instead of the create-activity API) so Strava computes calories from the heart rate data.
-
-To use this feature, set weight, age, and sex in Settings → Profile, then enable "Spoof calories" in Settings → Strava.
+Activities are always pushed to Strava as TCX file uploads rather than manual API entries. This means the `<Calories>` value from your log is declared directly in the file and Strava uses it as-is — no workarounds needed. If you have a heart rate logged on the activity it is also included in the TCX.
 
 ---
 
@@ -224,9 +216,7 @@ Some features require profile data set in Settings → Profile:
 
 | Field | Used by |
 |:---|:---|
-| Weight | Calorie spoofing (Strava), calorie target calculation |
-| Age | Calorie spoofing (Strava) |
-| Sex | Calorie spoofing (Strava) |
+| Weight | Calorie target calculation |
 | Calorie targets | Rest-day and training-day calorie targets (can override defaults) |
 
 ---
