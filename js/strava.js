@@ -25,7 +25,7 @@ export const stravaIsConnected = () => {
   return localStorage.getItem(S_CONNECTED) === 'true'
 }
 
-let sessionAccessToken = null
+let _tokenPromise = null  // deduplicates concurrent edge-function refresh calls
 
 function formatTimeAgo(ms) {
   const secs = Math.floor((Date.now() - ms) / 1000)
@@ -164,26 +164,34 @@ async function getValidAccessToken() {
     localStorage.setItem(S_EXPIRES_AT, String(Math.floor(data.expires_at * 1000)))
     return data.access_token
   } else {
-    // Edge function flow
-    const { data: { session } } = await supabase.auth.getSession()
-    const resp = await fetch(`${EDGE_FUNCTION_URL}/strava-oauth`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session?.access_token}`,
-      },
-      body: JSON.stringify({ action: 'refresh' }),
-    })
-    if (!resp.ok) {
-      if (resp.status === 401 || resp.status === 400) {
-        disconnectStrava(true)
-        throw new Error('Session expired')
-      }
-      throw new Error(`Refresh failed (${resp.status})`)
+    // Edge function flow — deduplicate so concurrent callers share one in-flight request
+    // (avoids double-refresh / Strava token rotation race when sync and delete overlap)
+    if (!_tokenPromise) {
+      _tokenPromise = (async () => {
+        let { data: { session } } = await supabase.auth.getSession()
+        if (!session?.access_token) {
+          const { data } = await supabase.auth.refreshSession()
+          session = data.session
+        }
+        if (!session?.access_token) throw new Error('Not signed in — please reload')
+        const resp = await fetch(`${EDGE_FUNCTION_URL}/strava-oauth`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ action: 'refresh' }),
+        })
+        if (!resp.ok) {
+          if (resp.status === 401 || resp.status === 400) throw new Error('Strava session expired — please reconnect Strava')
+          throw new Error(`Refresh failed (${resp.status})`)
+        }
+        const data = await resp.json()
+        if (data.error) throw new Error(data.error)
+        return data.accessToken
+      })().finally(() => { _tokenPromise = null })
     }
-    const data = await resp.json()
-    if (data.error) throw new Error(data.error)
-    return data.accessToken
+    return _tokenPromise
   }
 }
 
@@ -492,7 +500,8 @@ export async function deleteActivityFromStrava(stravaId) {
     method: 'DELETE',
     headers: { Authorization: `Bearer ${token}` },
   })
-  if (resp.status === 401) { disconnectStrava(true); throw new Error('Session expired — please reconnect Strava') }
+  if (resp.status === 401) throw new Error('Strava refused deletion (401) — try disconnecting and reconnecting Strava to refresh permissions.')
+  if (resp.status === 403) throw new Error("Strava refused the deletion — this activity wasn't created by this app and can't be deleted here.")
   if (!resp.ok && resp.status !== 204) {
     const raw = await resp.text().catch(() => '')
     let msg = `${resp.status}`
