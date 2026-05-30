@@ -535,6 +535,7 @@ export const db = {
       cal_rest:           s.cal_rest           ?? current?.cal_rest           ?? null,
       cal_training:       s.cal_training        ?? current?.cal_training       ?? null,
       protein_g:          s.protein_g           ?? current?.protein_g          ?? null,
+      protein_per_kg:     s.protein_per_kg      ?? current?.protein_per_kg     ?? null,
       carbs_g:            s.carbs_g             ?? current?.carbs_g            ?? null,
       fat_g:              s.fat_g               ?? current?.fat_g              ?? null,
       age_years:          s.age_years           ?? current?.age_years          ?? null,

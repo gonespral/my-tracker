@@ -95,7 +95,8 @@ function updateProfileTargetInputs(targets, calorieTarget = targets?.rest) {
   if (!targets) return
   const restInput = document.getElementById('t-cal-rest')
   if (restInput) restInput.value = targets.rest
-  const macros = recommendMacros(calorieTarget ?? targets.rest)
+  const weightKg = targets.weight_kg || null
+  const macros = recommendMacros(calorieTarget ?? targets.rest, weightKg)
   const proInput = document.getElementById('t-protein')
   const carInput = document.getElementById('t-carbs')
   const fatInput = document.getElementById('t-fat')
@@ -121,7 +122,7 @@ function sourcePills(sources, hidden = false) {
 function setTargetsReadonly(isReadonly) {
   const targetGrid = document.querySelector('.targets-grid')
   targetGrid?.classList.toggle('is-readonly', !!isReadonly)
-  ;['t-cal-rest', 't-protein', 't-carbs', 't-fat'].forEach(id => {
+  ;['t-cal-rest', 't-protein', 't-carbs', 't-fat', 't-protein-per-kg'].forEach(id => {
     const input = document.getElementById(id)
     if (input) input.disabled = !!isReadonly
   })
@@ -197,6 +198,7 @@ export async function renderSettings() {
   const profileWeight = calorieProfile.weight_kg || (latestWeightKg ?? '')
   const profileActivity = CALORIE_ACTIVITY_LEVELS[calorieProfile.activity_level] ? calorieProfile.activity_level : CALORIE_PROFILE_DEFAULTS.activity_level
   const eatbackEnabled = settingsRow?.eatback_enabled ?? true
+  const savedProteinPerKg = settingsRow?.protein_per_kg ?? null
 
   const mealItems = meals.map(m => `
     <div class="meal-preset-item">
@@ -295,7 +297,13 @@ export async function renderSettings() {
         </div>
         <div class="form-field">
           <label class="form-label" for="t-protein">Protein (g)</label>
-          <input class="form-input" id="t-protein" type="number" inputmode="numeric" value="${TARGETS.protein}">
+          <input class="form-input" id="t-protein" type="number" inputmode="numeric" value="${TARGETS.protein}" ${savedProteinPerKg ? 'readonly style="opacity:0.5"' : ''}>
+          <div style="display:flex;align-items:center;gap:6px;margin-top:6px">
+            <input class="form-input" id="t-protein-per-kg" type="number" inputmode="decimal" step="0.1" min="0.5" max="4" placeholder="g/kg"
+              style="width:72px;flex-shrink:0" value="${savedProteinPerKg ?? ''}">
+            <span style="font-size:12px;color:var(--tx3)">g/kg body weight</span>
+            <span id="t-protein-computed" style="font-size:12px;color:var(--accent);margin-left:auto"></span>
+          </div>
         </div>
         <div class="form-field">
           <label class="form-label" for="t-carbs">Carbs (g)</label>
@@ -591,7 +599,8 @@ export async function renderSettings() {
     TARGETS.calories.bmr = estimated.bmr
     const goal = setCalorieDeficit(getDeficitValue())
     TARGETS.calories.training = goal
-    const macros = recommendMacros(goal)
+    const weightKg = estimated.weight_kg || null
+    const macros = recommendMacros(goal, weightKg)
     TARGETS.protein = macros.protein
     TARGETS.carbs = macros.carbs
     TARGETS.fat = macros.fat
@@ -659,26 +668,51 @@ export async function renderSettings() {
   })
   ;['profile-age', 'profile-sex', 'profile-height-cm', 'profile-weight-kg', 'profile-activity-level'].forEach(id => {
     document.getElementById(id)?.addEventListener('input', () => {
+      if (id === 'profile-weight-kg') syncProteinFromPerKg()
       if (useBmrCheckbox?.checked) applyEstimatedToTargets(getEstimatedFromInputs())
     })
     document.getElementById(id)?.addEventListener('change', () => {
+      if (id === 'profile-weight-kg') syncProteinFromPerKg()
       if (useBmrCheckbox?.checked) applyEstimatedToTargets(getEstimatedFromInputs())
     })
   })
+
+  // Live g/kg → protein g computation
+  const syncProteinFromPerKg = () => {
+    const perKgInput = document.getElementById('t-protein-per-kg')
+    const proInput = document.getElementById('t-protein')
+    const computedEl = document.getElementById('t-protein-computed')
+    const perKg = parseFloat(perKgInput?.value)
+    const weightKg = parseFloat(document.getElementById('profile-weight-kg')?.value) || latestWeightKg || null
+    if (perKg > 0 && weightKg) {
+      const computed = Math.round(perKg * weightKg)
+      if (proInput) { proInput.value = computed; proInput.readOnly = true; proInput.style.opacity = '0.5' }
+      if (computedEl) computedEl.textContent = `= ${computed}g at ${weightKg.toFixed(1)}kg`
+    } else {
+      if (proInput) { proInput.readOnly = false; proInput.style.opacity = '' }
+      if (computedEl) computedEl.textContent = ''
+    }
+  }
+  document.getElementById('t-protein-per-kg')?.addEventListener('input', syncProteinFromPerKg)
+  syncProteinFromPerKg()
 
   document.getElementById('settings-save-targets-btn').addEventListener('click', async () => {
     const calRest = parseInt(document.getElementById('t-cal-rest').value) || TARGETS.calories.rest
     const protein = parseInt(document.getElementById('t-protein').value) || TARGETS.protein
     const carbs = parseInt(document.getElementById('t-carbs').value) || TARGETS.carbs
     const fat = parseInt(document.getElementById('t-fat').value) || TARGETS.fat
+    const perKgRaw = parseFloat(document.getElementById('t-protein-per-kg')?.value)
+    const proteinPerKg = perKgRaw > 0 ? perKgRaw : null
     TARGETS.calories.rest = calRest
     TARGETS.protein = protein
+    TARGETS.protein_per_kg = proteinPerKg
     TARGETS.carbs = carbs
     TARGETS.fat = fat
     try {
       await db.saveSettings({
         cal_rest: calRest,
         protein_g: protein,
+        protein_per_kg: proteinPerKg,
         carbs_g: carbs,
         fat_g: fat,
       })

@@ -399,9 +399,17 @@ async function initApp() {
 
       // Calorie targets
       if (s.cal_rest)    TARGETS.calories.rest = s.cal_rest
-      if (s.protein_g)   TARGETS.protein = s.protein_g
       if (s.carbs_g)     TARGETS.carbs   = s.carbs_g
       if (s.fat_g)       TARGETS.fat     = s.fat_g
+      // Protein: weight-based takes precedence over fixed g
+      if (s.protein_per_kg) {
+        TARGETS.protein_per_kg = s.protein_per_kg
+        const weightKg = Number(s.weight_kg) || data?.weights?.[0]?.kg || null
+        if (weightKg) TARGETS.protein = Math.round(weightKg * s.protein_per_kg)
+        else if (s.protein_g) TARGETS.protein = s.protein_g
+      } else if (s.protein_g) {
+        TARGETS.protein = s.protein_g
+      }
 
       // Eat-back (Supabase wins over localStorage)
       if (s.eatback_pct != null) TARGETS.calories.eatback_pct = s.eatback_pct
