@@ -564,7 +564,8 @@ export async function deleteActivityFromStrava(stravaId) {
     method: 'DELETE',
     headers: { Authorization: `Bearer ${token}` },
   })
-  if (resp.status === 401) { disconnectStrava(true); throw new Error('Session expired — please reconnect Strava') }
+  if (resp.status === 401) throw new Error('Strava refused deletion (401) — try disconnecting and reconnecting Strava to refresh permissions.')
+  if (resp.status === 403) throw new Error("Strava refused the deletion — this activity wasn't created by this app and can't be deleted here.")
   if (!resp.ok && resp.status !== 204) {
     const raw = await resp.text().catch(() => '')
     let msg = `${resp.status}`
