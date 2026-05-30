@@ -143,7 +143,7 @@ export function weekChartHTML(data) {
     const y  = PT + cH - bH
     const pct = d.cals / d.target
     const fill = d.cals === 0 ? 'var(--track)' : pct > 1.1 ? 'var(--danger)' : 'var(--accent)'
-    const opacity = d.cals === 0 ? '1' : pct > 1.1 ? '0.9' : Math.max(0.15, Math.min(pct, 1)).toFixed(2)
+    const opacity = d.cals === 0 ? '1' : '0.85'
     const labelFill = d.isToday ? 'var(--tx)' : 'var(--tx3)'
     const delay = `${(i * 0.06).toFixed(2)}s`
     return `

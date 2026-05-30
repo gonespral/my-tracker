@@ -683,6 +683,7 @@ export async function renderSettings() {
         fat_g: fat,
       })
       showToast('✅ Targets saved')
+      document.dispatchEvent(new Event('targets-changed'))
     } catch (e) { showToast('❌ ' + e.message) }
   })
 
@@ -739,6 +740,7 @@ export async function renderSettings() {
         use_bmr_target: useBmrNow,
       })
       showToast('✅ TDEE settings saved')
+      document.dispatchEvent(new Event('targets-changed'))
     } catch (e) {
       showToast('❌ ' + e.message)
     }
@@ -768,6 +770,7 @@ export async function renderSettings() {
     state.settings.eatback_enabled = enabled
     db.saveSettings({ eatback_enabled: enabled }).catch(() => {})
     syncEatbackActivityLock(enabled)
+    document.dispatchEvent(new Event('targets-changed'))
   })
 
   document.getElementById('eatback-slider')?.addEventListener('input', e => {
@@ -776,6 +779,7 @@ export async function renderSettings() {
     TARGETS.calories.eatback_pct = pct
     state.settings.eatback_pct = pct
     db.saveSettings({ eatback_pct: pct }).catch(() => {})
+    document.dispatchEvent(new Event('targets-changed'))
   })
 
   conflictPreference?.addEventListener('change', async (event) => {

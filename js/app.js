@@ -361,6 +361,10 @@ document.addEventListener('workout-conflict-pref-changed', async () => {
   await renderActive()
 })
 
+document.addEventListener('targets-changed', async () => {
+  await renderActive()
+})
+
 // Close entry menus on outside click
 document.addEventListener('click', e => {
   if (!e.target.closest('.entry-menu-wrap'))
