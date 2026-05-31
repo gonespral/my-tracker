@@ -1717,6 +1717,11 @@ body {
   letter-spacing: 0.04em;
   line-height: 1.2;
   text-transform: uppercase;
+  cursor: pointer;
+  user-select: none;
+}
+.settings-version:active {
+  opacity: 0.6;
 }
 
 .sheet-sub {

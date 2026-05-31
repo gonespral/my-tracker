@@ -381,7 +381,7 @@
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
     <div class="sheet-title" style="margin:0;display:flex;align-items:baseline;gap:8px">
       <span>Settings</span>
-      <span id="settings-version" class="settings-version" aria-label="App version"></span>
+      <span id="settings-version" class="settings-version" data-action="force-update" title="Tap to force update" aria-label="App version"></span>
     </div>
     <button id="settings-close-btn" class="chat-close-btn" style="font-size:18px"><span class="material-symbols-outlined" style="font-size:18px">close</span></button>
   </div>
@@ -392,6 +392,11 @@
 <div class="toast" id="toast"></div>
 
 
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(() => {})
+  }
+</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script type="module" src="js/app.js?v=3"></script>
 </body>

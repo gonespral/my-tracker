@@ -31,6 +31,7 @@ jobs:
         run: |
           SHA=$(git rev-parse --short HEAD)
           echo "export const APP_VERSION = \"$SHA\"" > js/version.js
+          sed -i "s|const VERSION = 'dev'|const VERSION = '$SHA'|" sw.js
       - name: Generate env.js from secrets
         run: |
           echo "export const SUPABASE_URL = \"${{ secrets.SUPABASE_URL }}\"" > js/env.js
