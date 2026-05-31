@@ -1,4 +1,4 @@
-import { MEAL_ORDER, MEAL_ICON, MEAL_LABEL, INTENSITY_ICON, detectActivityType } from './config.js'
+import { MEAL_ORDER, MEAL_ICON, MEAL_LABEL, INTENSITY_ICON, detectActivityType, TARGETS } from './config.js'
 import { fmt, round, cap, formatTimeToAMPM } from './utils.js'
 import { typeIcon, SPORT_TYPE_MAP, materialIcon } from './icons.js'
 import { state } from './state.js'
@@ -209,12 +209,18 @@ export const workoutItem = (e, date) => {
           ${googleHealthBadge}
         </div>
       </div>
-      ${e.calories_burned ? `
+      ${e.calories_burned ? (() => {
+        const active = Math.round(e.calories_burned)
+        const total = e.duration_min
+          ? active + Math.round((TARGETS.calories.bmr || 1800) / 1440 * e.duration_min)
+          : null
+        return `
       <div class="log-right">
-        <div class="log-cal">${Math.round(e.calories_burned)}</div>
+        <div class="log-cal">${active}</div>
         <div class="log-cal-unit">kcal</div>
-        <div class="log-cal-active">active</div>
-      </div>` : ''}
+        ${total !== null ? `<div class="log-cal-active">${total}</div>` : ''}
+      </div>`
+      })() : ''}
       ${menuHTML}
     </div>`
 }
