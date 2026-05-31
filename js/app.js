@@ -519,6 +519,10 @@ async function initApp() {
   })
 
   const handleMainInput = async () => {
+    if (state.listening) {
+      state.speechHandled = true
+      stopListening()
+    }
     const text = mainInput.value.trim()
     if (!text && !pendingImages.length) return
 
