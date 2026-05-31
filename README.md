@@ -9,8 +9,8 @@ Self-hosted health and fitness tracker. Vanilla HTML/CSS/JS, Supabase backend, C
 
 Try the demo at [gonespral.github.io/my-tracker](https://gonespral.github.io/my-tracker/?demo=1).
 
-> [!note]
-> This project is heavily vibecoded. It exists because every fitness tracker I tried either lacked the one feature I actually needed, buried it behind a subscription, or couldn't integrate with Strava and Google Fit without janky middleware. So I built my own. Expect rough edges and code that works because it works.
+> [!attention]
+> This project is heavily vibecoded. It exists because every fitness tracker I tried either lacked the one feature I actually needed, buried it behind a subscription, or couldn't integrate with Strava and Google Fit. So I built my own. Expect rough edges and code that works because it works.
 
 ## Features
 
@@ -45,10 +45,6 @@ Try the demo at [gonespral.github.io/my-tracker](https://gonespral.github.io/my-
 - **Duplicate detection:** Activities already in your Supabase database are never re-imported.
 - **Custom credentials:** Use your own Google Cloud OAuth client instead of the shared one.
 - **Bidirectional sync:** The same activity type mapping is used in both directions, so a run synced from Strava and pushed to Google Health keeps its type.
-
-### Sync status indicator
-
-A persistent indicator in the header shows which integrations are currently syncing and highlights any that have failed, with a spinner on the refresh button during active sync.
 
 ## Setup
 
