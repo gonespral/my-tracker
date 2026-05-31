@@ -9,7 +9,7 @@ Self-hosted health and fitness tracker. Vanilla HTML/CSS/JS, Supabase backend, C
 
 Try the demo at [gonespral.github.io/my-tracker](https://gonespral.github.io/my-tracker/?demo=1).
 
-> [!attention]
+> [!warning]
 > This project is heavily vibecoded. It exists because every fitness tracker I tried either lacked the one feature I actually needed, buried it behind a subscription, or couldn't integrate with Strava and Google Fit. So I built my own. Expect rough edges and code that works because it works.
 
 ## Features
