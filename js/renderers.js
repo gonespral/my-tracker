@@ -217,8 +217,8 @@ export const workoutItem = (e, date) => {
         return `
       <div class="log-right">
         <div class="log-cal">${active}</div>
-        <div class="log-cal-unit">kcal</div>
         ${total !== null ? `<div class="log-cal-active">${total}</div>` : ''}
+        <div class="log-cal-unit">kcal</div>
       </div>`
       })() : ''}
       ${menuHTML}
