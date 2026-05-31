@@ -200,7 +200,7 @@ export async function buildClaudeSystem() {
   }
 
   const burnedToday = workouts.reduce((s, w) => s + (w.calories_burned || 0), 0)
-  const eatbackPct  = TARGETS.calories.eatback_pct ?? 50
+  const eatbackPct  = TARGETS.calories.eatback_enabled !== false ? (TARGETS.calories.eatback_pct ?? 50) : 0
   const eatback     = burnedToday > 0 ? Math.round(burnedToday * eatbackPct / 100) : 0
   const effectiveTarget = calTarget + eatback
 

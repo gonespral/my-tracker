@@ -110,7 +110,7 @@
     </div>
 
     <div class="balance-row">
-      <span class="balance-label">Target (rest day)</span>
+      <span class="balance-label">Base goal</span>
       <div class="balance-bar-wrap">
         <div class="balance-bar" style="width:100%;background:var(--border)"></div>
       </div>
@@ -118,11 +118,19 @@
     </div>
 
     <div class="balance-row">
-      <span class="balance-label">Burned (run)</span>
+      <span class="balance-label">Net active burn (run)</span>
       <div class="balance-bar-wrap">
         <div class="balance-bar" style="width:28%;background:#f97316"></div>
       </div>
-      <span class="balance-value">+290 kcal</span>
+      <span class="balance-value">290 kcal</span>
+    </div>
+
+    <div class="balance-row">
+      <span class="balance-label">Eat-back (50% of net burn)</span>
+      <div class="balance-bar-wrap">
+        <div class="balance-bar" style="width:14%;background:#f97316;opacity:0.5"></div>
+      </div>
+      <span class="balance-value">+145 kcal</span>
     </div>
 
     <div class="balance-row">
@@ -172,6 +180,12 @@
     The three small rings below the calorie ring on the Today tab track each macro against your daily target.
     Claude estimates all three when you log a meal in plain language or from a photo.
   </p>
+  <p>
+    <strong>Protein target</strong> can be set two ways in Settings &rarr; Daily Targets. Enter a fixed gram
+    amount, or enter a <strong>g/kg body weight</strong> value and MyTracker computes the gram target from
+    your logged weight automatically. A value of 1.2&ndash;1.6&thinsp;g/kg covers most active people;
+    0.8&thinsp;g/kg is the general population minimum.
+  </p>
 
   <h2>How your calorie target is set</h2>
 
@@ -182,7 +196,7 @@
         <strong>Basal Metabolic Rate (BMR)</strong>
         <p>Your BMR is the number of calories your body burns at complete rest. MyTracker calculates it
         from your age, sex, height, and weight using the Mifflin–St Jeor formula. Enter these in
-        Settings &rarr; Daily Targets.</p>
+        Settings &rarr; Calories.</p>
       </div>
     </div>
     <div class="step">
@@ -197,8 +211,8 @@
       <div class="step-num">3</div>
       <div class="step-body">
         <strong>Goal adjustment</strong>
-        <p>If you want to lose or gain weight, a deficit or surplus is applied on top. The result is your
-        base calorie goal — displayed as the target on rest days.</p>
+        <p>If you want to lose weight, a calorie deficit is subtracted from your TDEE. The result is your
+        base goal — the same every day before exercise is factored in.</p>
       </div>
     </div>
     <div class="step">
@@ -206,8 +220,9 @@
       <div class="step-body">
         <strong>Exercise eat-back</strong>
         <p>On days you log a workout, your target increases automatically. By default 50% of the net active
-        calories burned are added back to the target — this is the eat-back. You can change the percentage
-        in Settings &rarr; Daily Targets.</p>
+        calories burned are added back — this is the eat-back. Net active means gross burn minus the resting
+        calories your BMR already accounts for. You can change the percentage or disable eat-back entirely in
+        Settings &rarr; Calories.</p>
       </div>
     </div>
   </div>

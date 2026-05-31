@@ -121,8 +121,8 @@ export function weekChartHTML(data) {
     const ds = dateStr(d)
     const food     = data.food[ds]     || []
     const workouts = data.workouts[ds] || []
-    const dayBurn  = calculateNetActiveCalories(workouts, TARGETS.calories.bmr)
-    const eatbackPct = TARGETS.calories.eatback_pct ?? 50
+    const dayBurn  = calculateNetActiveCalories(workouts)
+    const eatbackPct = TARGETS.calories.eatback_enabled !== false ? (TARGETS.calories.eatback_pct ?? 50) : 0
     const dayEatback = dayBurn > 0 ? Math.round(dayBurn * eatbackPct / 100) : 0
     days.push({
       ds, isToday: ds === today,
@@ -143,7 +143,7 @@ export function weekChartHTML(data) {
     const y  = PT + cH - bH
     const pct = d.cals / d.target
     const fill = d.cals === 0 ? 'var(--track)' : pct > 1.1 ? 'var(--danger)' : 'var(--accent)'
-    const opacity = d.cals === 0 ? '1' : pct > 1.1 ? '0.9' : Math.max(0.15, Math.min(pct, 1)).toFixed(2)
+    const opacity = d.cals === 0 ? '1' : '0.85'
     const labelFill = d.isToday ? 'var(--tx)' : 'var(--tx3)'
     const delay = `${(i * 0.06).toFixed(2)}s`
     return `
@@ -295,14 +295,14 @@ function buildCalorieTrendHTML(days, { title, primaryLabel, secondaryLabel, prim
 
 export function calTrendHTML(data, nDays = 30, options = {}) {
   const today = dateStr()
-  const eatbackPct = TARGETS.calories.eatback_pct ?? 50
+  const eatbackPct = TARGETS.calories.eatback_enabled !== false ? (TARGETS.calories.eatback_pct ?? 50) : 0
   const days = []
   for (let i = nDays - 1; i >= 0; i--) {
     const d = new Date(); d.setDate(d.getDate() - i)
     const ds = dateStr(d)
 
     const workouts = data.workouts[ds] || []
-    const burned   = calculateNetActiveCalories(workouts, TARGETS.calories.bmr)
+    const burned   = calculateNetActiveCalories(workouts)
     const eatback  = burned > 0 ? Math.round(burned * eatbackPct / 100) : 0
     const tdee     = (TARGETS.calories.goal || TARGETS.calories.rest) + eatback
 
@@ -757,7 +757,7 @@ export function activityStatsHTML(data, nDays = 30) {
     const d = new Date(); d.setDate(d.getDate() - i)
     const ds = dateStr(d)
     const dayWorkouts = data.workouts[ds] || []
-    totalCal += calculateNetActiveCalories(dayWorkouts, TARGETS.calories.bmr)
+    totalCal += calculateNetActiveCalories(dayWorkouts)
     for (const w of dayWorkouts) {
       if (w.isDuplicate) continue
       sessions++

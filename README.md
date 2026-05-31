@@ -15,7 +15,7 @@ Try the demo at [gonespral.github.io/my-tracker](https://gonespral.github.io/my-
 ## Features
 
 - **AI Logging:** Chat with Claude to log food, workouts, and weight in plain English. Attach photos and Claude uses vision to identify meals. Frequently logged items are suggested as presets automatically.
-- **Nutrition:** Daily food tracking with calorie and macro targets (rest vs. training day). Meal presets for quick re-logging.
+- **Nutrition:** Daily food tracking with calorie and macro targets (rest vs. training day). Protein target can be set as a fixed amount or as g/kg of body weight. Meal presets for quick re-logging.
 - **Workouts:** Manual logging with intensity, duration, distance, and heart rate. Activity presets.
 - **Voice input:** Dictate food or workout entries via the Web Speech API.
 - **PWA:** Installable, mobile-first, dark mode, smooth animations.
@@ -27,7 +27,7 @@ Try the demo at [gonespral.github.io/my-tracker](https://gonespral.github.io/my-
 - **Push to Strava:** Manually logged workouts can be pushed to Strava directly from the Workouts tab.
 - **Auto-push:** Optionally push every new locally logged activity to Strava automatically.
 - **Cross-push:** Optionally push Google Health imports to Strava automatically.
-- **Calorie spoofing:** Strava doesn't allow setting calories on manually created activities via the API. When enabled, the app derives a synthetic heart rate from your logged calories, duration, weight, age, and sex (Keytel et al. 2005), uploads the activity as a TCX file, and lets Strava compute the calories from heart rate data. Requires weight, age, and sex set in Settings → Profile.
+- **Calories and heart rate:** Activities are pushed as TCX file uploads, so your logged calorie count and heart rate (if present) are included directly in the file and picked up by Strava.
 - **Delete from Strava:** Delete synced activities from Strava directly within the app, with a confirmation prompt.
 - **Sync controls:** Pause/resume Strava sync without disconnecting.
 - **Duplicate detection:** Activities already in your Supabase database are never re-imported.

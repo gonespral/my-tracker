@@ -10,8 +10,9 @@ export const STRAVA_CLIENT_ID = env.STRAVA_CLIENT_ID
 export const GOOGLE_HEALTH_CLIENT_ID = env.GOOGLE_HEALTH_CLIENT_ID
 
 export const TARGETS = {
-  calories: { rest: 2150, bmr: 1800, deficit: 0, goal: 2150, eatback_pct: 50 },
+  calories: { rest: 2150, bmr: 1800, deficit: 0, goal: 2150, eatback_pct: 50, eatback_enabled: true },
   protein: 120,
+  protein_per_kg: null, // null = fixed g mode; number = weight-based g/kg mode
   carbs: 240,
   fat: 65,
 }
@@ -60,12 +61,15 @@ export function computeCalorieTargets(profile, fallbackWeightKg = null) {
   }
 }
 
-// 30% protein / 40% carbs / 30% fat split
-export function recommendMacros(calories) {
+// 20% protein / 45% carbs / 35% fat split
+export function recommendMacros(calories, weightKg = null) {
+  const protein = weightKg && TARGETS.protein_per_kg
+    ? Math.round(weightKg * TARGETS.protein_per_kg)
+    : Math.round(calories * 0.20 / 4)
   return {
-    protein: Math.round(calories * 0.30 / 4),
-    carbs:   Math.round(calories * 0.40 / 4),
-    fat:     Math.round(calories * 0.30 / 9),
+    protein,
+    carbs: Math.round(calories * 0.45 / 4),
+    fat:   Math.round(calories * 0.35 / 9),
   }
 }
 

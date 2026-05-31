@@ -14,7 +14,7 @@ import { supabase, db, getWorkoutConflictPreference, setWorkoutConflictPreferenc
 import { fmt, round, cap } from '../utils.js'
 import { openSheet, showToast, closeMenus, closeSheets } from '../ui.js'
 import { claudeDraftConfirmationEnabled, setClaudeDraftConfirmationEnabled } from '../ai.js'
-import { connectStrava, disconnectStrava, syncStrava, updateStravaSettingsSection, stravaAutoPushEnabled, stravaAutoPushGoogleEnabled, stravaSyncPaused, stravaWeightSyncEnabled, setStravaWeightSync, stravaSpoofCaloriesEnabled, setStravaSpoofCalories } from '../strava.js'
+import { connectStrava, disconnectStrava, syncStrava, updateStravaSettingsSection, stravaAutoPushEnabled, stravaAutoPushGoogleEnabled, stravaSyncPaused, stravaWeightSyncEnabled, setStravaWeightSync } from '../strava.js'
 import { connectGoogleHealth, disconnectGoogleHealth, syncGoogleHealth, updateGoogleHealthSettingsSection, ghAutoPushEnabled, ghSyncPaused, ghPushStravaImports, calibrateTDEETargets, googleHealthIsConnected } from '../google-health.js'
 import { materialIcon } from '../icons.js'
 import { showTutorial } from '../tutorial.js'
@@ -95,7 +95,8 @@ function updateProfileTargetInputs(targets, calorieTarget = targets?.rest) {
   if (!targets) return
   const restInput = document.getElementById('t-cal-rest')
   if (restInput) restInput.value = targets.rest
-  const macros = recommendMacros(calorieTarget ?? targets.rest)
+  const weightKg = targets.weight_kg || null
+  const macros = recommendMacros(calorieTarget ?? targets.rest, weightKg)
   const proInput = document.getElementById('t-protein')
   const carInput = document.getElementById('t-carbs')
   const fatInput = document.getElementById('t-fat')
@@ -121,7 +122,7 @@ function sourcePills(sources, hidden = false) {
 function setTargetsReadonly(isReadonly) {
   const targetGrid = document.querySelector('.targets-grid')
   targetGrid?.classList.toggle('is-readonly', !!isReadonly)
-  ;['t-cal-rest', 't-protein', 't-carbs', 't-fat'].forEach(id => {
+  ;['t-cal-rest', 't-protein', 't-carbs', 't-fat', 't-protein-per-kg'].forEach(id => {
     const input = document.getElementById(id)
     if (input) input.disabled = !!isReadonly
   })
@@ -196,6 +197,8 @@ export async function renderSettings() {
   const profileHeight = calorieProfile.height_cm || ''
   const profileWeight = calorieProfile.weight_kg || (latestWeightKg ?? '')
   const profileActivity = CALORIE_ACTIVITY_LEVELS[calorieProfile.activity_level] ? calorieProfile.activity_level : CALORIE_PROFILE_DEFAULTS.activity_level
+  const eatbackEnabled = settingsRow?.eatback_enabled ?? true
+  const savedProteinPerKg = settingsRow?.protein_per_kg ?? null
 
   const mealItems = meals.map(m => `
     <div class="meal-preset-item">
@@ -258,6 +261,24 @@ export async function renderSettings() {
             <span class="toggle-slider"></span>
           </label>
         </div>
+        <div class="toggle-row" style="margin-bottom:8px">
+          <div>
+            <div class="toggle-row-label">Activity eat-back</div>
+            <div class="toggle-row-sub">Add a portion of logged workout calories back to your daily target.</div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="eatback-toggle" ${eatbackEnabled ? 'checked' : ''}>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div id="eatback-slider-section" style="display:${eatbackEnabled ? '' : 'none'};margin-bottom:12px">
+          <div style="display:flex;align-items:center;gap:10px">
+            <input type="range" id="eatback-slider" min="0" max="100" step="5" value="${TARGETS.calories.eatback_pct}"
+              style="flex:1;accent-color:var(--accent)">
+            <span id="eatback-label" style="font-size:14px;font-weight:600;color:var(--tx);min-width:36px;text-align:right">${TARGETS.calories.eatback_pct}%</span>
+          </div>
+          <div style="font-size:11px;color:var(--tx3);margin-top:4px">50% recommended — device burn estimates are often 20–40% too high.</div>
+        </div>
         ${googleHealthIsConnected() ? `
         <div class="toggle-row" style="margin-bottom:8px">
           <div>
@@ -276,7 +297,13 @@ export async function renderSettings() {
         </div>
         <div class="form-field">
           <label class="form-label" for="t-protein">Protein (g)</label>
-          <input class="form-input" id="t-protein" type="number" inputmode="numeric" value="${TARGETS.protein}">
+          <input class="form-input" id="t-protein" type="number" inputmode="numeric" value="${TARGETS.protein}" ${savedProteinPerKg ? 'readonly style="opacity:0.5"' : ''}>
+          <div style="display:flex;align-items:center;gap:6px;margin-top:6px">
+            <input class="form-input" id="t-protein-per-kg" type="number" inputmode="decimal" step="0.1" min="0.5" max="4" placeholder="g/kg"
+              style="width:72px;flex-shrink:0" value="${savedProteinPerKg ?? ''}">
+            <span style="font-size:12px;color:var(--tx3)">g/kg body weight</span>
+            <span id="t-protein-computed" style="font-size:12px;color:var(--accent);margin-left:auto"></span>
+          </div>
         </div>
         <div class="form-field">
           <label class="form-label" for="t-carbs">Carbs (g)</label>
@@ -319,12 +346,13 @@ export async function renderSettings() {
             </div>
             <div class="form-field">
               <label class="form-label" for="profile-activity-level">Daily movement</label>
-              <select class="form-input" id="profile-activity-level">
-                <option value="sedentary" ${profileActivity === 'sedentary' ? 'selected' : ''}>Sedentary</option>
-                <option value="light" ${profileActivity === 'light' ? 'selected' : ''}>Light</option>
-                <option value="moderate" ${profileActivity === 'moderate' ? 'selected' : ''}>Moderate</option>
-                <option value="active" ${profileActivity === 'active' ? 'selected' : ''}>Active</option>
-                <option value="very_active" ${profileActivity === 'very_active' ? 'selected' : ''}>Very active</option>
+              <select class="form-input" id="profile-activity-level"
+                ${useBmr && eatbackEnabled ? 'disabled style="opacity:0.4"' : ''}>
+                <option value="sedentary" ${(useBmr && eatbackEnabled) || profileActivity === 'sedentary' ? 'selected' : ''}>Sedentary</option>
+                <option value="light" ${!(useBmr && eatbackEnabled) && profileActivity === 'light' ? 'selected' : ''}>Light</option>
+                <option value="moderate" ${!(useBmr && eatbackEnabled) && profileActivity === 'moderate' ? 'selected' : ''}>Moderate</option>
+                <option value="active" ${!(useBmr && eatbackEnabled) && profileActivity === 'active' ? 'selected' : ''}>Active</option>
+                <option value="very_active" ${!(useBmr && eatbackEnabled) && profileActivity === 'very_active' ? 'selected' : ''}>Very active</option>
               </select>
             </div>
             <div class="form-field">
@@ -334,19 +362,6 @@ export async function renderSettings() {
           </div>
           <p class="settings-profile-note">This estimate includes everyday movement, so it behaves like a daily TDEE rather than workout-only calories.</p>
           <button class="btn-primary" id="settings-save-profile-btn" style="margin-top:4px">Save Target Settings</button>
-        </div>
-      </div>
-
-      <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
-        <div class="toggle-row-label" style="margin-bottom:4px">Activity eat-back</div>
-        <div style="font-size:12px;color:var(--tx3);margin-bottom:10px">How much of your logged activity burn to add back to your daily calorie target.</div>
-        <div style="display:flex;align-items:center;gap:10px">
-          <input type="range" id="eatback-slider" min="0" max="100" step="5" value="${TARGETS.calories.eatback_pct}"
-            style="flex:1;accent-color:var(--accent)">
-          <span id="eatback-label" style="font-size:14px;font-weight:600;color:var(--tx);min-width:36px;text-align:right">${TARGETS.calories.eatback_pct}%</span>
-        </div>
-        <div style="font-size:11px;color:var(--tx3);margin-top:6px">
-          50% recommended — device burn estimates are often 20–40% too high.
         </div>
       </div>
 
@@ -456,16 +471,6 @@ export async function renderSettings() {
           </div>
           <label class="toggle-switch">
             <input type="checkbox" id="strava-sync-weight-toggle" ${stravaWeightSyncEnabled() ? 'checked' : ''}>
-            <span class="toggle-slider"></span>
-          </label>
-        </div>
-        <div class="toggle-row">
-          <div>
-            <div class="toggle-row-label">Spoof calories via HR</div>
-            <div class="toggle-row-sub" style="line-height:1.5">Embeds synthetic heart rate data in the uploaded TCX file so Strava calculates calories from it. Uses the Keytel formula with your age, weight, and sex from your profile to back-calculate the average HR that would produce your logged calories. Results are approximate. Requires age, sex, and weight set in your profile.</div>
-          </div>
-          <label class="toggle-switch">
-            <input type="checkbox" id="strava-spoof-calories-toggle" ${stravaSpoofCaloriesEnabled() ? 'checked' : ''}>
             <span class="toggle-slider"></span>
           </label>
         </div>
@@ -594,7 +599,8 @@ export async function renderSettings() {
     TARGETS.calories.bmr = estimated.bmr
     const goal = setCalorieDeficit(getDeficitValue())
     TARGETS.calories.training = goal
-    const macros = recommendMacros(goal)
+    const weightKg = estimated.weight_kg || null
+    const macros = recommendMacros(goal, weightKg)
     TARGETS.protein = macros.protein
     TARGETS.carbs = macros.carbs
     TARGETS.fat = macros.fat
@@ -603,6 +609,22 @@ export async function renderSettings() {
   }
 
   const bmrDetails = document.getElementById('settings-bmr-details')
+
+  const syncEatbackActivityLock = (enabled) => {
+    const activitySelect = document.getElementById('profile-activity-level')
+    const isBmrOn = document.getElementById('settings-use-bmr-checkbox')?.checked
+    if (activitySelect && isBmrOn) {
+      if (enabled) {
+        activitySelect.value = 'sedentary'
+        activitySelect.disabled = true
+        activitySelect.style.opacity = '0.4'
+        db.saveSettings({ activity_level: 'sedentary' }).catch(() => {})
+      } else {
+        activitySelect.disabled = false
+        activitySelect.style.opacity = ''
+      }
+    }
+  }
 
   const syncBmrUiState = () => {
     const enabled = !!useBmrCheckbox?.checked
@@ -620,6 +642,8 @@ export async function renderSettings() {
     document.getElementById('settings-save-targets-btn').style.display = enabled ? 'none' : ''
     state.settings.use_bmr_target = !!enabled
     db.saveSettings({ use_bmr_target: !!enabled }).catch(() => {})
+    const eatbackOn = document.getElementById('eatback-toggle')?.checked
+    syncEatbackActivityLock(enabled && eatbackOn)
     if (!enabled) return
     applyEstimatedToTargets(getEstimatedFromInputs() || estimatedProfile)
   }
@@ -644,30 +668,56 @@ export async function renderSettings() {
   })
   ;['profile-age', 'profile-sex', 'profile-height-cm', 'profile-weight-kg', 'profile-activity-level'].forEach(id => {
     document.getElementById(id)?.addEventListener('input', () => {
+      if (id === 'profile-weight-kg') syncProteinFromPerKg()
       if (useBmrCheckbox?.checked) applyEstimatedToTargets(getEstimatedFromInputs())
     })
     document.getElementById(id)?.addEventListener('change', () => {
+      if (id === 'profile-weight-kg') syncProteinFromPerKg()
       if (useBmrCheckbox?.checked) applyEstimatedToTargets(getEstimatedFromInputs())
     })
   })
+
+  // Live g/kg → protein g computation
+  const syncProteinFromPerKg = () => {
+    const perKgInput = document.getElementById('t-protein-per-kg')
+    const proInput = document.getElementById('t-protein')
+    const computedEl = document.getElementById('t-protein-computed')
+    const perKg = parseFloat(perKgInput?.value)
+    const weightKg = parseFloat(document.getElementById('profile-weight-kg')?.value) || latestWeightKg || null
+    if (perKg > 0 && weightKg) {
+      const computed = Math.round(perKg * weightKg)
+      if (proInput) { proInput.value = computed; proInput.readOnly = true; proInput.style.opacity = '0.5' }
+      if (computedEl) computedEl.textContent = `= ${computed}g at ${weightKg.toFixed(1)}kg`
+    } else {
+      if (proInput) { proInput.readOnly = false; proInput.style.opacity = '' }
+      if (computedEl) computedEl.textContent = ''
+    }
+  }
+  document.getElementById('t-protein-per-kg')?.addEventListener('input', syncProteinFromPerKg)
+  syncProteinFromPerKg()
 
   document.getElementById('settings-save-targets-btn').addEventListener('click', async () => {
     const calRest = parseInt(document.getElementById('t-cal-rest').value) || TARGETS.calories.rest
     const protein = parseInt(document.getElementById('t-protein').value) || TARGETS.protein
     const carbs = parseInt(document.getElementById('t-carbs').value) || TARGETS.carbs
     const fat = parseInt(document.getElementById('t-fat').value) || TARGETS.fat
+    const perKgRaw = parseFloat(document.getElementById('t-protein-per-kg')?.value)
+    const proteinPerKg = perKgRaw > 0 ? perKgRaw : null
     TARGETS.calories.rest = calRest
     TARGETS.protein = protein
+    TARGETS.protein_per_kg = proteinPerKg
     TARGETS.carbs = carbs
     TARGETS.fat = fat
     try {
       await db.saveSettings({
         cal_rest: calRest,
         protein_g: protein,
+        protein_per_kg: proteinPerKg,
         carbs_g: carbs,
         fat_g: fat,
       })
       showToast('✅ Targets saved')
+      document.dispatchEvent(new Event('targets-changed'))
     } catch (e) { showToast('❌ ' + e.message) }
   })
 
@@ -724,6 +774,7 @@ export async function renderSettings() {
         use_bmr_target: useBmrNow,
       })
       showToast('✅ TDEE settings saved')
+      document.dispatchEvent(new Event('targets-changed'))
     } catch (e) {
       showToast('❌ ' + e.message)
     }
@@ -743,12 +794,26 @@ export async function renderSettings() {
     showToast(e.target.checked ? '✅ Claude draft confirmation enabled' : 'Claude drafts will save automatically')
   })
 
+  // Lock on initial render if both are already enabled
+  if (eatbackEnabled && (useBmr || useGHCalibration)) syncEatbackActivityLock(true)
+
+  document.getElementById('eatback-toggle')?.addEventListener('change', e => {
+    const enabled = e.target.checked
+    document.getElementById('eatback-slider-section').style.display = enabled ? '' : 'none'
+    TARGETS.calories.eatback_enabled = enabled
+    state.settings.eatback_enabled = enabled
+    db.saveSettings({ eatback_enabled: enabled }).catch(() => {})
+    syncEatbackActivityLock(enabled)
+    document.dispatchEvent(new Event('targets-changed'))
+  })
+
   document.getElementById('eatback-slider')?.addEventListener('input', e => {
     const pct = Number(e.target.value)
     document.getElementById('eatback-label').textContent = pct + '%'
     TARGETS.calories.eatback_pct = pct
     state.settings.eatback_pct = pct
     db.saveSettings({ eatback_pct: pct }).catch(() => {})
+    document.dispatchEvent(new Event('targets-changed'))
   })
 
   conflictPreference?.addEventListener('change', async (event) => {
@@ -773,11 +838,6 @@ export async function renderSettings() {
   document.getElementById('strava-sync-weight-toggle')?.addEventListener('change', e => {
     setStravaWeightSync(e.target.checked)
     showToast(e.target.checked ? '✅ Weight sync enabled' : 'Weight sync disabled')
-  })
-
-  document.getElementById('strava-spoof-calories-toggle')?.addEventListener('change', e => {
-    setStravaSpoofCalories(e.target.checked)
-    showToast(e.target.checked ? '✅ Calorie spoofing enabled' : 'Calorie spoofing disabled')
   })
 
   document.getElementById('connect-strava-btn').addEventListener('click', connectStrava)

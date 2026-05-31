@@ -66,6 +66,7 @@ CREATE TABLE public.workout_presets (
 
 CREATE TABLE public.user_settings (
     user_id        UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+    -- Calorie profile
     cal_rest            NUMERIC CHECK (cal_rest > 0),
     cal_training        NUMERIC CHECK (cal_training > 0),
     protein_g           NUMERIC CHECK (protein_g >= 0),
@@ -76,8 +77,25 @@ CREATE TABLE public.user_settings (
     height_cm           NUMERIC CHECK (height_cm > 0),
     weight_kg           NUMERIC CHECK (weight_kg > 0),
     activity_level      TEXT CHECK (activity_level IN ('sedentary', 'light', 'moderate', 'active', 'very_active')),
+    bmr_deficit         NUMERIC  DEFAULT 0   CHECK (bmr_deficit >= 0),
+    use_bmr_target      BOOLEAN  DEFAULT true,
     tdee_source         TEXT CHECK (tdee_source IN ('google-health')),
     tdee_calibrated_at  TIMESTAMPTZ,
+    -- Eat-back
+    eatback_enabled     BOOLEAN  DEFAULT true,
+    eatback_pct         NUMERIC  DEFAULT 50  CHECK (eatback_pct >= 0 AND eatback_pct <= 100),
+    -- App behaviour
+    claude_draft_confirm  BOOLEAN  DEFAULT true,
+    conflict_preference   TEXT     DEFAULT 'strava' CHECK (conflict_preference IN ('strava', 'google-health', 'manual')),
+    -- Strava integration
+    strava_auto_push        BOOLEAN DEFAULT false,
+    strava_auto_push_google BOOLEAN DEFAULT false,
+    strava_sync_paused      BOOLEAN DEFAULT false,
+    strava_weight_sync      BOOLEAN DEFAULT false,
+    -- Google Health integration
+    gh_auto_push        BOOLEAN DEFAULT false,
+    gh_sync_paused      BOOLEAN DEFAULT false,
+    gh_push_strava      BOOLEAN DEFAULT false,
     updated_at          TIMESTAMPTZ DEFAULT now()
 );
 

@@ -361,6 +361,10 @@ document.addEventListener('workout-conflict-pref-changed', async () => {
   await renderActive()
 })
 
+document.addEventListener('targets-changed', async () => {
+  await renderActive()
+})
+
 // Close entry menus on outside click
 document.addEventListener('click', e => {
   if (!e.target.closest('.entry-menu-wrap'))
@@ -395,12 +399,21 @@ async function initApp() {
 
       // Calorie targets
       if (s.cal_rest)    TARGETS.calories.rest = s.cal_rest
-      if (s.protein_g)   TARGETS.protein = s.protein_g
       if (s.carbs_g)     TARGETS.carbs   = s.carbs_g
       if (s.fat_g)       TARGETS.fat     = s.fat_g
+      // Protein: weight-based takes precedence over fixed g
+      if (s.protein_per_kg) {
+        TARGETS.protein_per_kg = s.protein_per_kg
+        const weightKg = Number(s.weight_kg) || data?.weights?.[0]?.kg || null
+        if (weightKg) TARGETS.protein = Math.round(weightKg * s.protein_per_kg)
+        else if (s.protein_g) TARGETS.protein = s.protein_g
+      } else if (s.protein_g) {
+        TARGETS.protein = s.protein_g
+      }
 
-      // Eat-back % (Supabase wins over localStorage)
+      // Eat-back (Supabase wins over localStorage)
       if (s.eatback_pct != null) TARGETS.calories.eatback_pct = s.eatback_pct
+      if (s.eatback_enabled != null) TARGETS.calories.eatback_enabled = s.eatback_enabled
 
       // BMR deficit (Supabase wins over localStorage)
       const deficitKey = `tracker-bmr-deficit:${state.currentUser.id}`
@@ -506,6 +519,10 @@ async function initApp() {
   })
 
   const handleMainInput = async () => {
+    if (state.listening) {
+      state.speechHandled = true
+      stopListening()
+    }
     const text = mainInput.value.trim()
     if (!text && !pendingImages.length) return
 

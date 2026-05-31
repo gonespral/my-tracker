@@ -15,7 +15,7 @@
 
 <div class="help-page">
   <h1>The Calorie Clock</h1>
-  <p class="page-subtitle">How the ticker on your calorie ring tracks your expected eating pace.</p>
+  <p class="page-subtitle">A UX heuristic that mirrors your personal meal rhythm</p>
 
   <div class="demo-card">
     <div class="demo-label">Alex's day — drag to move through time</div>
@@ -70,6 +70,14 @@
     If the ring's filled arc is ahead of the ticker, you are eating faster than your typical pace.
     If the filled arc is behind, you are pacing slower than usual and have room to spare.
   </p>
+
+  <div class="callout">
+    <strong>This is a UX heuristic, not a physiological model.</strong> The meal timing windows and
+    interpolation logic are design choices intended to make the ring feel responsive and useful —
+    they are not derived from nutrition research or circadian biology. The clock reflects
+    <em>your own past behaviour</em> back at you; it makes no claim about when you should eat or
+    what eating timing does to your metabolism.
+  </div>
 
   <h2>How the position is calculated</h2>
 
@@ -161,9 +169,9 @@
   </p>
 
   <div class="callout">
-    The ticker is a <em>pace guide</em>, not a strict target. The ring always shows your real
-    logged calories accurately. The ticker reflects typical-you at this hour, not a rule about
-    what you must eat.
+    The ticker is a <em>pace guide</em>, not a strict target. The ring always shows your real logged
+    calories accurately. The ticker reflects typical-you at this hour — treat it as a mirror of your
+    own habits, not as nutritional advice.
   </div>
 </div>
 
