@@ -171,7 +171,7 @@ Google Health requires a Google Cloud project with the Health API enabled. For p
 ### 5.2 Configure the OAuth consent screen
 
 1. Go to **APIs & Services → OAuth consent screen** (now labelled **Google Auth Platform**).
-2. **Branding**: set app name, homepage URL (`https://your-site.com`), privacy policy URL (`https://your-site.com/privacy.html`).
+2. **Branding**: set app name, homepage URL (`https://your-site.com`), privacy policy URL (leave blank or use a placeholder).
 3. **Audience**:
    - User type: **External**
    - Publishing status: click **"Back to testing"** — this lets you use restricted scopes without going through Google's verification process.

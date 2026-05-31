@@ -21,35 +21,14 @@ Try the demo at [gonespral.github.io/my-tracker](https://gonespral.github.io/my-
 - **PWA:** Installable, mobile-first, dark mode, smooth animations.
 - **Privacy-first:** Your Supabase instance, your data. Row-Level Security on all tables. API keys live only in `localStorage`.
 
-### Strava integration
+### Strava & Google Health integration
 
-- **Auto-sync:** Pulls the last 90 days of activities from Strava on load. Deleted Strava activities are removed locally on the next sync.
-- **Push to Strava:** Manually logged workouts can be pushed to Strava directly from the Workouts tab.
-- **Auto-push:** Optionally push every new locally logged activity to Strava automatically.
-- **Cross-push:** Optionally push Google Health imports to Strava automatically.
-- **Calories and heart rate:** Activities are pushed as TCX file uploads, so your logged calorie count and heart rate (if present) are included directly in the file and picked up by Strava.
-- **Delete from Strava:** Delete synced activities from Strava directly within the app, with a confirmation prompt.
-- **Sync controls:** Pause/resume Strava sync without disconnecting.
-- **Duplicate detection:** Activities already in your Supabase database are never re-imported.
-- **Stacked duplicate cards:** When the same activity is detected from multiple sources (e.g. both Strava and Google Health), they are displayed as stacked cards with expand/collapse.
-- **Custom credentials:** Use your own Strava API app instead of the shared one.
-
-### Google Health integration
-
-- **Auto-sync:** Pulls the last 90 days of activities from Google Health on load.
-- **Push to Google Health:** Manually logged workouts can be pushed to Google Health directly from the Workouts tab.
-- **Auto-push:** Optionally push every new locally logged activity to Google Health automatically.
-- **Cross-push:** Optionally push Strava imports to Google Health automatically.
-- **Delete from Google Health:** Delete synced activities from Google Health directly within the app, with a confirmation prompt.
-- **Sync controls:** Pause/resume Google Health sync without disconnecting.
-- **Duplicate detection:** Activities already in your Supabase database are never re-imported.
-- **Custom credentials:** Use your own Google Cloud OAuth client instead of the shared one.
-- **Bidirectional sync:** The same activity type mapping is used in both directions, so a run synced from Strava and pushed to Google Health keeps its type.
+- **Sync:** Auto-pulls the last 90 days on load; pause/resume without disconnecting. Deleted Strava activities are removed on the next sync.
+- **Push:** Send manually logged or imported activities to either service. Cross-push between the two services is supported. Activity type mapping is bidirectional.
+- **Fidelity:** Strava pushes use TCX uploads, so calories and heart rate are preserved.
+- **Duplicates:** Already-imported activities are never re-imported. Cross-source duplicates show as stacked cards.
+- **Custom credentials:** Use your own Strava API app or Google Cloud OAuth client.
 
 ## Setup
 
 See [SETUP.md](SETUP.md) for full step-by-step instructions.
-
-## License
-
-[MIT](LICENSE)

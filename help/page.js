@@ -34,6 +34,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const footerEl = document.createElement('footer')
   footerEl.className = 'help-footer'
-  footerEl.innerHTML = `<p>MyTracker &middot; <a href="/">Back to app</a> &middot; <a href="/privacy.html">Privacy</a> &middot; <a href="/terms.html">Terms</a></p>`
+  footerEl.innerHTML = `<p>MyTracker &middot; <a href="/">Back to app</a></p>`
   page.insertAdjacentElement('afterend', footerEl)
 })
