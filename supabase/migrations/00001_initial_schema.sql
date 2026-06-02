@@ -71,6 +71,7 @@ CREATE TABLE public.user_settings (
     cal_rest            NUMERIC CHECK (cal_rest > 0),
     cal_training        NUMERIC CHECK (cal_training > 0),
     protein_g           NUMERIC CHECK (protein_g >= 0),
+    protein_per_kg      NUMERIC CHECK (protein_per_kg > 0),
     carbs_g             NUMERIC CHECK (carbs_g >= 0),
     fat_g               NUMERIC CHECK (fat_g >= 0),
     age_years           INTEGER CHECK (age_years >= 0),
