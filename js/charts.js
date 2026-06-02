@@ -91,8 +91,8 @@ export function macroRingHTML(label, value, target, unit, accentColor) {
   return `
     <div class="macro-ring-card">
       <div class="macro-ring-label">${label}</div>
-      <div class="ring-wrap" style="width:${size}px;height:${size}px">
-        <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+      <div class="ring-wrap">
+        <svg viewBox="0 0 ${size} ${size}" style="width:100%;height:100%">
           <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--track)" stroke-width="${sw}"/>
           <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${color}" stroke-width="${sw}"
             stroke-dasharray="${circ.toFixed(2)}" stroke-dashoffset="${off.toFixed(2)}"
@@ -100,10 +100,8 @@ export function macroRingHTML(label, value, target, unit, accentColor) {
             style="--ring-circ:${circ.toFixed(2)};--ring-off:${off.toFixed(2)};animation:ring-fill .7s cubic-bezier(.4,0,.2,1) both"/>
         </svg>
         <div class="ring-center">
-          <div style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:15px;color:var(--tx);line-height:1">
-            ${fmt(value)}
-          </div>
-          <div style="font-size:9px;color:var(--tx3);margin-top:1px">${unit}</div>
+          <div class="ring-value">${fmt(value)}</div>
+          <div class="ring-unit">${unit}</div>
         </div>
       </div>
       <div class="macro-ring-target">/ ${target}${unit}</div>

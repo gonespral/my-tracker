@@ -5,7 +5,7 @@ import { dateStr, nowTime } from './utils.js'
 import { showToast, openSheet, closeSheet, closeSheets, toggleEntryMenu, closeMenus, bindSnapDrag } from './ui.js'
 import { startListening, stopListening } from './speech.js'
 import { openChat, clearChat, expandChatPanel, collapseChatPanel, hideChatPanel, toggleChatPanel, sendChatMessage, renderChat, setChatPanelState, isChatLoading, abortChat } from './ai.js'
-import { renderToday, openFoodSheet, openFoodSheetWithPreset, openWorkoutSheet, editFood, editWorkout, saveToMeals, reloadWisdom } from './tabs/today.js'
+import { renderToday, openFoodSheet, openFoodSheetWithPreset, openWorkoutSheet, editFood, editWorkout, saveToMeals, reloadWisdom, openSupplementSheet, editSupplement } from './tabs/today.js'
 import { renderNutrition } from './tabs/nutrition.js'
 import { renderWorkouts } from './tabs/workouts.js'
 import { renderSettings, openPresetSheet, deletePreset, openWorkoutPresetSheet, deleteWorkoutPreset } from './tabs/settings.js'
@@ -146,6 +146,21 @@ document.addEventListener('click', async (e) => {
 
     case 'open-food-sheet':
       openFoodSheet(meal || 'snack', date || null)
+      break
+
+    case 'open-supplement-sheet':
+      openSupplementSheet(date || null)
+      break
+
+    case 'edit-supplement':
+      editSupplement(id, date)
+      break
+
+    case 'delete-supplement':
+      closeMenus()
+      if (!confirm('Delete this supplement entry?')) break
+      try { await db.deleteSupplement(id); await renderActive() }
+      catch (err) { showToast('❌ ' + err.message) }
       break
 
     case 'edit-workout':
@@ -923,6 +938,25 @@ async function initApp() {
       showToast('✅ Weight logged')
       await renderActive()
     } catch (err) { showToast('❌ ' + err.message) }
+  })
+
+  // ── Supplement sheet: save / update ──
+  document.getElementById('save-supplement-btn')?.addEventListener('click', async () => {
+    const name = document.getElementById('s-name').value.trim()
+    if (!name) { document.getElementById('s-name').focus(); return }
+    const entry = {
+      description:       name,
+      supplement_dose_g: parseFloat(document.getElementById('s-dose').value) || null,
+      calories: 0, protein: 0, carbs: 0, fat: 0,
+    }
+    const editId  = state.pendingEditSupplementId
+    const dateVal = document.getElementById('s-date').value || dateStr()
+    closeSheets()
+    try {
+      if (editId) { await db.updateSupplement(editId, entry); showToast('✅ Updated') }
+      else        { await db.addSupplement(dateVal, entry);   showToast('💊 Creatine logged') }
+      await renderActive()
+    } catch (err) { showToast('❌ ' + (err.message || 'Save failed')) }
   })
 
   // ── Mobile stats toggle ──

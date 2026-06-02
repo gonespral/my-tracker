@@ -1,4 +1,4 @@
-import { MEAL_ORDER, MEAL_ICON, MEAL_LABEL, INTENSITY_ICON, detectActivityType, TARGETS } from './config.js'
+import { MEAL_ORDER, MEAL_ICON, MEAL_LABEL, INTENSITY_ICON, detectActivityType, TARGETS, CREATINE_COLOR } from './config.js'
 import { fmt, round, cap, formatTimeToAMPM } from './utils.js'
 import { typeIcon, SPORT_TYPE_MAP, materialIcon } from './icons.js'
 import { state } from './state.js'
@@ -236,6 +236,27 @@ export function workoutStack(entries, date) {
     data-group="${groupId}"
     data-count="${Math.min(entries.length, 3)}">
     ${activeHTML}<div class="conflict-stack-below" style="${isExpanded ? 'overflow:visible' : ''}">${dupesHTML}</div></div>`
+}
+
+export function supplementItem(e, date) {
+  const dose = e.supplement_dose_g != null ? `${fmt(e.supplement_dose_g)} g` : null
+  return `
+  <div class="log-item">
+    <div class="log-icon" style="color:${CREATINE_COLOR}">${materialIcon('science', 15)}</div>
+    <div class="log-body">
+      <div class="log-desc">${e.description}</div>
+      <div class="log-tags">
+        ${dose ? `<span class="tag">${dose}</span>` : ''}
+      </div>
+    </div>
+    <div class="entry-menu-wrap">
+      <button class="entry-menu-btn" data-action="toggle-menu">${materialIcon('more_vert', 16)}</button>
+      <div class="entry-menu">
+        <button data-action="edit-supplement" data-id="${e.id}" data-date="${date}">Edit</button>
+        <button class="danger" data-action="delete-supplement" data-id="${e.id}">Delete</button>
+      </div>
+    </div>
+  </div>`
 }
 
 export function foodByMeal(food, date, options = {}) {

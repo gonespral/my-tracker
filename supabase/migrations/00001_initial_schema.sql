@@ -12,8 +12,9 @@ CREATE TABLE public.food_entries (
     protein     NUMERIC DEFAULT 0 CHECK (protein >= 0),
     carbs       NUMERIC DEFAULT 0 CHECK (carbs >= 0),
     fat         NUMERIC DEFAULT 0 CHECK (fat >= 0),
-    meal        TEXT CHECK (meal IN ('breakfast', 'lunch', 'snack', 'dinner')),
-    created_at  TIMESTAMPTZ DEFAULT now()
+    meal               TEXT CHECK (meal IN ('breakfast', 'lunch', 'snack', 'dinner', 'supplement')),
+    supplement_dose_g  NUMERIC CHECK (supplement_dose_g >= 0),
+    created_at         TIMESTAMPTZ DEFAULT now()
 );
 
 CREATE TABLE public.workout_entries (
@@ -96,6 +97,9 @@ CREATE TABLE public.user_settings (
     gh_auto_push        BOOLEAN DEFAULT false,
     gh_sync_paused      BOOLEAN DEFAULT false,
     gh_push_strava      BOOLEAN DEFAULT false,
+    -- Supplement tracking
+    track_supplements   BOOLEAN DEFAULT false,
+    creatine_target_g   NUMERIC DEFAULT 5 CHECK (creatine_target_g > 0),
     updated_at          TIMESTAMPTZ DEFAULT now()
 );
 

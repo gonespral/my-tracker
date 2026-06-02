@@ -109,6 +109,8 @@ export const MEAL_LABEL = {
   dinner: 'Dinner', uncategorised: 'Other',
 }
 
+export const CREATINE_COLOR = '#10b981'
+
 export const INTENSITY_ICON = {
   low: materialIcon('signal_cellular_alt_1_bar', 11),
   medium: materialIcon('signal_cellular_alt', 11),

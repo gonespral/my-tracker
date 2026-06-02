@@ -1,11 +1,11 @@
-import { TARGETS, MEAL_ORDER, MEAL_LABEL, MEAL_ICON } from '../config.js'
+import { TARGETS, MEAL_ORDER, MEAL_LABEL, MEAL_ICON, CREATINE_COLOR } from '../config.js'
 import { state } from '../state.js'
 import { db } from '../db.js'
 import { dateStr, sumFood, calculateNetActiveCalories, fmtDateShort } from '../utils.js'
 import { stagger, renderPanel } from '../animate.js'
 import { calRingHTML, macroRingHTML, weekChartHTML, streakHTML, sparklineHTML, MACRO_COLORS } from '../charts.js'
 import { getCalorieGoal } from '../config.js'
-import { foodItem, workoutItem, groupWorkoutsByConflict, workoutStack } from '../renderers.js'
+import { foodItem, workoutItem, groupWorkoutsByConflict, workoutStack, supplementItem } from '../renderers.js'
 import { openSheet, showToast, closeMenus } from '../ui.js'
 import { fetchDailyWisdom } from '../ai.js'
 import { materialIcon } from '../icons.js'
@@ -137,10 +137,13 @@ export async function renderToday() {
     return
   }
 
-  const data     = await db.load()
-  const today    = dateStr()
-  const food     = data.food[today]     || []
-  const workouts = data.workouts[today] || []
+  const data        = await db.load()
+  const today       = dateStr()
+  const allFood     = data.food[today]     || []
+  const trackSupps  = state.settings?.track_supplements ?? false
+  const supplements = trackSupps ? allFood.filter(e => e.meal === 'supplement') : []
+  const food        = trackSupps ? allFood.filter(e => e.meal !== 'supplement') : allFood
+  const workouts    = data.workouts[today] || []
   const totals      = sumFood(food)
   const calTarget   = getCalorieGoal()
   const burnedToday = calculateNetActiveCalories(workouts)
@@ -155,10 +158,19 @@ export async function renderToday() {
        ${burnedToday > 0 ? `<span class="badge"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle">local_fire_department</span> ${burnedToday.toLocaleString()} burned</span>` : ''}
      </div>`)
 
-  renderPanel(document.getElementById('macro-rings'),
+  const creatineTarget = state.settings?.creatine_target_g ?? 5
+  const creatineDose   = trackSupps
+    ? supplements.reduce((sum, e) => sum + (e.supplement_dose_g || 0), 0)
+    : 0
+
+  const ringCount = 3 + (trackSupps ? 1 : 0)
+  const ringsEl = document.getElementById('macro-rings')
+  ringsEl.className = 'macro-rings' + (ringCount >= 5 ? ' rings-5' : ringCount === 4 ? ' rings-4' : '')
+  renderPanel(ringsEl,
     macroRingHTML('Protein', totals.protein, TARGETS.protein, 'g', MACRO_COLORS.protein) +
     macroRingHTML('Carbs',   totals.carbs,   TARGETS.carbs,   'g', MACRO_COLORS.carbs) +
-    macroRingHTML('Fat',     totals.fat,     TARGETS.fat,     'g', MACRO_COLORS.fat))
+    macroRingHTML('Fat',     totals.fat,     TARGETS.fat,     'g', MACRO_COLORS.fat) +
+    (trackSupps ? macroRingHTML('Creatine', creatineDose, creatineTarget, 'g', CREATINE_COLOR) : ''))
 
   renderPanel(document.getElementById('week-chart-card'), weekChartHTML(data))
   renderPanel(document.getElementById('streak-card'),     streakHTML(data))
@@ -181,6 +193,10 @@ export async function renderToday() {
     <div class="section-label">Food</div>
     ${stagger(orderedFood, e => foodItem(e, today))}
     <button class="log-add-btn" data-action="open-food-sheet" data-meal="snack">+ Add meal</button>
+    ${trackSupps ? `
+    <div class="section-label" style="margin-top:14px">Supplements</div>
+    ${stagger(supplements, e => supplementItem(e, today))}
+    <button class="log-add-btn" data-action="open-supplement-sheet">+ Log supplement</button>` : ''}
     <div class="section-label" style="margin-top:14px">Activities</div>
     ${stagger(groupWorkoutsByConflict(workouts), item =>
       item.type === 'stack' ? workoutStack(item.entries, today) : workoutItem(item.entry, today)
@@ -343,6 +359,39 @@ export function editWorkout(id, date) {
   document.getElementById('save-workout-btn').textContent = 'Update Activity'
   document.getElementById('w-date').disabled = false
   openSheet('intensity-sheet')
+}
+
+export function openSupplementSheet(date = null) {
+  state.pendingEditSupplementId = null
+  state.pendingSupplementDate   = date
+  document.getElementById('s-date').value = date || dateStr()
+  document.getElementById('s-name').value = 'Creatine Monohydrate'
+  document.getElementById('s-dose').value = state.settings?.creatine_target_g ?? 5
+  document.getElementById('save-supplement-btn').textContent = 'Log Creatine'
+  openSheet('supplement-sheet')
+}
+
+export function editSupplement(id, date) {
+  closeMenus()
+  let entry = null, entryDate = date
+  if (date && state.dbCache?.food[date]) {
+    entry = state.dbCache.food[date].find(e => e.id === id) || null
+  }
+  if (!entry && state.dbCache) {
+    for (const [d, entries] of Object.entries(state.dbCache.food)) {
+      const found = entries.find(e => e.id === id)
+      if (found) { entry = found; entryDate = d; break }
+    }
+  }
+  if (!entry) return
+
+  state.pendingEditSupplementId = id
+  state.pendingSupplementDate   = entryDate
+  document.getElementById('s-date').value = entryDate
+  document.getElementById('s-name').value = entry.description || ''
+  document.getElementById('s-dose').value = entry.supplement_dose_g || ''
+  document.getElementById('save-supplement-btn').textContent = 'Update Creatine'
+  openSheet('supplement-sheet')
 }
 
 export async function saveToMeals(id, date) {

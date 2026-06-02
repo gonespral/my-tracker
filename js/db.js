@@ -454,6 +454,18 @@ export const db = {
     if (error) throw error
   },
 
+  async addSupplement(date, entry) {
+    return this.addFood(date, { ...entry, meal: 'supplement' })
+  },
+
+  async updateSupplement(id, entry) {
+    return this.updateFood(id, entry)
+  },
+
+  async deleteSupplement(id) {
+    return this.deleteFood(id)
+  },
+
   async deleteStravaWorkouts() {
     const { error } = await supabase.from('workout_entries')
       .delete()
@@ -558,6 +570,8 @@ export const db = {
       gh_auto_push:         s.gh_auto_push          !== undefined ? s.gh_auto_push          : (current?.gh_auto_push          ?? false),
       gh_sync_paused:       s.gh_sync_paused        !== undefined ? s.gh_sync_paused        : (current?.gh_sync_paused        ?? false),
       gh_push_strava:       s.gh_push_strava        !== undefined ? s.gh_push_strava        : (current?.gh_push_strava        ?? false),
+      track_supplements:    s.track_supplements     !== undefined ? s.track_supplements     : (current?.track_supplements     ?? false),
+      creatine_target_g:    s.creatine_target_g     ?? current?.creatine_target_g     ?? 5,
       updated_at: new Date().toISOString(),
     }
     const { error } = await supabase.from('user_settings').upsert(merged, { onConflict: 'user_id' })
@@ -620,7 +634,8 @@ if (isDemo) {
     weights: [],
     settings: {
       cal_rest: 2100, protein_g: 140, carbs_g: 220, fat_g: 70,
-      age_years: 28, sex: 'female', height_cm: 168, weight_kg: 72.5, activity_level: 'active'
+      age_years: 28, sex: 'female', height_cm: 168, weight_kg: 72.5, activity_level: 'active',
+      track_supplements: true, creatine_target_g: 5
     },
     meals: [
       { id: 'm1', name: 'Protein Shake', calories: 150, protein: 25, carbs: 5, fat: 2, meal: 'snack' },
@@ -663,6 +678,10 @@ if (isDemo) {
     // Random snacks
     if (Math.random() > 0.5) {
       mockDb.food[dateStr].push({ id: `f4-${i}`, date: dateStr, description: pick(snacks), calories: 150 + Math.random() * 100, protein: 5 + Math.random() * 15, carbs: 15 + Math.random() * 20, fat: 5 + Math.random() * 5, meal: 'snack' });
+    }
+    // 70% chance of creatine
+    if (Math.random() > 0.3) {
+      mockDb.food[dateStr].push({ id: `cr-${i}`, date: dateStr, description: 'Creatine', supplement_dose_g: 5, calories: 0, protein: 0, carbs: 0, fat: 0, meal: 'supplement' });
     }
 
     // 60% chance of working out
@@ -750,6 +769,10 @@ if (isDemo) {
     db.bust();
   };
   db.deleteWeight = async (date) => { mockDb.weights = mockDb.weights.filter(x => x.date !== date); db.bust(); };
+
+  db.addSupplement = async (date, entry) => db.addFood(date, { ...entry, meal: 'supplement' })
+  db.updateSupplement = async (id, entry) => db.updateFood(id, entry)
+  db.deleteSupplement = async (id) => db.deleteFood(id)
 
   db.getIntegration = async (provider) => provider === 'strava' ? { access_token: 'demo' } : null;
   db.upsertIntegration = async () => { };

@@ -91,18 +91,10 @@ function setCalorieProfileSummary(targets, latestWeightKg, deficitKcal = 0) {
   summary.innerHTML = formatCalorieProfileSummaryWithDeficit(targets, latestWeightKg, deficitKcal)
 }
 
-function updateProfileTargetInputs(targets, calorieTarget = targets?.rest) {
+function updateProfileTargetInputs(targets) {
   if (!targets) return
   const restInput = document.getElementById('t-cal-rest')
   if (restInput) restInput.value = targets.rest
-  const weightKg = targets.weight_kg || null
-  const macros = recommendMacros(calorieTarget ?? targets.rest, weightKg)
-  const proInput = document.getElementById('t-protein')
-  const carInput = document.getElementById('t-carbs')
-  const fatInput = document.getElementById('t-fat')
-  if (proInput) proInput.value = macros.protein
-  if (carInput) carInput.value = macros.carbs
-  if (fatInput) fatInput.value = macros.fat
 }
 
 function sourcePills(sources, hidden = false) {
@@ -120,12 +112,8 @@ function sourcePills(sources, hidden = false) {
 }
 
 function setTargetsReadonly(isReadonly) {
-  const targetGrid = document.querySelector('.targets-grid')
-  targetGrid?.classList.toggle('is-readonly', !!isReadonly)
-  ;['t-cal-rest', 't-protein', 't-carbs', 't-fat', 't-protein-per-kg'].forEach(id => {
-    const input = document.getElementById(id)
-    if (input) input.disabled = !!isReadonly
-  })
+  const calInput = document.getElementById('t-cal-rest')
+  if (calInput) calInput.disabled = !!isReadonly
   const saveBtn = document.getElementById('settings-save-targets-btn')
   if (saveBtn) saveBtn.style.display = isReadonly ? 'none' : ''
 }
@@ -238,6 +226,13 @@ export async function renderSettings() {
   const tdeeAt = settingsRow?.tdee_calibrated_at ?? null
   const tdeeCalibratedLabel = tdeeAt ? 'Last updated ' + new Date(tdeeAt).toLocaleDateString() + ' · auto-updates on sync' : 'Never calibrated · will run on save'
 
+  const macroMode = localStorage.getItem('tracker-macro-mode') || 'g'
+  const initCalGoal = TARGETS.calories.goal || TARGETS.calories.rest
+  const initProteinPct = initCalGoal > 0 ? Math.round(TARGETS.protein * 4 / initCalGoal * 100) : 20
+  const initCarbsPct   = initCalGoal > 0 ? Math.round(TARGETS.carbs   * 4 / initCalGoal * 100) : 45
+  const initFatPct     = initCalGoal > 0 ? Math.round(TARGETS.fat     * 9 / initCalGoal * 100) : 35
+  const initTotalPct   = initProteinPct + initCarbsPct + initFatPct
+
   panel.innerHTML = `<div class="tab-inner">
 
     ${section('meals', 'Saved Meals', `
@@ -250,12 +245,10 @@ export async function renderSettings() {
       ${wps.length ? wpItems : '<div class="empty">No saved activities yet.</div>'}
     `)}
 
-    ${section('targets', 'Daily Targets', `
-      <p class="setup-note">Changes apply immediately and sync across sessions.</p>
-
+    ${section('targets', 'Calories', `
       <div id="settings-bmr-calc-section">
         <div class="toggle-row" style="margin-bottom:8px">
-          <div class="toggle-row-label">Use profile-based target</div>
+          <div class="toggle-row-label">Profile-based target</div>
           <label class="toggle-switch" for="settings-use-bmr-checkbox">
             <input type="checkbox" id="settings-use-bmr-checkbox" ${useBmr ? 'checked' : ''}>
             <span class="toggle-slider"></span>
@@ -277,7 +270,7 @@ export async function renderSettings() {
               style="flex:1;accent-color:var(--accent)">
             <span id="eatback-label" style="font-size:14px;font-weight:600;color:var(--tx);min-width:36px;text-align:right">${TARGETS.calories.eatback_pct}%</span>
           </div>
-          <div style="font-size:11px;color:var(--tx3);margin-top:4px">50% recommended — device burn estimates are often 20–40% too high.</div>
+          <div style="font-size:11px;color:var(--tx3);margin-top:4px">50% recommended. Device burn estimates are often 20-40% too high.</div>
         </div>
         ${googleHealthIsConnected() ? `
         <div class="toggle-row" style="margin-bottom:8px">
@@ -290,117 +283,165 @@ export async function renderSettings() {
             <span class="toggle-slider"></span>
           </label>
         </div>` : ''}
-      <div class="targets-grid">
-        <div class="form-field">
-          <label class="form-label" for="t-cal-rest">Target (kcal)</label>
-          <input class="form-input" id="t-cal-rest" type="number" inputmode="numeric" value="${TARGETS.calories.rest}">
-        </div>
-        <div class="form-field">
-          <label class="form-label" for="t-protein">Protein (g)</label>
-          <input class="form-input" id="t-protein" type="number" inputmode="numeric" value="${TARGETS.protein}" ${savedProteinPerKg ? 'readonly style="opacity:0.5"' : ''}>
-          <div style="display:flex;align-items:center;gap:6px;margin-top:6px">
-            <input class="form-input" id="t-protein-per-kg" type="number" inputmode="decimal" step="0.1" min="0.5" max="4" placeholder="g/kg"
-              style="width:72px;flex-shrink:0" value="${savedProteinPerKg ?? ''}">
-            <span style="font-size:12px;color:var(--tx3)">g/kg body weight</span>
-            <span id="t-protein-computed" style="font-size:12px;color:var(--accent);margin-left:auto"></span>
-          </div>
-        </div>
-        <div class="form-field">
-          <label class="form-label" for="t-carbs">Carbs (g)</label>
-          <input class="form-input" id="t-carbs" type="number" inputmode="numeric" value="${TARGETS.carbs}">
-        </div>
-        <div class="form-field">
-          <label class="form-label" for="t-fat">Fat (g)</label>
-          <input class="form-input" id="t-fat" type="number" inputmode="numeric" value="${TARGETS.fat}">
-        </div>
       </div>
-      <button class="btn-primary" id="settings-save-targets-btn" style="margin-top:4px;display:${useBmr || useGHCalibration ? 'none' : ''}">Save Target</button>
-      <button class="btn-primary" id="tdee-calibrate-btn" style="margin-top:4px;display:${useGHCalibration ? '' : 'none'}">
+
+      <div class="form-field" style="margin-bottom:14px">
+        <label class="form-label" for="t-cal-rest">Target (kcal)</label>
+        <input class="form-input" id="t-cal-rest" type="number" inputmode="numeric" value="${TARGETS.calories.rest}" style="max-width:160px">
+      </div>
+      <button class="btn-primary" id="settings-save-targets-btn" style="display:${useBmr || useGHCalibration ? 'none' : ''}">Save</button>
+      <button class="btn-primary" id="tdee-calibrate-btn" style="display:${useGHCalibration ? '' : 'none'}">
         ${materialIcon('monitor_heart', 14, { style: 'vertical-align:-2px;flex-shrink:0;color:white' })}
         Calibrate Now
       </button>
-        <div id="settings-bmr-details" style="display:${useBmr ? 'block' : 'none'}">
-          <div class="settings-profile-summary" id="settings-profile-summary" style="margin-top:6px">
-            ${formatCalorieProfileSummaryWithDeficit(estimatedProfile, latestWeightKg, bmrDeficit)}
+
+      <div id="settings-bmr-details" style="display:${useBmr ? 'block' : 'none'}">
+        <div class="settings-profile-summary" id="settings-profile-summary" style="margin-top:6px">
+          ${formatCalorieProfileSummaryWithDeficit(estimatedProfile, latestWeightKg, bmrDeficit)}
+        </div>
+        <div class="profile-grid">
+          <div class="form-field">
+            <label class="form-label" for="profile-age">Age (years)</label>
+            <input class="form-input" id="profile-age" type="number" inputmode="numeric" min="13" max="120" value="${profileAge}">
           </div>
-          <div class="profile-grid">
-            <div class="form-field">
-              <label class="form-label" for="profile-age">Age (years)</label>
-              <input class="form-input" id="profile-age" type="number" inputmode="numeric" min="13" max="120" value="${profileAge}">
-            </div>
-            <div class="form-field">
-              <label class="form-label" for="profile-sex">Sex</label>
-              <select class="form-input" id="profile-sex">
-                <option value="female" ${profileSex === 'female' ? 'selected' : ''}>Female</option>
-                <option value="male" ${profileSex === 'male' ? 'selected' : ''}>Male</option>
-                <option value="other" ${profileSex === 'other' ? 'selected' : ''}>Other / prefer not to say</option>
-              </select>
-            </div>
-            <div class="form-field">
-              <label class="form-label" for="profile-height-cm">Height (cm)</label>
-              <input class="form-input" id="profile-height-cm" type="number" inputmode="numeric" min="100" max="250" value="${profileHeight}">
-            </div>
-            <div class="form-field">
-              <label class="form-label" for="profile-weight-kg">Weight (kg)</label>
-              <input class="form-input" id="profile-weight-kg" type="number" inputmode="decimal" min="25" max="300" step="0.1" value="${profileWeight}">
-            </div>
-            <div class="form-field">
-              <label class="form-label" for="profile-activity-level">Daily movement</label>
-              <select class="form-input" id="profile-activity-level"
-                ${useBmr && eatbackEnabled ? 'disabled style="opacity:0.4"' : ''}>
-                <option value="sedentary" ${(useBmr && eatbackEnabled) || profileActivity === 'sedentary' ? 'selected' : ''}>Sedentary</option>
-                <option value="light" ${!(useBmr && eatbackEnabled) && profileActivity === 'light' ? 'selected' : ''}>Light</option>
-                <option value="moderate" ${!(useBmr && eatbackEnabled) && profileActivity === 'moderate' ? 'selected' : ''}>Moderate</option>
-                <option value="active" ${!(useBmr && eatbackEnabled) && profileActivity === 'active' ? 'selected' : ''}>Active</option>
-                <option value="very_active" ${!(useBmr && eatbackEnabled) && profileActivity === 'very_active' ? 'selected' : ''}>Very active</option>
-              </select>
-            </div>
-            <div class="form-field">
-              <label class="form-label" for="profile-deficit-kcal">Deficit (kcal/day)</label>
-              <input class="form-input" id="profile-deficit-kcal" type="number" inputmode="numeric" min="0" max="1500" step="10" value="${bmrDeficit}">
-            </div>
+          <div class="form-field">
+            <label class="form-label" for="profile-sex">Sex</label>
+            <select class="form-input" id="profile-sex">
+              <option value="female" ${profileSex === 'female' ? 'selected' : ''}>Female</option>
+              <option value="male" ${profileSex === 'male' ? 'selected' : ''}>Male</option>
+              <option value="other" ${profileSex === 'other' ? 'selected' : ''}>Other / prefer not to say</option>
+            </select>
           </div>
-          <p class="settings-profile-note">This estimate includes everyday movement, so it behaves like a daily TDEE rather than workout-only calories.</p>
-          <button class="btn-primary" id="settings-save-profile-btn" style="margin-top:4px">Save Target Settings</button>
+          <div class="form-field">
+            <label class="form-label" for="profile-height-cm">Height (cm)</label>
+            <input class="form-input" id="profile-height-cm" type="number" inputmode="numeric" min="100" max="250" value="${profileHeight}">
+          </div>
+          <div class="form-field">
+            <label class="form-label" for="profile-weight-kg">Weight (kg)</label>
+            <input class="form-input" id="profile-weight-kg" type="number" inputmode="decimal" min="25" max="300" step="0.1" value="${profileWeight}">
+          </div>
+          <div class="form-field">
+            <label class="form-label" for="profile-activity-level">Daily movement</label>
+            <select class="form-input" id="profile-activity-level"
+              ${useBmr && eatbackEnabled ? 'disabled style="opacity:0.4"' : ''}>
+              <option value="sedentary" ${(useBmr && eatbackEnabled) || profileActivity === 'sedentary' ? 'selected' : ''}>Sedentary</option>
+              <option value="light" ${!(useBmr && eatbackEnabled) && profileActivity === 'light' ? 'selected' : ''}>Light</option>
+              <option value="moderate" ${!(useBmr && eatbackEnabled) && profileActivity === 'moderate' ? 'selected' : ''}>Moderate</option>
+              <option value="active" ${!(useBmr && eatbackEnabled) && profileActivity === 'active' ? 'selected' : ''}>Active</option>
+              <option value="very_active" ${!(useBmr && eatbackEnabled) && profileActivity === 'very_active' ? 'selected' : ''}>Very active</option>
+            </select>
+          </div>
+          <div class="form-field">
+            <label class="form-label" for="profile-deficit-kcal">Deficit (kcal/day)</label>
+            <input class="form-input" id="profile-deficit-kcal" type="number" inputmode="numeric" min="0" max="1500" step="10" value="${bmrDeficit}">
+          </div>
+        </div>
+        <p class="settings-profile-note">This estimate includes everyday movement, so it behaves like a daily TDEE rather than workout-only calories.</p>
+        <button class="btn-primary" id="settings-save-profile-btn" style="margin-top:4px">Save Profile</button>
+      </div>
+
+    `)}
+
+    ${section('macros', 'Macros & Supplements', `
+
+      <div class="macro-mode-bar">
+        <div class="macro-mode-switcher">
+          <button type="button" class="mode-seg ${macroMode === 'g' ? 'active' : ''}" data-macro-mode="g">g</button>
+          <button type="button" class="mode-seg ${macroMode === 'pct' ? 'active' : ''}" data-macro-mode="pct">%</button>
         </div>
       </div>
 
-    `)}
+      <div class="macros-boxes-grid">
+        <div class="macro-box">
+          <div class="macro-box-label">Protein</div>
+          <div class="macro-box-input-wrap">
+            <input class="macro-box-input" id="t-protein" type="number" inputmode="decimal"
+              value="${macroMode === 'g' ? TARGETS.protein : initProteinPct}"
+              ${savedProteinPerKg ? 'readonly' : ''}>
+            <span class="macro-box-unit" id="macro-unit-protein">${macroMode === 'g' ? 'g' : '%'}</span>
+          </div>
+          <div class="macro-box-hint" id="t-protein-hint">${macroMode === 'pct' ? `= ${TARGETS.protein}g` : (savedProteinPerKg ? `from g/kg` : '')}</div>
+          <div class="macro-box-perkg">
+            <input class="macro-perkg-input" id="t-protein-per-kg" type="number" inputmode="decimal"
+              step="0.1" min="0.5" max="4" placeholder="g / kg body weight"
+              value="${savedProteinPerKg ?? ''}">
+            <div class="macro-box-hint" id="t-protein-computed"></div>
+          </div>
+        </div>
 
-    ${section('conflicts', 'Activity Conflicts', `
-      <p class="setup-note">When Strava and Google Health overlap, only the selected source counts toward metrics. You can swap any inactive duplicate from its card.</p>
-      <div class="form-field">
-        <label class="form-label" for="conflict-preference">Default source</label>
-        <select class="form-input" id="conflict-preference">
-          <option value="strava">Strava</option>
-          <option value="google-health">Google Health</option>
-        </select>
+        <div class="macro-box">
+          <div class="macro-box-label">Carbs</div>
+          <div class="macro-box-input-wrap">
+            <input class="macro-box-input" id="t-carbs" type="number" inputmode="decimal"
+              value="${macroMode === 'g' ? TARGETS.carbs : initCarbsPct}">
+            <span class="macro-box-unit" id="macro-unit-carbs">${macroMode === 'g' ? 'g' : '%'}</span>
+          </div>
+          <div class="macro-box-hint" id="t-carbs-hint">${macroMode === 'pct' ? `= ${TARGETS.carbs}g` : ''}</div>
+        </div>
+
+        <div class="macro-box">
+          <div class="macro-box-label">Fat</div>
+          <div class="macro-box-input-wrap">
+            <input class="macro-box-input" id="t-fat" type="number" inputmode="decimal"
+              value="${macroMode === 'g' ? TARGETS.fat : initFatPct}">
+            <span class="macro-box-unit" id="macro-unit-fat">${macroMode === 'g' ? 'g' : '%'}</span>
+          </div>
+          <div class="macro-box-hint" id="t-fat-hint">${macroMode === 'pct' ? `= ${TARGETS.fat}g` : ''}</div>
+        </div>
       </div>
+
+      <div id="macros-pct-total" class="macro-pct-total ${initTotalPct === 100 ? 'exact' : initTotalPct > 100 ? 'over' : ''}" style="display:${macroMode === 'pct' ? '' : 'none'}">
+        Total: ${initTotalPct}%${initTotalPct !== 100 ? ` (${initTotalPct > 100 ? '+' : ''}${initTotalPct - 100}%)` : ' ✓'}
+      </div>
+
+      <div class="settings-section-divider"></div>
+
+      <div class="toggle-row" style="margin-bottom:8px">
+        <div>
+          <div class="toggle-row-label">Track creatine</div>
+          <div class="toggle-row-sub">Ring on the Today tab</div>
+        </div>
+        <label class="toggle-switch" for="track-supplements-toggle">
+          <input type="checkbox" id="track-supplements-toggle" ${settingsRow?.track_supplements ? 'checked' : ''}>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div id="targets-creatine-row" style="display:${settingsRow?.track_supplements ? '' : 'none'};margin-bottom:14px">
+        <div class="form-field">
+          <label class="form-label" for="t-creatine">Creatine daily target (g)</label>
+          <input class="form-input" id="t-creatine" type="number" inputmode="decimal" step="0.5" min="1" max="20" value="${settingsRow?.creatine_target_g ?? 5}" style="max-width:120px">
+        </div>
+      </div>
+
+      <button class="btn-primary" id="settings-save-macros-btn">Save Macros</button>
+
     `)}
 
-    ${section('claude', `<span class="settings-provider-title">${CLAUDE_ICON} Claude API</span>`, `
+    ${section('integrations', 'Integrations', `
+
+      <div class="integration-label">${CLAUDE_ICON} Claude API</div>
       <p class="setup-note">Your API key is stored locally and never sent anywhere except Anthropic's API.</p>
       <div class="form-field">
         <label class="form-label" for="settings-apikey-input">Anthropic API Key</label>
         <input class="form-input" id="settings-apikey-input" type="password"
           placeholder="sk-ant-…" autocomplete="off" value="${apiKey ? '••••••••' : ''}" />
       </div>
-      <div class="toggle-row" style="margin:6px 0 12px">
-        <div class="toggle-row-label" style="font-size:13px">Confirm meal and activity drafts before saving</div>
+      <div class="toggle-row" style="margin:6px 0 10px">
+        <div class="toggle-row-label" style="font-size:13px">Confirm drafts before saving</div>
         <label class="toggle-switch">
           <input type="checkbox" id="claude-confirm-toggle" ${claudeDraftConfirmationEnabled() ? 'checked' : ''}>
           <span class="toggle-slider"></span>
         </label>
       </div>
-      <p class="setup-note" style="margin-top:0">When enabled, Claude opens the meal or activity editor first so you can review the draft before it is saved.</p>
-      <button class="btn-primary" id="settings-save-apikey-btn" style="margin-top:0">Save Key</button>
-    `)}
+      <button class="btn-primary" id="settings-save-apikey-btn">Save Key</button>
 
-    ${section('strava', `<span style="display:flex;align-items:center;gap:7px">${STRAVA_ICON} Strava</span>`, `
+      <div class="settings-section-divider"></div>
+
+      <div class="integration-label">${STRAVA_ICON} Strava</div>
       <div id="strava-disconnected-ui">
         <p class="setup-note">
           Connect your Strava account to automatically sync activities.
-          By default, OAuth tokens are stored server-side in Supabase — nothing sensitive is saved in your browser.
+          By default, OAuth tokens are stored server-side in Supabase. Nothing sensitive is saved in your browser.
         </p>
         <div class="toggle-row" style="margin-bottom:4px">
           <div class="toggle-row-label" style="font-size:13px">Use custom API credentials (self-hosted)</div>
@@ -412,7 +453,7 @@ export async function renderSettings() {
         <div id="strava-custom-fields" style="display:none;margin-bottom:16px;padding:12px;background:var(--track);border-radius:8px">
           <p class="setup-note" style="margin-top:0">
             Connect your <a href="https://www.strava.com/settings/api" target="_blank">Strava API app</a>.
-            Your client ID, client secret, and OAuth tokens are stored in your browser's <code>localStorage</code> — they never leave this device.
+            Your client ID, client secret, and OAuth tokens are stored in your browser's <code>localStorage</code>. They never leave this device.
           </p>
           <div class="form-field">
             <label class="form-label" for="strava-cid-input">Client ID</label>
@@ -476,13 +517,14 @@ export async function renderSettings() {
         </div>
         <button id="remove-strava-btn" class="link-btn" style="margin-top:14px;color:var(--danger);display:block">Remove all synced activities</button>
       </div>
-    `)}
 
-    ${section('google', `<span style="display:flex;align-items:center;gap:7px">${GOOGLE_HEALTH_ICON} Google Health</span>`, `
+      <div class="settings-section-divider"></div>
+
+      <div class="integration-label">${GOOGLE_HEALTH_ICON} Google Health</div>
       <div id="gh-disconnected-ui">
         <p class="setup-note">
           Connect your Google Health account to sync activities.
-          By default, OAuth tokens are stored server-side in Supabase — nothing sensitive is saved in your browser.
+          By default, OAuth tokens are stored server-side in Supabase. Nothing sensitive is saved in your browser.
         </p>
         <div class="toggle-row" style="margin-bottom:4px">
           <div class="toggle-row-label" style="font-size:13px">Use custom API credentials (self-hosted)</div>
@@ -494,7 +536,7 @@ export async function renderSettings() {
         <div id="gh-custom-fields" style="display:none;margin-bottom:16px;padding:12px;background:var(--track);border-radius:8px">
           <p class="setup-note" style="margin-top:0">
             Sync activities via the <a href="https://console.cloud.google.com/apis/api/health.googleapis.com/" target="_blank">Google Health API Console</a>.
-            Your client ID, client secret, and OAuth tokens are stored in your browser's <code>localStorage</code> — they never leave this device.
+            Your client ID, client secret, and OAuth tokens are stored in your browser's <code>localStorage</code>. They never leave this device.
           </p>
           <p class="setup-note" style="margin-top:0">
             Create an OAuth 2.0 credential with redirect URI:
@@ -552,6 +594,19 @@ export async function renderSettings() {
         </div>
         <button id="remove-gh-btn" class="link-btn" style="margin-top:14px;color:var(--danger);display:block">Remove all synced activities</button>
       </div>
+
+      <div class="settings-section-divider"></div>
+
+      <div class="integration-label">${materialIcon('swap_horiz', 14)} Activity Conflicts</div>
+      <p class="setup-note">When Strava and Google Health overlap, only the selected source counts toward metrics. You can swap any inactive duplicate from its card.</p>
+      <div class="form-field">
+        <label class="form-label" for="conflict-preference">Default source</label>
+        <select class="form-input" id="conflict-preference">
+          <option value="strava">Strava</option>
+          <option value="google-health">Google Health</option>
+        </select>
+      </div>
+
     `)}
 
     ${section('account', 'Account', `
@@ -593,19 +648,42 @@ export async function renderSettings() {
 
   const getDeficitValue = () => Math.max(0, parseInt(deficitInput?.value, 10) || 0)
 
+  const syncPctHints = () => {
+    const mode = localStorage.getItem('tracker-macro-mode') || 'g'
+    const el = (id) => document.getElementById(id)
+    const totalEl = el('macros-pct-total')
+    if (mode !== 'pct') {
+      if (el('t-protein-hint')) el('t-protein-hint').textContent = ''
+      if (el('t-carbs-hint'))   el('t-carbs-hint').textContent   = ''
+      if (el('t-fat-hint'))     el('t-fat-hint').textContent     = ''
+      if (totalEl) totalEl.style.display = 'none'
+      return
+    }
+    const cal = TARGETS.calories.goal || TARGETS.calories.rest
+    if (!cal) return
+    const pp = parseInt(el('t-protein')?.value) || 0
+    const cp = parseInt(el('t-carbs')?.value)   || 0
+    const fp = parseInt(el('t-fat')?.value)     || 0
+    if (el('t-protein-hint')) el('t-protein-hint').textContent = '= ' + Math.round(cal * pp / 100 / 4) + 'g'
+    if (el('t-carbs-hint'))   el('t-carbs-hint').textContent   = '= ' + Math.round(cal * cp / 100 / 4) + 'g'
+    if (el('t-fat-hint'))     el('t-fat-hint').textContent     = '= ' + Math.round(cal * fp / 100 / 9) + 'g'
+    const total = pp + cp + fp
+    if (totalEl) {
+      totalEl.style.display = ''
+      totalEl.textContent = 'Total: ' + total + '%' + (total !== 100 ? ' (' + (total > 100 ? '+' : '') + (total - 100) + '%)' : ' ✓')
+      totalEl.className = 'macro-pct-total' + (total === 100 ? ' exact' : total > 100 ? ' over' : '')
+    }
+  }
+
   const applyEstimatedToTargets = (estimated) => {
     if (!estimated) return
     TARGETS.calories.rest = estimated.rest
     TARGETS.calories.bmr = estimated.bmr
     const goal = setCalorieDeficit(getDeficitValue())
     TARGETS.calories.training = goal
-    const weightKg = estimated.weight_kg || null
-    const macros = recommendMacros(goal, weightKg)
-    TARGETS.protein = macros.protein
-    TARGETS.carbs = macros.carbs
-    TARGETS.fat = macros.fat
-    updateProfileTargetInputs(estimated, goal)
+    updateProfileTargetInputs(estimated)
     setCalorieProfileSummary(estimated, latestWeightKg, getDeficitValue())
+    syncPctHints()
   }
 
   const bmrDetails = document.getElementById('settings-bmr-details')
@@ -659,6 +737,25 @@ export async function renderSettings() {
   updateStravaSettingsSection()
   updateGoogleHealthSettingsSection()
 
+  // Live g/kg → protein g computation
+  const syncProteinFromPerKg = () => {
+    const perKgInput = document.getElementById('t-protein-per-kg')
+    const proInput = document.getElementById('t-protein')
+    const computedEl = document.getElementById('t-protein-computed')
+    const perKg = parseFloat(perKgInput?.value)
+    const weightKg = parseFloat(document.getElementById('profile-weight-kg')?.value) || latestWeightKg || null
+    if (perKg > 0 && weightKg) {
+      const computed = Math.round(perKg * weightKg)
+      if (proInput) { proInput.value = computed; proInput.readOnly = true; proInput.style.opacity = '0.5' }
+      if (computedEl) computedEl.textContent = '= ' + computed + 'g at ' + weightKg.toFixed(1) + 'kg'
+    } else {
+      if (proInput) { proInput.readOnly = false; proInput.style.opacity = '' }
+      if (computedEl) computedEl.textContent = ''
+    }
+  }
+  document.getElementById('t-protein-per-kg')?.addEventListener('input', syncProteinFromPerKg)
+  syncProteinFromPerKg()
+
   useBmrCheckbox?.addEventListener('change', syncBmrUiState)
   deficitInput?.addEventListener('input', () => {
     const value = getDeficitValue()
@@ -677,46 +774,100 @@ export async function renderSettings() {
     })
   })
 
-  // Live g/kg → protein g computation
-  const syncProteinFromPerKg = () => {
-    const perKgInput = document.getElementById('t-protein-per-kg')
-    const proInput = document.getElementById('t-protein')
-    const computedEl = document.getElementById('t-protein-computed')
-    const perKg = parseFloat(perKgInput?.value)
-    const weightKg = parseFloat(document.getElementById('profile-weight-kg')?.value) || latestWeightKg || null
-    if (perKg > 0 && weightKg) {
-      const computed = Math.round(perKg * weightKg)
-      if (proInput) { proInput.value = computed; proInput.readOnly = true; proInput.style.opacity = '0.5' }
-      if (computedEl) computedEl.textContent = `= ${computed}g at ${weightKg.toFixed(1)}kg`
-    } else {
-      if (proInput) { proInput.readOnly = false; proInput.style.opacity = '' }
-      if (computedEl) computedEl.textContent = ''
-    }
-  }
-  document.getElementById('t-protein-per-kg')?.addEventListener('input', syncProteinFromPerKg)
-  syncProteinFromPerKg()
+  // Supplement toggle
+  document.getElementById('track-supplements-toggle')?.addEventListener('change', async (e) => {
+    const enabled = e.target.checked
+    document.getElementById('targets-creatine-row').style.display = enabled ? '' : 'none'
+    state.settings.track_supplements = enabled
+    await db.saveSettings({ track_supplements: enabled }).catch(() => {})
+  })
 
   document.getElementById('settings-save-targets-btn').addEventListener('click', async () => {
     const calRest = parseInt(document.getElementById('t-cal-rest').value) || TARGETS.calories.rest
-    const protein = parseInt(document.getElementById('t-protein').value) || TARGETS.protein
-    const carbs = parseInt(document.getElementById('t-carbs').value) || TARGETS.carbs
-    const fat = parseInt(document.getElementById('t-fat').value) || TARGETS.fat
-    const perKgRaw = parseFloat(document.getElementById('t-protein-per-kg')?.value)
-    const proteinPerKg = perKgRaw > 0 ? perKgRaw : null
     TARGETS.calories.rest = calRest
+    try {
+      await db.saveSettings({ cal_rest: calRest })
+      showToast('✅ Calorie target saved')
+      document.dispatchEvent(new Event('targets-changed'))
+    } catch (e) { showToast('❌ ' + e.message) }
+  })
+
+  // Mode switcher — converts input values when toggling g ↔ %
+  document.querySelectorAll('[data-macro-mode]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const newMode = btn.dataset.macroMode
+      const oldMode = localStorage.getItem('tracker-macro-mode') || 'g'
+      if (newMode === oldMode) return
+      const cal = TARGETS.calories.goal || TARGETS.calories.rest
+      const pEl = document.getElementById('t-protein')
+      const cEl = document.getElementById('t-carbs')
+      const fEl = document.getElementById('t-fat')
+      if (newMode === 'pct' && cal > 0) {
+        if (pEl) pEl.value = Math.round((parseInt(pEl.value) || TARGETS.protein) * 4 / cal * 100)
+        if (cEl) cEl.value = Math.round((parseInt(cEl.value) || TARGETS.carbs)   * 4 / cal * 100)
+        if (fEl) fEl.value = Math.round((parseInt(fEl.value) || TARGETS.fat)     * 9 / cal * 100)
+      } else if (newMode === 'g' && cal > 0) {
+        if (pEl) pEl.value = Math.round(cal * (parseInt(pEl.value) || initProteinPct) / 100 / 4)
+        if (cEl) cEl.value = Math.round(cal * (parseInt(cEl.value) || initCarbsPct)   / 100 / 4)
+        if (fEl) fEl.value = Math.round(cal * (parseInt(fEl.value) || initFatPct)     / 100 / 9)
+      }
+      ;['protein', 'carbs', 'fat'].forEach(m => {
+        const unitEl = document.getElementById('macro-unit-' + m)
+        if (unitEl) unitEl.textContent = newMode === 'g' ? 'g' : '%'
+      })
+      localStorage.setItem('tracker-macro-mode', newMode)
+      document.querySelectorAll('[data-macro-mode]').forEach(b => b.classList.toggle('active', b.dataset.macroMode === newMode))
+      syncPctHints()
+    })
+  })
+
+  ;['t-protein', 't-carbs', 't-fat'].forEach(id =>
+    document.getElementById(id)?.addEventListener('input', syncPctHints))
+  syncPctHints()
+
+  document.getElementById('settings-save-macros-btn')?.addEventListener('click', async () => {
+    const mode = localStorage.getItem('tracker-macro-mode') || 'g'
+    const cal = TARGETS.calories.goal || TARGETS.calories.rest
+    let protein, carbs, fat, proteinPerKg = null
+
+    const perKgRaw = parseFloat(document.getElementById('t-protein-per-kg')?.value)
+    proteinPerKg = perKgRaw > 0 ? perKgRaw : null
+    const weightKgForSave = parseFloat(document.getElementById('profile-weight-kg')?.value) || latestWeightKg || null
+
+    if (mode === 'pct') {
+      const pp = parseInt(document.getElementById('t-protein')?.value) || 0
+      const cp = parseInt(document.getElementById('t-carbs')?.value)   || 0
+      const fp = parseInt(document.getElementById('t-fat')?.value)     || 0
+      protein = proteinPerKg && weightKgForSave
+        ? Math.round(proteinPerKg * weightKgForSave)
+        : Math.round(cal * pp / 100 / 4)
+      carbs = Math.round(cal * cp / 100 / 4)
+      fat   = Math.round(cal * fp / 100 / 9)
+    } else {
+      protein = parseInt(document.getElementById('t-protein')?.value) || TARGETS.protein
+      carbs   = parseInt(document.getElementById('t-carbs')?.value)   || TARGETS.carbs
+      fat     = parseInt(document.getElementById('t-fat')?.value)     || TARGETS.fat
+      if (proteinPerKg && weightKgForSave) protein = Math.round(proteinPerKg * weightKgForSave)
+    }
+
+    const creatineRaw = parseFloat(document.getElementById('t-creatine')?.value)
+    const creatineTarget = creatineRaw > 0 ? creatineRaw : null
+
     TARGETS.protein = protein
+    TARGETS.carbs   = carbs
+    TARGETS.fat     = fat
     TARGETS.protein_per_kg = proteinPerKg
-    TARGETS.carbs = carbs
-    TARGETS.fat = fat
+
     try {
       await db.saveSettings({
-        cal_rest: calRest,
         protein_g: protein,
-        protein_per_kg: proteinPerKg,
         carbs_g: carbs,
         fat_g: fat,
+        protein_per_kg: proteinPerKg,
+        ...(creatineTarget != null ? { creatine_target_g: creatineTarget } : {}),
       })
-      showToast('✅ Targets saved')
+      if (creatineTarget != null) state.settings.creatine_target_g = creatineTarget
+      showToast('✅ Macros saved')
       document.dispatchEvent(new Event('targets-changed'))
     } catch (e) { showToast('❌ ' + e.message) }
   })
@@ -752,19 +903,13 @@ export async function renderSettings() {
     TARGETS.calories.bmr = estimated.bmr
     const goal = setCalorieDeficit(deficitNow)
     TARGETS.calories.training = goal
-    const savedMacros = recommendMacros(goal)
-    TARGETS.protein = savedMacros.protein
-    TARGETS.carbs = savedMacros.carbs
-    TARGETS.fat = savedMacros.fat
-    updateProfileTargetInputs(estimated, goal)
+    updateProfileTargetInputs(estimated)
     setCalorieProfileSummary(estimated, latestWeightKg, deficitNow)
+    syncPctHints()
 
     try {
       await db.saveSettings({
         cal_rest: TARGETS.calories.rest,
-        protein_g: TARGETS.protein,
-        carbs_g: TARGETS.carbs,
-        fat_g: TARGETS.fat,
         age_years: profile.age_years,
         sex: profile.sex,
         height_cm: profile.height_cm,
@@ -773,7 +918,7 @@ export async function renderSettings() {
         bmr_deficit: deficitNow,
         use_bmr_target: useBmrNow,
       })
-      showToast('✅ TDEE settings saved')
+      showToast('✅ Profile saved')
       document.dispatchEvent(new Event('targets-changed'))
     } catch (e) {
       showToast('❌ ' + e.message)

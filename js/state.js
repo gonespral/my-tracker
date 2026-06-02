@@ -16,6 +16,8 @@ export const state = {
   pendingEditWeightDate:      null,
   pendingEditPresetId:        null,
   pendingEditWorkoutPresetId: null,
+  pendingEditSupplementId:    null,
+  pendingSupplementDate:      null,
   returnToSheetId:            null,
 
   // Date context for new entries (null = today)

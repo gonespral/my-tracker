@@ -348,6 +348,8 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  width: 72px;
+  height: 72px;
 }
 
 .ring-wrap svg {
@@ -360,6 +362,20 @@ body {
   pointer-events: none;
 }
 
+.ring-value {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--tx);
+  line-height: 1;
+}
+
+.ring-unit {
+  font-size: 9px;
+  color: var(--tx3);
+  margin-top: 1px;
+}
+
 .ring-big-num {
   font-family: 'Space Grotesk', sans-serif;
   font-weight: 700;
@@ -367,13 +383,6 @@ body {
   letter-spacing: -0.5px;
   color: var(--tx);
   line-height: 1;
-}
-
-.ring-unit {
-  font-size: 11px;
-  color: var(--tx3);
-  margin-top: 2px;
-  font-weight: 500;
 }
 
 .ring-remaining {
@@ -434,17 +443,57 @@ body {
   margin-bottom: 12px;
 }
 
+.macro-rings.rings-4 {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+/* 5+ rings: 3 per row on mobile, 4 on desktop */
+.macro-rings.rings-5 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+@media (min-width: 560px) {
+  .macro-rings.rings-5 {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
 .macro-ring-card {
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 14px;
-  padding: 12px 4px;
+  padding: 10px 4px;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 4px;
   min-width: 0;
   overflow: hidden;
+}
+
+.macro-rings.rings-4 .ring-wrap {
+  width: 54px;
+  height: 54px;
+}
+
+.macro-rings.rings-4 .ring-value {
+  font-size: 11px;
+}
+
+.macro-rings.rings-4 .ring-unit {
+  font-size: 8px;
+}
+
+.macro-rings.rings-4 .macro-ring-label {
+  font-size: 9px;
+}
+
+.macro-rings.rings-4 .macro-ring-target {
+  font-size: 9px;
+}
+
+.macro-rings.rings-4 .macro-ring-card {
+  padding: 8px 2px;
 }
 
 .macro-ring-label {
@@ -1441,6 +1490,157 @@ body {
 .targets-grid.is-readonly {
   opacity: 0.45;
   pointer-events: none;
+}
+
+/* ── Macro mode switcher ─────────────────────────────────────── */
+.macro-mode-bar {
+  display: flex;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.macro-mode-switcher {
+  display: flex;
+  background: var(--track);
+  border-radius: 8px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.mode-seg {
+  padding: 5px 18px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--tx3);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.mode-seg.active {
+  background: var(--card);
+  color: var(--tx);
+  box-shadow: 0 1px 3px rgba(0,0,0,.08);
+}
+
+.macro-pct-hint {
+  font-size: 11px;
+  color: var(--tx3);
+  margin-top: 5px;
+}
+
+.macro-pct-total {
+  font-size: 12px;
+  color: var(--tx3);
+  margin-bottom: 14px;
+  font-weight: 500;
+}
+
+.macro-pct-total.exact { color: #10b981; }
+.macro-pct-total.over  { color: var(--danger); }
+
+/* ── Macro boxes ─────────────────────────────────────────────── */
+.macros-boxes-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.macro-box {
+  background: var(--track);
+  border-radius: 12px;
+  padding: 12px 10px 10px;
+}
+
+.macro-box-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--tx3);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+
+.macro-box-input-wrap {
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+}
+
+.macro-box-input {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  background: none;
+  border: none;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--tx);
+  padding: 0;
+  -moz-appearance: textfield;
+}
+
+.macro-box-input::-webkit-outer-spin-button,
+.macro-box-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+.macro-box-input:focus { outline: none; }
+
+.macro-box-unit {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--tx3);
+  flex-shrink: 0;
+  padding-bottom: 2px;
+}
+
+.macro-box-hint {
+  font-size: 11px;
+  color: var(--tx3);
+  margin-top: 3px;
+  min-height: 14px;
+}
+
+.macro-box-perkg {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.macro-perkg-input {
+  width: 100%;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  color: var(--tx2);
+  padding: 3px 0;
+  outline: none;
+}
+
+.macro-perkg-input::placeholder { color: var(--tx3); }
+.macro-perkg-input:focus { border-bottom-color: var(--accent); }
+
+.settings-section-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 16px 0;
+}
+
+.integration-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--tx2);
+  margin-bottom: 10px;
 }
 
 /* ── Unified chat panel ───────────────────────────────────────────── */
