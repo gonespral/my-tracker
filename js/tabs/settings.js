@@ -910,6 +910,7 @@ export async function renderSettings() {
     try {
       await db.saveSettings({
         cal_rest: TARGETS.calories.rest,
+        cal_training: TARGETS.calories.training,
         age_years: profile.age_years,
         sex: profile.sex,
         height_cm: profile.height_cm,
