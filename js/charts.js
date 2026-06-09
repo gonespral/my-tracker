@@ -1,5 +1,5 @@
 import { TARGETS, MEAL_ORDER, MEAL_LABEL, MEAL_ICON, ACTIVITY_TYPE, detectActivityType } from './config.js'
-import { dateStr, sumFood, fmt, round, calculateNetActiveCalories } from './utils.js'
+import { dateStr, sumFood, fmt, round, calculateNetActiveCalories, detectFoodOutliers } from './utils.js'
 import { typeIcon } from './icons.js'
 
 // Consistent macro colors used across all charts.
@@ -112,6 +112,7 @@ export function weekChartHTML(data) {
   const W = 320, H = 120, PL = 30, PR = 8, PT = 14, PB = 24
   const cW = W - PL - PR, cH = H - PT - PB
   const today = dateStr()
+  const outliers = detectFoodOutliers(data, 90)
 
   const days = []
   for (let i = 6; i >= 0; i--) {
@@ -127,6 +128,7 @@ export function weekChartHTML(data) {
       cals: sumFood(food).calories,
       target: (TARGETS.calories.goal || TARGETS.calories.rest) + dayEatback,
       label: d.toLocaleDateString('en-US', { weekday: 'short' }),
+      isOutlier: outliers.has(ds),
     })
   }
 
@@ -140,8 +142,11 @@ export function weekChartHTML(data) {
     const x  = PL + i * bStep + (bStep - bW) / 2
     const y  = PT + cH - bH
     const pct = d.cals / d.target
-    const fill = d.cals === 0 ? 'var(--track)' : pct > 1.1 ? 'var(--danger)' : 'var(--accent)'
-    const opacity = d.cals === 0 ? '1' : '0.85'
+    const fill = d.isOutlier ? 'var(--tx3)'
+      : d.cals === 0 ? 'var(--track)'
+      : pct > 1.1 ? 'var(--danger)'
+      : 'var(--accent)'
+    const opacity = d.isOutlier ? '0.35' : d.cals === 0 ? '1' : '0.85'
     const labelFill = d.isToday ? 'var(--tx)' : 'var(--tx3)'
     const delay = `${(i * 0.06).toFixed(2)}s`
     return `
@@ -150,18 +155,25 @@ export function weekChartHTML(data) {
           fill="${fill}" rx="4" opacity="${opacity}"/>
         <text x="${(x+bW/2).toFixed(1)}" y="${(H-6).toFixed(1)}" text-anchor="middle"
           font-size="9" fill="${labelFill}" font-weight="${d.isToday ? '700' : '400'}">${d.label}</text>
-        ${d.cals > 0
+        ${d.cals > 0 && !d.isOutlier
           ? `<text class="bar-cal-label" x="${(x+bW/2).toFixed(1)}" y="${(y-4).toFixed(1)}" text-anchor="middle"
               font-size="8" fill="${fill}" font-weight="600">${Math.round(d.cals)}</text>`
+          : ''}
+        ${d.isOutlier
+          ? `<text x="${(x+bW/2).toFixed(1)}" y="${(y-4).toFixed(1)}" text-anchor="middle"
+              font-size="8" fill="var(--tx3)" opacity="0.6">?</text>`
           : ''}
       </g>`
   }).join('')
 
-  const wkAvg = round(days.reduce((s,d) => s+d.cals, 0) / Math.max(days.filter(d=>d.cals>0).length, 1))
+  const validDays = days.filter(d => d.cals > 0 && !d.isOutlier)
+  const wkAvg = round(validDays.reduce((s, d) => s + d.cals, 0) / Math.max(validDays.length, 1))
+  const hasWeekOutliers = days.some(d => d.isOutlier)
+
   return `
     <div class="chart-header">
       <span class="chart-title">This week</span>
-      <span class="chart-sub">avg ${wkAvg.toLocaleString()} kcal/day</span>
+      <span class="chart-sub">avg ${wkAvg.toLocaleString()} kcal/day${hasWeekOutliers ? ' · excl. incomplete' : ''}</span>
     </div>
     <svg viewBox="0 0 ${W} ${H}" class="week-svg">
       <text x="${PL-4}" y="${(restTargetY+3).toFixed(1)}" text-anchor="end" font-size="8" fill="var(--tx3)">${Math.round(TARGETS.calories.rest)}</text>
@@ -175,7 +187,7 @@ export function weekChartHTML(data) {
 function buildCalorieTrendHTML(days, { title, primaryLabel, secondaryLabel, primaryColor, secondaryColor }) {
   const W = 320, H = 108, PL = 30, PR = 8, PT = 10, PB = 24
   const cW = W - PL - PR, cH = H - PT - PB
-  const dataMax = Math.max(...days.map(d => Math.max(d.primary, d.secondary)), 0)
+  const dataMax = Math.max(...days.map(d => Math.max(d.primary || 0, d.secondary || 0)), 0)
   const maxCal = Math.max(Math.max(dataMax, TARGETS.calories.rest) * 1.1, 100)
   const tY = (v) => {
     const clamped = Math.max(0, Math.min(v, maxCal))
@@ -183,17 +195,22 @@ function buildCalorieTrendHTML(days, { title, primaryLabel, secondaryLabel, prim
   }
   const xStep = cW / (days.length - 1)
 
-  const pts = days.map((day, i) => ({
-    x: PL + i * xStep,
-    primaryY: tY(day.primary || 0),
-    secondaryY: tY(day.secondary || 0),
-    date: day.d,
-    isToday: day.isToday,
-  }))
+  const pts = days.map((day, i) => {
+    const rawY = day.primary > 0 ? tY(day.primary) : null
+    return {
+      x: PL + i * xStep,
+      primaryY: (rawY !== null && !day.isOutlier) ? rawY : null,
+      outlierY: (rawY !== null && day.isOutlier) ? rawY : null,
+      secondaryY: day.secondary > 0 ? tY(day.secondary) : null,
+      date: day.d,
+      isToday: day.isToday,
+      isOutlier: day.isOutlier || false,
+    }
+  })
 
   let primaryPaths = [], primaryAreaPaths = [], primarySeg = '', currentSegmentPts = []
   let secondaryPaths = [], secondarySeg = ''
-  
+
   pts.forEach(p => {
     if (p.primaryY !== null) {
       primarySeg += (primarySeg ? ' L' : 'M') + `${p.x.toFixed(1)},${p.primaryY.toFixed(1)}`
@@ -202,7 +219,7 @@ function buildCalorieTrendHTML(days, { title, primaryLabel, secondaryLabel, prim
       if (primarySeg) {
         primaryPaths.push(primarySeg)
         if (currentSegmentPts.length >= 2) {
-          primaryAreaPaths.push(primarySeg 
+          primaryAreaPaths.push(primarySeg
             + ` L${currentSegmentPts[currentSegmentPts.length-1].x.toFixed(1)},${(PT+cH).toFixed(1)}`
             + ` L${currentSegmentPts[0].x.toFixed(1)},${(PT+cH).toFixed(1)} Z`)
         }
@@ -210,22 +227,22 @@ function buildCalorieTrendHTML(days, { title, primaryLabel, secondaryLabel, prim
         currentSegmentPts = []
       }
     }
-    
+
     if (p.secondaryY !== null) { secondarySeg += (secondarySeg ? ' L' : 'M') + `${p.x.toFixed(1)},${p.secondaryY.toFixed(1)}` }
     else if (secondarySeg)     { secondaryPaths.push(secondarySeg); secondarySeg = '' }
   })
-  
+
   if (primarySeg) {
     primaryPaths.push(primarySeg)
     if (currentSegmentPts.length >= 2) {
-      primaryAreaPaths.push(primarySeg 
+      primaryAreaPaths.push(primarySeg
         + ` L${currentSegmentPts[currentSegmentPts.length-1].x.toFixed(1)},${(PT+cH).toFixed(1)}`
         + ` L${currentSegmentPts[0].x.toFixed(1)},${(PT+cH).toFixed(1)} Z`)
     }
   }
   if (secondarySeg) secondaryPaths.push(secondarySeg)
 
-  const activeDays = days.filter(d => d.primary > 0)
+  const activeDays = days.filter(d => d.primary > 0 && !d.isOutlier)
   const avg = activeDays.length ? round(activeDays.reduce((s,d)=>s+d.primary,0)/activeDays.length) : 0
   const todayPt = pts[pts.length - 1]
   const secondaryAvg = days.filter(d => d.secondary > 0).length
@@ -238,14 +255,14 @@ function buildCalorieTrendHTML(days, { title, primaryLabel, secondaryLabel, prim
       ${p.date.toLocaleDateString('en-US',{month:'short',day:'numeric'})}
     </text>`).join('')
 
-  const validDays = days.filter(d => d.primary > 0 && d.secondary > 0)
+  const validDays = days.filter(d => d.primary > 0 && d.secondary > 0 && !d.isOutlier)
   let diffHtml = ''
   if (validDays.length > 0) {
     const isBurnedPrimary = primaryLabel === 'burned'
     const totalBurn = validDays.reduce((s,d) => s + (isBurnedPrimary ? d.primary : d.secondary), 0)
     const totalInput = validDays.reduce((s,d) => s + (isBurnedPrimary ? d.secondary : d.primary), 0)
     const avgDiff = Math.round((totalInput - totalBurn) / validDays.length)
-    
+
     if (Math.abs(avgDiff) > 10) {
       const diffText = avgDiff > 0 ? `+${avgDiff.toLocaleString()} surplus/day` : `${Math.abs(avgDiff).toLocaleString()} deficit/day`
       const diffColor = avgDiff > 0 ? 'var(--danger)' : 'var(--accent)'
@@ -256,6 +273,13 @@ function buildCalorieTrendHTML(days, { title, primaryLabel, secondaryLabel, prim
   }
 
   const uid = title.replace(/\W+/g, '').toLowerCase().slice(0, 14)
+
+  const outlierDots = pts
+    .filter(p => p.outlierY !== null)
+    .map(p => `<circle cx="${p.x.toFixed(1)}" cy="${p.outlierY.toFixed(1)}" r="2.5"
+      fill="var(--tx3)" fill-opacity="0.3" stroke="var(--tx3)" stroke-width="1" stroke-opacity="0.5"
+      style="animation:dot-pop 0.3s ease both 0.4s"/>`)
+    .join('')
 
   return `
     <div class="chart-header">
@@ -285,6 +309,7 @@ function buildCalorieTrendHTML(days, { title, primaryLabel, secondaryLabel, prim
       ${primaryPaths.map(p => `<path d="${p}" fill="none" stroke="${primaryColor}" stroke-width="1.8"
         stroke-linecap="round" stroke-linejoin="round"
         style="animation:anim-fade-in 0.5s ease both 0.1s"/>`).join('')}
+      ${outlierDots}
       ${todayPt.primaryY !== null ? `<circle cx="${todayPt.x.toFixed(1)}" cy="${todayPt.primaryY.toFixed(1)}" r="3" fill="${primaryColor}" style="animation:dot-pop 0.3s ease both 0.85s"/>` : ''}
       ${todayPt.secondaryY !== null ? `<circle cx="${todayPt.x.toFixed(1)}" cy="${todayPt.secondaryY.toFixed(1)}" r="2.5" fill="${secondaryColor}" fill-opacity=".45" style="animation:dot-pop 0.3s ease both 0.95s"/>` : ''}
       ${tickLabels}
@@ -293,6 +318,7 @@ function buildCalorieTrendHTML(days, { title, primaryLabel, secondaryLabel, prim
 
 export function calTrendHTML(data, nDays = 30, options = {}) {
   const today = dateStr()
+  const outliers = detectFoodOutliers(data, Math.max(nDays, 90))
   const eatbackPct = TARGETS.calories.eatback_enabled !== false ? (TARGETS.calories.eatback_pct ?? 50) : 0
   const days = []
   for (let i = nDays - 1; i >= 0; i--) {
@@ -311,6 +337,7 @@ export function calTrendHTML(data, nDays = 30, options = {}) {
       ds,
       primary: options.primary === 'burned' ? tdee : input,
       secondary: options.primary === 'burned' ? input : tdee,
+      isOutlier: outliers.has(ds),
       d,
       isToday: ds === today,
     })
@@ -327,6 +354,7 @@ export function calTrendHTML(data, nDays = 30, options = {}) {
 }
 
 export function mealMacroAvgHTML(data, nDays = 30) {
+  const outliers = detectFoodOutliers(data, Math.max(nDays, 90))
   const mealKeys = [...MEAL_ORDER, 'uncategorised']
   const totals    = Object.fromEntries(mealKeys.map(meal => [meal, { calories: 0, protein: 0, carbs: 0, fat: 0 }]))
   const dayCounts = Object.fromEntries(mealKeys.map(meal => [meal, 0]))
@@ -334,6 +362,7 @@ export function mealMacroAvgHTML(data, nDays = 30) {
   for (let i = nDays - 1; i >= 0; i--) {
     const d = new Date(); d.setDate(d.getDate() - i)
     const ds = dateStr(d)
+    if (outliers.has(ds)) continue
     const grouped = {}
 
     for (const entry of (data.food[ds] || [])) {
@@ -432,12 +461,13 @@ export function macroBarsHTML(totals, label = "Today's macros") {
 }
 
 export function macroAvgBarsHTML(data, nDays = 30) {
+  const outliers = detectFoodOutliers(data, Math.max(nDays, 90))
   const days = []
   for (let i = nDays - 1; i >= 0; i--) {
     const d = new Date(); d.setDate(d.getDate() - i)
     const ds = dateStr(d)
     const food = data.food[ds] || []
-    if (food.length) days.push(sumFood(food))
+    if (food.length && !outliers.has(ds)) days.push(sumFood(food))
   }
   if (!days.length) return '<div class="empty">No nutrition data yet.</div>'
   const n = days.length
@@ -642,6 +672,7 @@ function nutritionHeatmapStyle(diff, target) {
 }
 
 export function monthHeatmapHTML(data, monthOffset = 0, type = 'workouts') {
+  const outliers = type === 'nutrition' ? detectFoodOutliers(data, 180) : new Set()
   const now = new Date()
   now.setDate(1)
   now.setMonth(now.getMonth() + monthOffset)
@@ -677,7 +708,10 @@ export function monthHeatmapHTML(data, monthOffset = 0, type = 'workouts') {
       }
     } else if (type === 'nutrition') {
       const food = data.food[ds] || []
-      if (food.length > 0) {
+      if (food.length > 0 && outliers.has(ds)) {
+        cls += ' hm-has hm-outlier'
+        cells.push(`<div class="${cls} hm-nutrition" data-action="goto-activity-date" data-date="${ds}" style="cursor:pointer" title="Incomplete logging — excluded from averages"><span class="hm-day">${day}</span><span class="hm-arrow" style="opacity:0.5">?</span></div>`)
+      } else if (food.length > 0) {
         const input = sumFood(food).calories
         const tdee = TARGETS.calories.rest
         const diff = input - tdee

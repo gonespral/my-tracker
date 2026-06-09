@@ -120,3 +120,34 @@ export const fmtDateShort = (str) => {
   const [y, m, d] = str.split('-').map(Number)
   return new Date(y, m - 1, d).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
 }
+
+// Returns a Set of date strings where calorie intake looks like a missed-logging day.
+// Uses IQR lower fence on the past nDays (excluding today) so the threshold adapts
+// to the user's real eating pattern. Returns empty set if not enough data.
+export function detectFoodOutliers(data, nDays = 90) {
+  const calsByDate = {}
+  const allCals = []
+  for (let i = 1; i <= nDays; i++) {
+    const d = new Date(); d.setDate(d.getDate() - i)
+    const ds = dateStr(d)
+    const food = data.food[ds] || []
+    if (!food.length) continue
+    const cals = sumFood(food).calories
+    if (cals <= 0) continue
+    calsByDate[ds] = cals
+    allCals.push(cals)
+  }
+  if (allCals.length < 7) return new Set()
+  const sorted = [...allCals].sort((a, b) => a - b)
+  const n = sorted.length
+  const q1 = sorted[Math.floor(n * 0.25)]
+  const q3 = sorted[Math.floor(n * 0.75)]
+  const iqr = q3 - q1
+  const lowerFence = q1 - 1.5 * iqr
+  if (lowerFence < 200) return new Set() // distribution too tight/low to detect meaningfully
+  const outliers = new Set()
+  for (const [ds, cals] of Object.entries(calsByDate)) {
+    if (cals < lowerFence) outliers.add(ds)
+  }
+  return outliers
+}
