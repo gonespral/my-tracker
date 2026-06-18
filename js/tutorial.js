@@ -10,7 +10,7 @@ const SLIDES = [
   {
     icon: 'bolt',
     title: 'Log food & workouts',
-    body: 'Type a meal or activity in the chat bar at the bottom. Claude estimates calories and macros from a description or photo. You can also speak or attach a photo. <a href="help/logging.html" target="_blank" style="color:inherit;text-decoration:underline">Learn more →</a>',
+    body: 'Type a meal or activity in the chat bar at the bottom. Claude looks up real nutrition data (USDA, Open Food Facts) before estimating calories and macros, showing what it checked right in the chat. You can also speak or attach a photo. <a href="help/logging.html" target="_blank" style="color:inherit;text-decoration:underline">Learn more →</a>',
   },
   {
     icon: 'schedule',
@@ -25,7 +25,7 @@ const SLIDES = [
   {
     icon: 'key',
     title: 'Set up Claude API',
-    body: 'Claude needs an Anthropic API key. Get one at console.anthropic.com. Paste it in Settings &rarr; Claude. It stays on this device only.',
+    body: 'Claude needs an Anthropic API key. Get one at console.anthropic.com. Paste it in Settings &rarr; Integrations. It stays on this device only. The food database lookup works out of the box too — add your own free USDA key there if you ever hit a rate limit.',
   },
   {
     icon: 'directions_bike',

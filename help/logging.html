@@ -175,13 +175,21 @@
     More detail means more accurate numbers.
   </p>
 
+  <div class="callout">
+    Before estimating, Claude checks the USDA FoodData Central and Open Food Facts databases for real
+    nutrition data on each item, then scales it to your portion. You'll see what it's checking right in the
+    chat. If a lookup fails or finds nothing, it falls back to a context-based estimate instead of guessing
+    silently. This works with no setup, but you can add your own free USDA key in Settings &rarr; Integrations
+    if you ever hit a rate limit.
+  </div>
+
   <div class="steps">
     <div class="step">
       <div class="step-num">1</div>
       <div class="step-body">
         <strong>Claude parses your description</strong>
         <p>It identifies each food item, estimates a portion size if you did not specify one, then looks up
-        or estimates the macronutrient breakdown.</p>
+        real nutrition data (or estimates, if no match is found) for the macronutrient breakdown.</p>
       </div>
     </div>
     <div class="step">
@@ -256,6 +264,12 @@
   <p>
     Frequently logged meals and workouts can be saved as presets. Tap the bookmark icon after logging
     to save a preset, then select it from the preset list next time to skip the AI step entirely.
+  </p>
+  <p>
+    A logged entry that exactly matches one of your saved presets shows a <strong>Saved</strong> tag, and its
+    menu reads <strong>Edit Preset</strong> instead of <strong>Edit</strong> as a reminder — though editing it
+    only changes that one day's entry, not the preset itself. The "Save as preset" option is hidden for these
+    entries too, since there's nothing new to save.
   </p>
 </div>
 

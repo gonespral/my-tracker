@@ -5,7 +5,7 @@ import { dateStr, sumFood, calculateNetActiveCalories, fmtDateShort } from '../u
 import { stagger, renderPanel } from '../animate.js'
 import { calRingHTML, macroRingHTML, weekChartHTML, streakHTML, sparklineHTML, MACRO_COLORS } from '../charts.js'
 import { getCalorieGoal } from '../config.js'
-import { foodItem, workoutItem, groupWorkoutsByConflict, workoutStack, supplementItem } from '../renderers.js'
+import { foodItem, workoutItem, groupWorkoutsByConflict, workoutStack, supplementItem, isSavedMealEntry } from '../renderers.js'
 import { openSheet, showToast, closeMenus } from '../ui.js'
 import { fetchDailyWisdom } from '../ai.js'
 import { materialIcon } from '../icons.js'
@@ -263,8 +263,6 @@ export function editFood(id, date) {
     banner.style.display = 'none'
     banner.textContent = ''
   }
-  const title = document.getElementById('food-sheet-title')
-  if (title) title.textContent = 'Edit Food'
   // Find entry in cache
   let entry = null, entryDate = date
   if (date && state.dbCache?.food[date]) {
@@ -277,6 +275,9 @@ export function editFood(id, date) {
     }
   }
   if (!entry) return
+
+  const title = document.getElementById('food-sheet-title')
+  if (title) title.textContent = isSavedMealEntry(entry) ? 'Edit Preset' : 'Edit Food'
 
   state.pendingEditFoodId = id
   state.pendingFoodDate   = entryDate

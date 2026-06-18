@@ -25,7 +25,7 @@ function samePresetNumber(left, right) {
   return Number(left || 0) === Number(right || 0)
 }
 
-function isSavedMealEntry(entry) {
+export function isSavedMealEntry(entry) {
   const meals = state.mealsCache || []
   const entryName = normalizePresetValue(entry.description)
   const entryMeal = normalizePresetValue(entry.meal || 'snack')
@@ -101,8 +101,8 @@ export const foodItem = (e, date) => {
     <div class="entry-menu-wrap">
       <button class="entry-menu-btn" data-action="toggle-menu">${materialIcon('more_vert', 16)}</button>
       <div class="entry-menu">
-        <button data-action="edit-food" data-id="${e.id}" data-date="${date}">Edit</button>
-        <button data-action="save-to-meals" data-id="${e.id}" data-date="${date}">Save as preset</button>
+        <button data-action="edit-food" data-id="${e.id}" data-date="${date}">${fromPreset ? 'Edit Preset' : 'Edit'}</button>
+        ${fromPreset ? '' : `<button data-action="save-to-meals" data-id="${e.id}" data-date="${date}">Save as preset</button>`}
         <button class="danger" data-action="delete-food" data-id="${e.id}">Delete</button>
       </div>
     </div>

@@ -29,6 +29,7 @@ index.html
         ├── js/speech.js ← Web Speech API integration
         ├── js/strava.js ← Strava OAuth + sync
         ├── js/google-health.js ← Google Fit OAuth + sync
+        ├── js/food-db.js ← USDA FoodData Central + Open Food Facts lookups for the AI chat, with caching/throttling
         └── js/tabs/
               ├── today.js     ← renders #panel-today
               ├── nutrition.js ← renders #panel-nutrition
@@ -41,7 +42,7 @@ index.html
 
 **Event handling:** All click events are delegated from a top-level listener in `app.js` using `data-action` attributes on elements. Sheets (bottom drawers) are opened via `openSheet(id)` from `ui.js`.
 
-**AI chat:** Claude API is called directly from the browser using an Anthropic API key stored in `localStorage`. The key is entered by the user via the settings sheet.
+**AI chat:** Claude API is called directly from the browser using an Anthropic API key stored in `localStorage`. The key is entered by the user via the settings sheet. Before logging food, Claude calls a `lookup_food` tool (`js/food-db.js`) to check real nutrition data (USDA, then Open Food Facts as a fallback) and a `calculate` tool to scale it to the portion eaten, rather than estimating from memory. Tool activity is logged to the console and shown as a small log line in the chat UI.
 
 **Third-party integrations:** Strava and Google Health both use OAuth PKCE flows storing tokens in `localStorage`. Credentials (client ID/secret) are also stored in `localStorage` — entered by the user in Settings.
 

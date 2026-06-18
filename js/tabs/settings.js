@@ -23,6 +23,7 @@ import { APP_VERSION } from '../version.js'
 const STRAVA_ICON = materialIcon('directions_bike', 16)
 const GOOGLE_HEALTH_ICON = materialIcon('monitor_heart', 16)
 const CLAUDE_ICON = materialIcon('smart_toy', 16)
+const FOOD_DB_ICON = materialIcon('database', 16)
 const FOOD_PRESET_ICON = materialIcon('restaurant', 15)
 const WORK_PRESET_ICON = materialIcon('fitness_center', 15)
 const CHEVRON = materialIcon('expand_more', 16, { className: 'accordion-chevron' })
@@ -222,6 +223,7 @@ export async function renderSettings() {
     </div>`).join('')
 
   const apiKey = localStorage.getItem('tracker-anthropic-key') || ''
+  const fdcKey = localStorage.getItem('tracker-fdc-api-key') || ''
 
   const tdeeAt = settingsRow?.tdee_calibrated_at ?? null
   const tdeeCalibratedLabel = tdeeAt ? 'Last updated ' + new Date(tdeeAt).toLocaleDateString() + ' · auto-updates on sync' : 'Never calibrated · will run on save'
@@ -291,9 +293,9 @@ export async function renderSettings() {
         <label class="form-label" for="t-cal-rest">Target (kcal)</label>
         <input class="form-input" id="t-cal-rest" type="number" inputmode="numeric" value="${TARGETS.calories.rest}" style="max-width:160px">
       </div>
-      <button class="btn-primary" id="settings-save-targets-btn" style="display:${useBmr || useGHCalibration ? 'none' : ''}">Save</button>
-      <button class="btn-primary" id="tdee-calibrate-btn" style="display:${useGHCalibration ? '' : 'none'}">
-        ${materialIcon('monitor_heart', 14, { style: 'vertical-align:-2px;flex-shrink:0;color:white' })}
+      <button class="btn-integration" id="settings-save-targets-btn" style="display:${useBmr || useGHCalibration ? 'none' : ''}">Save</button>
+      <button class="btn-integration" id="tdee-calibrate-btn" style="display:${useGHCalibration ? '' : 'none'}">
+        ${materialIcon('monitor_heart', 14, { style: 'vertical-align:-2px;flex-shrink:0' })}
         Calibrate Now
       </button>
 
@@ -339,7 +341,7 @@ export async function renderSettings() {
           </div>
         </div>
         <p class="settings-profile-note">This estimate includes everyday movement, so it behaves like a daily TDEE rather than workout-only calories.</p>
-        <button class="btn-primary" id="settings-save-profile-btn" style="margin-top:4px">Save Profile</button>
+        <button class="btn-integration" id="settings-save-profile-btn" style="margin-top:4px">Save Profile</button>
       </div>
 
     `)}
@@ -415,7 +417,7 @@ export async function renderSettings() {
         </div>
       </div>
 
-      <button class="btn-primary" id="settings-save-macros-btn">Save Macros</button>
+      <button class="btn-integration" id="settings-save-macros-btn">Save Macros</button>
 
     `)}
 
@@ -435,7 +437,22 @@ export async function renderSettings() {
           <span class="toggle-slider"></span>
         </label>
       </div>
-      <button class="btn-primary" id="settings-save-apikey-btn">Save Key</button>
+      <button class="btn-integration" id="settings-save-apikey-btn">Save Key</button>
+
+      <div class="settings-section-divider"></div>
+
+      <div class="integration-label">${FOOD_DB_ICON} Food Database</div>
+      <p class="setup-note">
+        Claude looks up real nutrition data (USDA FoodData Central + Open Food Facts, which covers European brands well) before estimating calories.
+        Works out of the box with no setup. Only needed if you hit rate limits:
+        <a href="https://fdc.nal.usda.gov/api-key-signup.html" target="_blank">get a free USDA key</a>.
+      </p>
+      <div class="form-field">
+        <label class="form-label" for="settings-fdc-apikey-input">USDA API Key (optional)</label>
+        <input class="form-input" id="settings-fdc-apikey-input" type="password"
+          placeholder="DEMO_KEY" autocomplete="off" value="${fdcKey ? '••••••••' : ''}" />
+      </div>
+      <button class="btn-integration" id="settings-save-fdckey-btn">Save Key</button>
 
       <div class="settings-section-divider"></div>
 
@@ -478,7 +495,7 @@ export async function renderSettings() {
         </div>
         <p id="strava-last-sync-label" class="setup-note" style="margin-bottom:10px">Last synced: never</p>
         <button class="btn-strava" id="force-sync-btn">
-          ${materialIcon('sync', 14, { style: 'vertical-align:-2px;flex-shrink:0;color:white' })}
+          ${materialIcon('sync', 14, { style: 'vertical-align:-2px;flex-shrink:0' })}
           Force Sync Now
         </button>
         <div class="toggle-row" style="margin-top:14px">
@@ -565,7 +582,7 @@ export async function renderSettings() {
         </div>
         <p id="gh-last-sync-label" class="setup-note" style="margin-bottom:10px">Last synced: never</p>
         <button class="btn-google-health" id="gh-force-sync-btn">
-          ${materialIcon('sync', 14, { style: 'vertical-align:-2px;flex-shrink:0;color:white' })}
+          ${materialIcon('sync', 14, { style: 'vertical-align:-2px;flex-shrink:0' })}
           Force Sync Now
         </button>
         <div class="toggle-row" style="margin-top:14px">
@@ -613,8 +630,8 @@ export async function renderSettings() {
 
     ${section('account', 'Account', `
       <p class="setup-note">Signed in as ${state.currentUser.email || state.currentUser.user_metadata?.user_name || 'GitHub user'} via Supabase Auth. Your data is stored securely in a private Supabase database and synced across devices.</p>
-      <button id="settings-tutorial-btn" style="margin-top:16px;width:100%;padding:13px;border:1px solid var(--border);border-radius:12px;background:none;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--tx2);cursor:pointer;font-weight:500;">Show tutorial again</button>
-      <button id="settings-signout-btn" style="margin-top:10px;width:100%;padding:13px;border:1px solid var(--border);border-radius:12px;background:none;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--danger);cursor:pointer;font-weight:500;">Sign out</button>
+      <button class="btn-integration" id="settings-tutorial-btn" style="margin-top:16px">Show tutorial again</button>
+      <button class="btn-integration" id="settings-signout-btn" style="margin-top:10px;color:var(--danger)">Sign out</button>
     `)}
 
     <div style="display:flex; flex-direction:column; align-items:center; margin-top:32px; margin-bottom:16px; gap:10px">
@@ -935,6 +952,15 @@ export async function renderSettings() {
     localStorage.setItem('tracker-anthropic-key', key)
     inp.value = '••••••••'
     showToast('✅ API key saved')
+  })
+
+  document.getElementById('settings-save-fdckey-btn')?.addEventListener('click', () => {
+    const inp = document.getElementById('settings-fdc-apikey-input')
+    const key = inp.value.trim()
+    if (!key || key.startsWith('•')) return
+    localStorage.setItem('tracker-fdc-api-key', key)
+    inp.value = '••••••••'
+    showToast('✅ USDA key saved')
   })
 
   document.getElementById('claude-confirm-toggle')?.addEventListener('change', e => {
