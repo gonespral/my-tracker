@@ -1,6 +1,6 @@
 import { TARGETS } from './config.js'
 import { state } from './state.js'
-import { db } from './db.js'
+import { db, isDemo } from './db.js'
 import { dateStr, nowTime, fmtDate, fmtDateShort, fmt, round, sumFood } from './utils.js'
 import { openSheet, closeSheets, showToast, syncBackdrop } from './ui.js'
 import { searchFoodDatabase, safeCalc } from './food-db.js'
@@ -257,10 +257,24 @@ Rules:
 - Reply exactly like a text message to a friend: plain prose only, 1-2 sentences max. Never use markdown formatting of any kind — no **bold**, no _italics_, no tables, no bullet/numbered lists, no headers, no code blocks, no backticks, no em dashes, no emojis unless the user used one first. Plain words and punctuation only, every single reply, no exceptions.`
 }
 
+const DEMO_REPLIES = [
+  "Got it, logged that for you!",
+  "Nice, that fits well within today's targets.",
+  "Saved! Let me know if there's anything else to log.",
+  "Logged it. You're tracking well today.",
+  "Done — that's noted in your log now.",
+]
+
+const DEMO_WISDOM = [
+  "You're averaging a solid protein intake this week — keep it up.",
+  "Training days look well balanced against your rest days.",
+  "Your calorie logging has been consistent for the past week, nice work.",
+  "Protein intake is trending close to your target most days.",
+  "Activity levels are steady — a good rhythm to maintain this week.",
+]
+
 export async function fetchDailyWisdom() {
   if (!state.currentUser) return null
-  const key = localStorage.getItem('tracker-anthropic-key') || ''
-  if (!key) return null
 
   const today = dateStr()
   const cacheKey = `tracker-wisdom-${state.currentUser.id}`
@@ -268,6 +282,15 @@ export async function fetchDailyWisdom() {
     const cached = JSON.parse(localStorage.getItem(cacheKey))
     if (cached?.date === today) return cached.text
   } catch (_) {}
+
+  if (isDemo) {
+    const text = DEMO_WISDOM[Math.floor(Math.random() * DEMO_WISDOM.length)]
+    try { localStorage.setItem(cacheKey, JSON.stringify({ date: today, text })) } catch (_) {}
+    return text
+  }
+
+  const key = localStorage.getItem('tracker-anthropic-key') || ''
+  if (!key) return null
 
   const data = await db.load()
   const weights = data.weights || []
@@ -554,6 +577,40 @@ export function clearChat() {
   const peekText = document.getElementById('chat-peek-text')
   if (peekText) peekText.textContent = ''
   setChatPanelState('collapsed')
+  if (chatStorageKey()) localStorage.removeItem(chatStorageKey())
+}
+
+// Chat history survives a page refresh, but goes stale fast — after an hour
+// it's restored as a blank conversation instead of confusing leftover context.
+const CHAT_TTL_MS = 60 * 60 * 1000
+
+function chatStorageKey() {
+  return state.currentUser ? `tracker-chat:${state.currentUser.id}` : null
+}
+
+function persistChat() {
+  const key = chatStorageKey()
+  if (!key) return
+  try {
+    localStorage.setItem(key, JSON.stringify({ display: state.chatDisplay, api: state.chatApiMessages, ts: Date.now() }))
+  } catch (_) { /* storage full/unavailable — chat just won't survive a refresh */ }
+}
+
+// Call once on initial app load (not on every auth event — a token refresh
+// firing mid-conversation must not clobber the in-memory chat with the
+// older persisted snapshot from before this session's messages).
+export function restoreChatIfFresh() {
+  const key = chatStorageKey()
+  if (!key) return
+  let saved
+  try { saved = JSON.parse(localStorage.getItem(key) || 'null') } catch (_) { return }
+  if (!saved) return
+  if (Date.now() - saved.ts > CHAT_TTL_MS) { localStorage.removeItem(key); return }
+
+  state.chatDisplay = (saved.display || []).filter(m => !m.thinking)
+  state.chatApiMessages = saved.api || []
+  renderChat()
+  if (state.chatDisplay.length) setChatPanelState('peek')
 }
 
 async function executeTool(name, input) {
@@ -644,6 +701,27 @@ export async function sendChatMessage(text, renderActiveFn, images = []) {
   _abortController = new AbortController()
   const signal = _abortController.signal
 
+  if (isDemo) {
+    try {
+      const delayMs = 600 + Math.random() * 2400
+      await new Promise((resolve, reject) => {
+        const t = setTimeout(resolve, delayMs)
+        signal.addEventListener('abort', () => { clearTimeout(t); reject(new DOMException('Aborted', 'AbortError')) })
+      })
+      state.chatDisplay.pop()
+      state.chatDisplay.push({ role: 'assistant', text: DEMO_REPLIES[Math.floor(Math.random() * DEMO_REPLIES.length)] })
+    } catch (e) {
+      state.chatDisplay.pop()
+      if (e.name !== 'AbortError') state.chatDisplay.push({ role: 'assistant', text: '❌ ' + e.message })
+    } finally {
+      _abortController = null
+    }
+    renderChat()
+    persistChat()
+    if (renderActiveFn) await renderActiveFn()
+    return
+  }
+
   try {
     const system = await buildClaudeSystem()
     let replyText = ''
@@ -714,12 +792,13 @@ export async function sendChatMessage(text, renderActiveFn, images = []) {
   }
 
   renderChat()
+  persistChat()
   if (renderActiveFn) await renderActiveFn()
 }
 
 export function openChat(initialText, renderActiveFn, images = []) {
   const key = localStorage.getItem('tracker-anthropic-key') || ''
-  if (!key) { openSheet('apikey-sheet'); return Promise.resolve() }
+  if (!key && !isDemo) { openSheet('apikey-sheet'); return Promise.resolve() }
   if (initialText || images.length) {
     setChatPanelState('peek')
     return sendChatMessage(initialText, renderActiveFn, images)

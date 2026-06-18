@@ -4,7 +4,7 @@ import { TARGETS, hydrateCalorieTargets, setCalorieDeficit } from './config.js'
 import { dateStr, nowTime } from './utils.js'
 import { showToast, openSheet, closeSheet, closeSheets, toggleEntryMenu, closeMenus, bindSnapDrag, initChartTooltips } from './ui.js'
 import { startListening, stopListening } from './speech.js'
-import { openChat, clearChat, expandChatPanel, collapseChatPanel, hideChatPanel, toggleChatPanel, sendChatMessage, renderChat, setChatPanelState, isChatLoading, abortChat } from './ai.js'
+import { openChat, clearChat, expandChatPanel, collapseChatPanel, hideChatPanel, toggleChatPanel, sendChatMessage, renderChat, setChatPanelState, isChatLoading, abortChat, restoreChatIfFresh } from './ai.js'
 import { renderToday, openFoodSheet, openFoodSheetWithPreset, openWorkoutSheet, editFood, editWorkout, saveToMeals, reloadWisdom, openSupplementSheet, editSupplement } from './tabs/today.js'
 import { renderNutrition } from './tabs/nutrition.js'
 import { renderWorkouts } from './tabs/workouts.js'
@@ -1166,6 +1166,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Read session from localStorage — fast, handles OAuth callback URL params too
   const { data: { session } } = await supabase.auth.getSession()
   state.currentUser = session?.user ?? null
+  restoreChatIfFresh()
 
   await initApp()
   updateSigninOverlay()

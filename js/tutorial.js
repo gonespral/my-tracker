@@ -24,7 +24,7 @@ const SLIDES = [
   },
   {
     icon: 'key',
-    title: 'Set up Claude API',
+    title: 'Set up Sonnet 4.6 API',
     body: 'Claude needs an Anthropic API key. Get one at console.anthropic.com. Paste it in Settings &rarr; Integrations. It stays on this device only. The food database lookup works out of the box too — add your own free USDA key there if you ever hit a rate limit.',
   },
   {

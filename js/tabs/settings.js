@@ -423,7 +423,7 @@ export async function renderSettings() {
 
     ${section('integrations', 'Integrations', `
 
-      <div class="integration-label">${CLAUDE_ICON} Claude API</div>
+      <div class="integration-label">${CLAUDE_ICON} Sonnet 4.6 API</div>
       <p class="setup-note">Your API key is stored locally and never sent anywhere except Anthropic's API.</p>
       <div class="form-field">
         <label class="form-label" for="settings-apikey-input">Anthropic API Key</label>
