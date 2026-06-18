@@ -812,7 +812,8 @@ export function monthHeatmapHTML(data, monthOffset = 0, type = 'workouts') {
       const food = data.food[ds] || []
       if (food.length > 0 && outliers.has(ds)) {
         cls += ' hm-has hm-outlier'
-        cells.push(`<div class="${cls} hm-nutrition" data-action="goto-activity-date" data-date="${ds}" style="cursor:pointer" title="Incomplete logging — excluded from averages"><span class="hm-day">${day}</span><span class="hm-arrow" style="opacity:0.5">?</span></div>`)
+        const tip = `<strong>Incomplete logging</strong><span class="ct-sub">Excluded from averages</span>`.replace(/"/g, '&quot;')
+        cells.push(`<div class="${cls} hm-nutrition" data-action="goto-activity-date" data-date="${ds}" style="cursor:pointer" data-tip="${tip}"><span class="hm-day">${day}</span><span class="hm-arrow" style="opacity:0.5">?</span></div>`)
       } else if (food.length > 0) {
         const input = sumFood(food).calories
         const tdee = TARGETS.calories.rest
