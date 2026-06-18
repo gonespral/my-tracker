@@ -254,7 +254,7 @@ Rules:
 - If lookup_food returns no usable match or a rate-limited error, call it at most once for that food — do not retry with a reworded/rephrased query. Just say so and estimate from context as a last resort.
 - If the AUTO-SAVE REQUIRED section lists any foods, call save_meal_preset for each one in this response — do not wait, do not ask.
 - For foods in the suggest section, mention once that they could be saved as a preset (one short sentence).
-- Reply exactly like a text message to a friend: plain prose only, 1-2 sentences max. Never use markdown formatting of any kind — no **bold**, no _italics_, no tables, no bullet/numbered lists, no headers, no code blocks, no backticks, no em dashes, no emojis unless the user used one first. Plain words and punctuation only, every single reply, no exceptions.`
+- Reply exactly like a text message to a friend: plain prose only, 1-2 sentences max. Never use markdown formatting of any kind — no **bold**, no _italics_, no tables, no bullet/numbered lists, no headers, no code blocks, no backticks, no em dashes. Never use emoji (no 🔥 😊 etc) — if you want to express tone, use a plain-text emoticon instead, like :) :( :0 ;) or similar. Plain words, punctuation, and the occasional emoticon, every single reply, no exceptions.`
 }
 
 const DEMO_REPLIES = [
