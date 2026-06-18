@@ -99,6 +99,21 @@ export const calculateNetActiveCalories = (workouts) => {
   return Math.round(total)
 }
 
+// Total (active + resting) calories for the activity duration, mirroring the
+// per-item active/total split shown on each workout card. Pass the user's BMR
+// (kcal/day) so resting burn during the activity can be added back for display.
+export const calculateTotalActivityCalories = (workouts, bmr = 1800) => {
+  if (!workouts || !workouts.length) return 0
+  const bmrPerMin = bmr / 1440
+  const total = workouts.reduce((sum, w) => {
+    if (w.isDuplicate) return sum
+    const active = w.calories_burned || 0
+    const resting = w.duration_min ? bmrPerMin * w.duration_min : 0
+    return sum + active + resting
+  }, 0)
+  return Math.round(total)
+}
+
 export const sumFood = (entries) => entries.reduce(
   (a, e) => ({
     calories: a.calories + (e.calories || 0), protein: a.protein + (e.protein || 0),

@@ -1,7 +1,7 @@
 import { TARGETS, MEAL_ORDER, MEAL_LABEL, MEAL_ICON, CREATINE_COLOR } from '../config.js'
 import { state } from '../state.js'
 import { db } from '../db.js'
-import { dateStr, sumFood, calculateNetActiveCalories, fmtDateShort } from '../utils.js'
+import { dateStr, sumFood, calculateNetActiveCalories, calculateTotalActivityCalories, fmtDateShort } from '../utils.js'
 import { stagger, renderPanel } from '../animate.js'
 import { calRingHTML, macroRingHTML, weekChartHTML, streakHTML, sparklineHTML, MACRO_COLORS } from '../charts.js'
 import { getCalorieGoal } from '../config.js'
@@ -146,7 +146,8 @@ export async function renderToday() {
   const workouts    = data.workouts[today] || []
   const totals      = sumFood(food)
   const calTarget   = getCalorieGoal()
-  const burnedToday = calculateNetActiveCalories(workouts)
+  const burnedToday      = calculateNetActiveCalories(workouts)
+  const burnedTotalToday = calculateTotalActivityCalories(workouts, TARGETS.calories.bmr || 1800)
   const eatbackPct  = TARGETS.calories.eatback_enabled !== false ? (TARGETS.calories.eatback_pct ?? 50) : 0
   const eatback     = burnedToday > 0 ? Math.round(burnedToday * eatbackPct / 100) : 0
 
@@ -155,7 +156,7 @@ export async function renderToday() {
     calRingHTML(totals.calories, effectiveTarget, burnedToday, computeMealFrac(data, effectiveTarget)) +
     `<div class="cal-badges">
        <span class="badge">Target: ${effectiveTarget.toLocaleString()} kcal${eatback > 0 ? ` (+${eatback} eat-back)` : ''}</span>
-       ${burnedToday > 0 ? `<span class="badge"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle">local_fire_department</span> ${burnedToday.toLocaleString()} burned</span>` : ''}
+       ${burnedToday > 0 ? `<span class="badge"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle">local_fire_department</span> ${burnedToday.toLocaleString()} burned${burnedTotalToday > burnedToday ? `<span style="opacity:.65;margin-left:3px">(${burnedTotalToday.toLocaleString()} total)</span>` : ''}</span>` : ''}
      </div>`)
 
   const creatineTarget = state.settings?.creatine_target_g ?? 5
