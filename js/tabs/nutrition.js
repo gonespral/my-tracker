@@ -106,6 +106,7 @@ export async function renderNutrition(monthOffset) {
           <span class="material-symbols-outlined panel-toggle-arrow" style="font-size:16px">expand_more</span>
         </button>
         <div class="stats-section" style="display:none">
+          <div class="section-divider"></div>
           <div class="section-label">Last 30 days</div>
           <div class="chart-card">
             ${calTrendHTML(data, 30, { title: 'Caloric intake', primary: 'input' })}

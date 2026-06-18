@@ -235,12 +235,14 @@ export async function renderSettings() {
 
   panel.innerHTML = `<div class="tab-inner">
 
-    ${section('meals', 'Saved Meals', `
+    ${section('presets', 'Presets', `
+      <div class="section-label">Meals</div>
       <button class="meals-add-btn" data-action="add-meal-preset">+ Add meal preset</button>
       ${meals.length ? mealItems : '<div class="empty">No saved meals yet.</div>'}
-    `)}
 
-    ${section('activities', 'Saved Activities', `
+      <div class="settings-section-divider"></div>
+
+      <div class="section-label">Activities</div>
       <button class="meals-add-btn" data-action="add-workout-preset">+ Add activity preset</button>
       ${wps.length ? wpItems : '<div class="empty">No saved activities yet.</div>'}
     `)}
@@ -616,7 +618,7 @@ export async function renderSettings() {
     `)}
 
     <div style="display:flex; flex-direction:column; align-items:center; margin-top:32px; margin-bottom:16px; gap:10px">
-      <a href="help/" target="_blank" class="settings-docs-btn" title="Documentation">
+      <a href="help/" target="_blank" class="settings-docs-btn" data-tip="Documentation">
         <span class="material-symbols-outlined" style="font-size:15px">menu_book</span>
         Docs
       </a>

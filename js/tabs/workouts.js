@@ -2,7 +2,7 @@ import { state } from '../state.js'
 import { db } from '../db.js'
 import { dateStr } from '../utils.js'
 import { stagger, renderPanel } from '../animate.js'
-import { calTrendHTML, streakHTML, monthHeatmapHTML, monthNavHTML, activityStatsHTML, activityTypeBreakdownHTML } from '../charts.js'
+import { intensityTrendHTML, streakHTML, monthHeatmapHTML, monthNavHTML, activityStatsHTML, activityTypeBreakdownHTML } from '../charts.js'
 import { workoutItem, groupWorkoutsByConflict, workoutStack } from '../renderers.js'
 
 
@@ -71,7 +71,7 @@ export async function renderWorkouts(monthOffset) {
           <div class="section-divider"></div>
           <div class="section-label">Last 30 days</div>
           <div class="chart-card">${activityStatsHTML(data, 30)}</div>
-          <div class="chart-card" style="margin-top:12px">${calTrendHTML(data, 30, { title: 'Calorie burn', primary: 'burned' })}</div>
+          <div class="chart-card" style="margin-top:12px">${intensityTrendHTML(data, 30)}</div>
         </div>
       </div>
       <div class="panel-right">

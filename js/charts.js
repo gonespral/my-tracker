@@ -127,6 +127,7 @@ export function weekChartHTML(data) {
       cals: sumFood(food).calories,
       target: (TARGETS.calories.goal || TARGETS.calories.rest) + dayEatback,
       label: d.toLocaleDateString('en-US', { weekday: 'short' }),
+      dateLabel: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
     })
   }
 
@@ -144,15 +145,17 @@ export function weekChartHTML(data) {
     const opacity = d.cals === 0 ? '1' : '0.85'
     const labelFill = d.isToday ? 'var(--tx)' : 'var(--tx3)'
     const delay = `${(i * 0.06).toFixed(2)}s`
+    const tip = `<strong>${d.dateLabel}</strong><span class="ct-sub">${Math.round(d.cals)} / ${Math.round(d.target)} kcal</span>`.replace(/"/g, '&quot;')
     return `
       <g class="bar-group" style="--bar-delay:${delay}">
+        <rect class="chart-hit" x="${x.toFixed(1)}" y="${PT}" width="${bW.toFixed(1)}" height="${cH}" fill="transparent" data-tip="${tip}"/>
         <rect class="bar-rect" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bW.toFixed(1)}" height="${bH.toFixed(1)}"
-          fill="${fill}" rx="4" opacity="${opacity}"/>
+          fill="${fill}" rx="4" opacity="${opacity}" style="pointer-events:none"/>
         <text x="${(x+bW/2).toFixed(1)}" y="${(H-6).toFixed(1)}" text-anchor="middle"
-          font-size="9" fill="${labelFill}" font-weight="${d.isToday ? '700' : '400'}">${d.label}</text>
+          font-size="9" fill="${labelFill}" font-weight="${d.isToday ? '700' : '400'}" style="pointer-events:none">${d.label}</text>
         ${d.cals > 0
           ? `<text class="bar-cal-label" x="${(x+bW/2).toFixed(1)}" y="${(y-4).toFixed(1)}" text-anchor="middle"
-              font-size="8" fill="${fill}" font-weight="600">${Math.round(d.cals)}</text>`
+              font-size="8" fill="${fill}" font-weight="600" style="pointer-events:none">${Math.round(d.cals)}</text>`
           : ''}
       </g>`
   }).join('')
@@ -257,6 +260,19 @@ function buildCalorieTrendHTML(days, { title, primaryLabel, secondaryLabel, prim
 
   const uid = title.replace(/\W+/g, '').toLowerCase().slice(0, 14)
 
+  const trendPayload = {
+    primaryLabel: primaryLabel === 'burned' ? 'Burned' : 'Input',
+    secondaryLabel: secondaryLabel === 'burned' ? 'Burned' : 'Input',
+    days: pts.map((p, i) => ({
+      x: p.x,
+      primaryY: p.primaryY,
+      secondaryY: p.secondaryY,
+      label: p.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      primary: days[i].primary != null ? round(days[i].primary) : null,
+      secondary: days[i].secondary != null ? round(days[i].secondary) : null,
+    })),
+  }
+
   return `
     <div class="chart-header">
       <div style="display:flex;align-items:center;gap:6px">
@@ -288,6 +304,11 @@ function buildCalorieTrendHTML(days, { title, primaryLabel, secondaryLabel, prim
       ${todayPt.primaryY !== null ? `<circle cx="${todayPt.x.toFixed(1)}" cy="${todayPt.primaryY.toFixed(1)}" r="3" fill="${primaryColor}" style="animation:dot-pop 0.3s ease both 0.85s"/>` : ''}
       ${todayPt.secondaryY !== null ? `<circle cx="${todayPt.x.toFixed(1)}" cy="${todayPt.secondaryY.toFixed(1)}" r="2.5" fill="${secondaryColor}" fill-opacity=".45" style="animation:dot-pop 0.3s ease both 0.95s"/>` : ''}
       ${tickLabels}
+      <line class="trend-cursor-line" x1="0" y1="${PT}" x2="0" y2="${PT + cH}" style="display:none"/>
+      <circle class="trend-cursor-dot" data-series="primary" r="3" fill="${primaryColor}" style="display:none"/>
+      <circle class="trend-cursor-dot" data-series="secondary" r="2.5" fill="${secondaryColor}" style="display:none"/>
+      <rect class="trend-hit" x="${PL}" y="${PT}" width="${cW}" height="${cH}" fill="transparent"
+        style="pointer-events:all" data-trend='${JSON.stringify(trendPayload)}'/>
     </svg>`
 }
 
@@ -324,6 +345,74 @@ export function calTrendHTML(data, nDays = 30, options = {}) {
     primaryColor: isBurnedPrimary ? '#f97316' : 'var(--accent)',
     secondaryColor: isBurnedPrimary ? 'var(--accent)' : '#f97316',
   })
+}
+
+export function intensityTrendHTML(data, nDays = 30) {
+  const today = dateStr()
+  const days = []
+  for (let i = nDays - 1; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i)
+    const ds = dateStr(d)
+    const workouts = (data.workouts[ds] || []).filter(w => !w.isDuplicate && w.duration_min && w.calories_burned)
+    let intensity = null, totalCal = 0, totalDur = 0
+    if (workouts.length) {
+      totalCal = workouts.reduce((s, w) => s + w.calories_burned, 0)
+      totalDur = workouts.reduce((s, w) => s + w.duration_min, 0)
+      intensity = totalDur > 0 ? totalCal / totalDur : null
+    }
+    days.push({ ds, d, intensity, totalCal, totalDur, isToday: ds === today })
+  }
+
+  const W = 320, H = 108, PL = 30, PR = 8, PT = 10, PB = 24
+  const cW = W - PL - PR, cH = H - PT - PB
+  const maxIntensity = Math.max(...days.map(d => d.intensity || 0), 8)
+  const xStep = cW / (days.length - 1 || 1)
+  const bW = Math.max(cW / nDays * 0.55, 2)
+
+  const tierColor = (v) => v >= 10 ? 'var(--danger)' : v >= 6 ? 'var(--warn)' : 'var(--accent)'
+
+  const bars = days.map((day, i) => {
+    if (day.intensity == null) return ''
+    const x = PL + i * xStep - bW / 2
+    const bH = Math.max((day.intensity / maxIntensity) * cH, 2)
+    const y = PT + cH - bH
+    const hitX = PL + i * xStep - xStep / 2
+    const tip = `<strong>${day.d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</strong>`
+      + `<span class="ct-sub">${round(day.intensity)} kcal/min · ${round(day.totalCal)} kcal / ${round(day.totalDur)} min</span>`
+    return `<rect class="chart-hit" x="${hitX.toFixed(1)}" y="${PT}" width="${xStep.toFixed(1)}" height="${cH}"
+        fill="transparent" data-tip="${tip.replace(/"/g, '&quot;')}"/>
+      <rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bW.toFixed(1)}" height="${bH.toFixed(1)}"
+      rx="2" fill="${tierColor(day.intensity)}" opacity="${day.isToday ? 1 : 0.85}" style="pointer-events:none;animation:anim-fade-in 0.4s ease both ${(i * 0.01).toFixed(2)}s"/>`
+  }).join('')
+
+  const active = days.filter(d => d.intensity != null)
+  const avg = active.length ? round(active.reduce((s, d) => s + d.intensity, 0) / active.length) : 0
+
+  const tickLabels = days.map((day, i) => {
+    if (day.d.getDate() !== 1 && day.d.getDate() !== 15) return ''
+    const x = PL + i * xStep
+    return `<text x="${x.toFixed(1)}" y="${(H - 8).toFixed(1)}" text-anchor="middle" dominant-baseline="hanging" font-size="8" fill="var(--tx3)">
+      ${day.d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+    </text>`
+  }).join('')
+
+  return `
+    <div class="chart-header">
+      <span class="chart-title">Workout intensity</span>
+      <span class="chart-sub">${avg ? avg + ' kcal/min avg' : 'No data'}</span>
+    </div>
+    <svg viewBox="0 0 ${W} ${H}" class="week-svg chart-fade-in">
+      <text x="${PL - 4}" y="${(PT + cH + 3).toFixed(1)}" text-anchor="end" font-size="8" fill="var(--tx3)">0</text>
+      <line x1="${PL}" y1="${(PT + cH).toFixed(1)}" x2="${(W - PR).toFixed(1)}" y2="${(PT + cH).toFixed(1)}"
+        stroke="var(--border)" stroke-width="1" stroke-opacity=".6"/>
+      ${bars}
+      ${tickLabels}
+    </svg>
+    <div style="display:flex;gap:12px;justify-content:center;margin-top:2px">
+      <span style="font-size:9px;color:var(--tx3);display:flex;align-items:center;gap:4px"><span style="width:6px;height:6px;border-radius:50%;background:var(--accent);display:inline-block"></span>Light</span>
+      <span style="font-size:9px;color:var(--tx3);display:flex;align-items:center;gap:4px"><span style="width:6px;height:6px;border-radius:50%;background:var(--warn);display:inline-block"></span>Moderate</span>
+      <span style="font-size:9px;color:var(--tx3);display:flex;align-items:center;gap:4px"><span style="width:6px;height:6px;border-radius:50%;background:var(--danger);display:inline-block"></span>Intense</span>
+    </div>`
 }
 
 export function mealMacroAvgHTML(data, nDays = 30) {
@@ -384,7 +473,8 @@ export function mealMacroAvgHTML(data, nDays = 30) {
       const val = row.avg[seg.key]
       if (val <= 0) return ''
       const radius = idx === 0 ? 'border-radius:0 0 8px 8px;' : idx === segments.length - 1 ? 'border-radius:8px 8px 0 0;' : ''
-      return `<div class="meal-macro-seg meal-macro-${seg.key}" title="${seg.label} ${fmt(val)}g" style="flex:${val};background:${seg.color};${radius}"></div>`
+      const tip = `<strong>${seg.label}</strong><span class="ct-sub">${fmt(val)}g</span>`.replace(/"/g, '&quot;')
+      return `<div class="meal-macro-seg meal-macro-${seg.key}" data-tip="${tip}" style="flex:${val};background:${seg.color};${radius}"></div>`
     }).join('')
 
     return `
@@ -554,7 +644,14 @@ export function sparklineHTML(weights, { compact = false } = {}) {
         <path d="${area}" fill="url(#wg-${uid})"/>
         <path d="${line}" fill="none" stroke="var(--accent)" stroke-width="2"
           stroke-linecap="round" stroke-linejoin="round"/>
-        ${pts.map(p => `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3" fill="var(--accent)"/>`).join('')}
+        ${pts.map((p, i) => {
+          const w = ordered[i]
+          const dateLabel = w.date ? new Date(w.date + 'T00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''
+          const tip = `<strong>${w.kg.toFixed(2)} kg</strong>${dateLabel ? `<span class="ct-sub">${dateLabel}</span>` : ''}`.replace(/"/g, '&quot;')
+          return `
+            <circle class="chart-hit" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="7" fill="transparent" data-tip="${tip}"/>
+            <circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3" fill="var(--accent)" style="pointer-events:none"/>`
+        }).join('')}
       </svg>
     </div>`
 }
@@ -671,7 +768,12 @@ export function monthHeatmapHTML(data, monthOffset = 0, type = 'workouts') {
       if (hasWorkout) {
         const w = dayWorkouts[0]
         const wtype = w.activity_type || detectActivityType(w.description)
-        cells.push(`<div class="${cls}" style="cursor:pointer" data-action="goto-activity-date" data-date="${ds}" title="${w.description}">${typeIcon(wtype, 13)}</div>`)
+        const subParts = []
+        if (w.duration_min)    subParts.push(`${w.duration_min} min`)
+        if (w.calories_burned) subParts.push(`${Math.round(w.calories_burned)} kcal`)
+        if (dayWorkouts.length > 1) subParts.push(`+${dayWorkouts.length - 1} more`)
+        const tip = (`<strong>${w.description}</strong>` + (subParts.length ? `<span class="ct-sub">${subParts.join(' · ')}</span>` : '')).replace(/"/g, '&quot;')
+        cells.push(`<div class="${cls}" style="cursor:pointer" data-action="goto-activity-date" data-date="${ds}" data-tip="${tip}">${typeIcon(wtype, 13)}</div>`)
       } else {
         cells.push(`<div class="${cls}" >${isFuture ? '' : day}</div>`)
       }
@@ -690,7 +792,8 @@ export function monthHeatmapHTML(data, monthOffset = 0, type = 'workouts') {
           : `${Math.round(absDiff)} kcal ${diff > 0 ? 'surplus' : 'deficit'} (${Math.round(input)} / ${Math.round(tdee)} kcal)`
 
         cls += ' hm-has'
-        cells.push(`<div class="${cls} hm-nutrition" data-action="goto-activity-date" data-date="${ds}" style="cursor:pointer;background:${background};color:${color}" title="${diffLabel}"><span class="hm-day">${day}</span><span class="hm-arrow">${arrow}</span></div>`)
+        const tip = `<strong>${diffLabel}</strong>`.replace(/"/g, '&quot;')
+        cells.push(`<div class="${cls} hm-nutrition" data-action="goto-activity-date" data-date="${ds}" style="cursor:pointer;background:${background};color:${color}" data-tip="${tip}"><span class="hm-day">${day}</span><span class="hm-arrow">${arrow}</span></div>`)
       } else {
         cells.push(`<div class="${cls}" >${isFuture ? '' : day}</div>`)
       }
@@ -767,13 +870,11 @@ export function activityStatsHTML(data, nDays = 30) {
 
   const stats = [
     { label: 'Sessions',    value: sessions,                          unit: '' },
-    { label: 'Cal burned (excl. BMR)',  value: totalCal ? round(totalCal) : '—', unit: totalCal ? ' kcal' : '' },
+    { label: 'Avg cal burned/workout',  value: sessions ? round(totalCal / sessions) : '—', unit: sessions ? ' kcal' : '' },
   ]
   if (durCount > 0)  stats.push({ label: 'Avg duration',   value: Math.round(totalDur / durCount),   unit: ' min' })
   if (distCount > 0) stats.push({ label: 'Total distance',  value: totalDist.toFixed(2),              unit: ' km' })
   if (hrCount > 0)   stats.push({ label: 'Avg heart rate',  value: Math.round(totalHR / hrCount),     unit: ' bpm' })
-  if (!durCount && !distCount && !hrCount && sessions > 0)
-    stats.push({ label: 'Avg cal/session', value: totalCal ? round(totalCal / sessions) : '—', unit: totalCal ? ' kcal' : '' })
 
   return `<div class="activity-stats-grid">${stats.slice(0, 3).map(s => `
     <div class="activity-stat">

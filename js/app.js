@@ -2,7 +2,7 @@ import { state } from './state.js'
 import { supabase, db, setWorkoutConflictOverride, dismissWorkoutConflict, reflagWorkoutConflict, isDemo } from './db.js'
 import { TARGETS, hydrateCalorieTargets, setCalorieDeficit } from './config.js'
 import { dateStr, nowTime } from './utils.js'
-import { showToast, openSheet, closeSheet, closeSheets, toggleEntryMenu, closeMenus, bindSnapDrag } from './ui.js'
+import { showToast, openSheet, closeSheet, closeSheets, toggleEntryMenu, closeMenus, bindSnapDrag, initChartTooltips } from './ui.js'
 import { startListening, stopListening } from './speech.js'
 import { openChat, clearChat, expandChatPanel, collapseChatPanel, hideChatPanel, toggleChatPanel, sendChatMessage, renderChat, setChatPanelState, isChatLoading, abortChat } from './ai.js'
 import { renderToday, openFoodSheet, openFoodSheetWithPreset, openWorkoutSheet, editFood, editWorkout, saveToMeals, reloadWisdom, openSupplementSheet, editSupplement } from './tabs/today.js'
@@ -607,7 +607,7 @@ async function initApp() {
       sendBtnIcon.textContent = 'stop'
       mainInput.disabled = true
     } else {
-      sendBtnIcon.textContent = 'send'
+      sendBtnIcon.textContent = 'keyboard_double_arrow_right'
       mainInput.disabled = false
     }
   }
@@ -1169,6 +1169,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   await initApp()
   updateSigninOverlay()
+  initChartTooltips()
 
   // Re-render on any auth change (sign in, sign out, token refresh)
   supabase.auth.onAuthStateChange((event, session) => {

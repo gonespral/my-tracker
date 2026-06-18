@@ -573,6 +573,39 @@ body {
   height: auto;
   display: block;
 }
+.week-svg rect, .week-svg circle, .week-svg .chart-hit { cursor: pointer; }
+.chart-hit, .trend-hit { pointer-events: all; }
+.trend-hit { cursor: crosshair; }
+.trend-cursor-line {
+  stroke: var(--tx3);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  pointer-events: none;
+}
+.trend-cursor-dot { pointer-events: none; }
+
+.chart-tooltip {
+  position: fixed;
+  z-index: 10001;
+  pointer-events: none;
+  display: none;
+  transform: translate(-50%, -100%);
+  background: var(--tx);
+  color: var(--bg);
+  font-size: 11px;
+  line-height: 1.4;
+  font-weight: 600;
+  padding: 6px 9px;
+  border-radius: 6px;
+  white-space: nowrap;
+  box-shadow: 0 4px 14px rgba(0,0,0,.2);
+}
+.chart-tooltip .ct-sub {
+  display: block;
+  font-weight: 400;
+  opacity: .7;
+  font-size: 10px;
+}
 /* ── Animations ─────────────────────────────────────────────
    All entrance animations live here. Use --anim-delay on any
    element or its parent to stagger. JS: see js/animate.js.
@@ -1824,21 +1857,31 @@ body {
   width: 46px;
   height: 46px;
   flex-shrink: 0;
-  border: none;
+  border: 1.5px solid var(--border);
   border-radius: 50%;
-  background: var(--accent);
-  color: #fff;
+  background: var(--card);
+  color: var(--tx3);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: opacity .15s, transform .1s;
+  transition: all .15s;
   -webkit-tap-highlight-color: transparent;
 }
 
 .send-btn:active {
   opacity: .8;
   transform: scale(.95);
+}
+
+.send-btn:hover .material-symbols-outlined {
+  animation: send-zoom 0.4s ease;
+}
+
+@keyframes send-zoom {
+  0%   { transform: translateX(0); }
+  40%  { transform: translateX(3px); }
+  100% { transform: translateX(0); }
 }
 
 /* ── Bottom sheets ────────────────────────────────────────────── */
@@ -2054,8 +2097,8 @@ body {
   bottom: calc(70px + var(--safe-bot));
   left: 50%;
   transform: translateX(-50%) translateY(16px);
-  background: #1a1a1a;
-  color: #fff;
+  background: var(--tx);
+  color: var(--bg);
   padding: 9px 18px;
   border-radius: 999px;
   font-size: 13px;
@@ -2065,6 +2108,7 @@ body {
   pointer-events: none;
   transition: opacity .2s, transform .2s;
   z-index: 600;
+  box-shadow: 0 4px 14px rgba(0,0,0,.2);
 }
 
 .toast.show {
@@ -2707,6 +2751,35 @@ body {
   font-style: italic;
   color: var(--tx3);
   margin-top: 4px;
+}
+
+.mic-btn:hover, .attach-btn:hover, .send-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-soft);
+  transform: scale(1.08);
+}
+
+.mic-btn:hover .material-symbols-outlined {
+  animation: mic-wiggle 0.5s ease;
+}
+
+.attach-btn:hover .material-symbols-outlined {
+  animation: camera-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes mic-wiggle {
+  0%, 100% { transform: rotate(0deg); }
+  20% { transform: rotate(-14deg); }
+  40% { transform: rotate(12deg); }
+  60% { transform: rotate(-7deg); }
+  80% { transform: rotate(4deg); }
+}
+
+@keyframes camera-pop {
+  0% { transform: scale(1); }
+  45% { transform: scale(1.25) rotate(-4deg); }
+  100% { transform: scale(1); }
 }
 
 .mic-btn.listening {

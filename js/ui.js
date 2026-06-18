@@ -106,6 +106,120 @@ export function bindSnapDrag(handleEl, {
   }, true)
 }
 
+// ── Chart hover tooltips ─────────────────────────────────────
+// Any SVG/HTML element with a `data-tip` attribute (innerHTML string) gets
+// a floating tooltip on hover. Bound once at startup via event delegation
+// since chart markup is re-rendered constantly through innerHTML.
+let tooltipEl = null
+let tooltipBound = false
+
+export function initChartTooltips() {
+  if (tooltipBound) return
+  tooltipBound = true
+
+  document.addEventListener('pointerover', e => {
+    const target = e.target.closest('[data-tip]')
+    if (!target) return
+    showChartTooltip(target.dataset.tip, e.clientX, e.clientY)
+  })
+  document.addEventListener('pointermove', e => {
+    const trendHit = e.target.closest('.trend-hit')
+    if (trendHit) { handleTrendHover(trendHit, e); return }
+    if (!tooltipEl || tooltipEl.style.display === 'none') return
+    if (!e.target.closest('[data-tip]')) return
+    positionChartTooltip(e.clientX, e.clientY)
+  })
+  document.addEventListener('pointerout', e => {
+    const target = e.target.closest('[data-tip], .trend-hit')
+    if (!target) return
+    if (e.relatedTarget && target.contains(e.relatedTarget)) return
+    hideChartTooltip()
+    if (target.classList.contains('trend-hit')) hideTrendCursor(target)
+  })
+}
+
+// Continuous crosshair hover for trend-line charts: finds the nearest day to
+// the pointer's x position (in SVG user units) and moves the cursor line +
+// dots to it, since — unlike bars — points along a line aren't discrete
+// hoverable elements.
+function handleTrendHover(hitEl, e) {
+  let payload
+  try { payload = JSON.parse(hitEl.dataset.trend) } catch { return }
+  const svg = hitEl.closest('svg')
+  if (!svg || !payload.days?.length) return
+
+  const rect = svg.getBoundingClientRect()
+  const vb = svg.viewBox.baseVal
+  const svgX = (e.clientX - rect.left) / rect.width * vb.width
+
+  let nearest = payload.days[0], minDist = Infinity
+  for (const d of payload.days) {
+    const dist = Math.abs(d.x - svgX)
+    if (dist < minDist) { minDist = dist; nearest = d }
+  }
+
+  const cursorLine = svg.querySelector('.trend-cursor-line')
+  if (cursorLine) {
+    cursorLine.setAttribute('x1', nearest.x)
+    cursorLine.setAttribute('x2', nearest.x)
+    cursorLine.style.display = 'block'
+  }
+  const [primaryDot, secondaryDot] = svg.querySelectorAll('.trend-cursor-dot')
+  if (primaryDot) {
+    if (nearest.primaryY != null) { primaryDot.setAttribute('cx', nearest.x); primaryDot.setAttribute('cy', nearest.primaryY); primaryDot.style.display = 'block' }
+    else primaryDot.style.display = 'none'
+  }
+  if (secondaryDot) {
+    if (nearest.secondaryY != null) { secondaryDot.setAttribute('cx', nearest.x); secondaryDot.setAttribute('cy', nearest.secondaryY); secondaryDot.style.display = 'block' }
+    else secondaryDot.style.display = 'none'
+  }
+
+  const sub = []
+  if (nearest.primary   != null) sub.push(`${payload.primaryLabel}: ${nearest.primary.toLocaleString()} kcal`)
+  if (nearest.secondary != null) sub.push(`${payload.secondaryLabel}: ${nearest.secondary.toLocaleString()} kcal`)
+  const html = `<strong>${nearest.label}</strong>` + (sub.length ? `<span class="ct-sub">${sub.join(' · ')}</span>` : '')
+  showChartTooltip(html, e.clientX, e.clientY)
+}
+
+function hideTrendCursor(hitEl) {
+  const svg = hitEl.closest('svg')
+  if (!svg) return
+  const cursorLine = svg.querySelector('.trend-cursor-line')
+  if (cursorLine) cursorLine.style.display = 'none'
+  svg.querySelectorAll('.trend-cursor-dot').forEach(dot => dot.style.display = 'none')
+}
+
+function showChartTooltip(html, x, y) {
+  if (!tooltipEl) {
+    tooltipEl = document.createElement('div')
+    tooltipEl.className = 'chart-tooltip'
+    document.body.appendChild(tooltipEl)
+  }
+  tooltipEl.innerHTML = html
+  tooltipEl.style.display = 'block'
+  positionChartTooltip(x, y)
+}
+
+function positionChartTooltip(x, y) {
+  if (!tooltipEl) return
+  const pad = 10
+  tooltipEl.style.left = `${x}px`
+  tooltipEl.style.top = `${y - pad}px`
+  const rect = tooltipEl.getBoundingClientRect()
+  let dx = 0, dy = 0
+  if (rect.right > window.innerWidth - 4) dx = window.innerWidth - 4 - rect.right
+  if (rect.left < 4) dx = 4 - rect.left
+  if (rect.top < 4) dy = 4 - rect.top
+  if (dx || dy) {
+    tooltipEl.style.left = `${x + dx}px`
+    tooltipEl.style.top = `${y - pad + dy}px`
+  }
+}
+
+function hideChartTooltip() {
+  if (tooltipEl) tooltipEl.style.display = 'none'
+}
+
 export function showToast(msg) {
   const t = document.getElementById('toast')
   t.textContent = msg

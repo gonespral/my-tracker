@@ -390,6 +390,14 @@ function buildTcx(entry, startIso, sportType) {
         <MaximumHeartRateBpm><Value>${Math.min(avgHr + 10, 200)}</Value></MaximumHeartRateBpm>`
     : ''
 
+  // entry.calories_burned is stored active-only (BMR excluded), but Strava's <Calories>
+  // field is gross/total — add the resting component back so the round trip through
+  // mapActivity()'s import-side subtraction doesn't double-deduct BMR.
+  const bmrPerMin = (TARGETS.calories.bmr || 1800) / 1440
+  const grossCalories = entry.calories_burned
+    ? Math.round(entry.calories_burned + bmrPerMin * (entry.duration_min || 0))
+    : 0
+
   return `<?xml version="1.0" encoding="UTF-8"?>
 <TrainingCenterDatabase xmlns="http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2">
   <Activities>
@@ -398,7 +406,7 @@ function buildTcx(entry, startIso, sportType) {
       <Lap StartTime="${startIso}">
         <TotalTimeSeconds>${elapsedSec}</TotalTimeSeconds>
         <DistanceMeters>${distanceMeters}</DistanceMeters>
-        <Calories>${entry.calories_burned ? Math.round(entry.calories_burned) : 0}</Calories>${hrSummary}
+        <Calories>${grossCalories}</Calories>${hrSummary}
         <Intensity>Active</Intensity>
         <TriggerMethod>Manual</TriggerMethod>
         <Track>

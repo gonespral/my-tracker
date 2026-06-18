@@ -49,17 +49,17 @@
         <span class="sync-label"></span>
       </div>
       <div class="top-bar-actions">
-        <button id="demo-btn" class="icon-btn" title="Exit Demo Mode" style="display:none; color: var(--warn); background: var(--warn-soft); border-radius: 999px; padding: 4px 10px; font-size: 11px; font-weight: 700; font-family: 'Space Grotesk', sans-serif; letter-spacing: 0.5px; border: 1px solid var(--warn);">
+        <button id="demo-btn" class="icon-btn" data-tip="Exit Demo Mode" style="display:none; color: var(--warn); background: var(--warn-soft); border-radius: 999px; padding: 4px 10px; font-size: 11px; font-weight: 700; font-family: 'Space Grotesk', sans-serif; letter-spacing: 0.5px; border: 1px solid var(--warn);">
           DEMO
         </button>
-        <button id="refresh-btn" class="icon-btn" title="Sync all" aria-label="Sync all">
+        <button id="refresh-btn" class="icon-btn" data-tip="Sync all" aria-label="Sync all">
           <span class="material-symbols-outlined" style="font-size:18px">sync</span>
         </button>
-        <button id="theme-toggle" class="icon-btn" title="Toggle dark mode" aria-label="Toggle dark mode">
+        <button id="theme-toggle" class="icon-btn" data-tip="Toggle dark mode" aria-label="Toggle dark mode">
           <span class="material-symbols-outlined icon-sun" style="font-size:18px">light_mode</span>
           <span class="material-symbols-outlined icon-moon" style="font-size:18px">dark_mode</span>
         </button>
-        <button id="apikey-btn" class="icon-btn" title="Settings" aria-label="Settings">
+        <button id="apikey-btn" class="icon-btn" data-tip="Settings" aria-label="Settings">
           <span class="material-symbols-outlined" style="font-size:18px">settings</span>
         </button>
       </div>
@@ -133,7 +133,7 @@
     <textarea class="input-field" id="main-input" rows="1"
       placeholder="Type something…" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
     <button class="send-btn" id="send-btn" aria-label="Send">
-      <span class="material-symbols-outlined" style="font-size:18px;color:white">send</span>
+      <span class="material-symbols-outlined" style="font-size:18px">keyboard_double_arrow_right</span>
     </button>
   </div>
 
@@ -397,7 +397,7 @@
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
     <div class="sheet-title" style="margin:0;display:flex;align-items:baseline;gap:8px">
       <span>Settings</span>
-      <span id="settings-version" class="settings-version" data-action="force-update" title="Tap to force update" aria-label="App version"></span>
+      <span id="settings-version" class="settings-version" data-action="force-update" data-tip="Tap to force update" aria-label="App version"></span>
     </div>
     <button id="settings-close-btn" class="chat-close-btn" style="font-size:18px"><span class="material-symbols-outlined" style="font-size:18px">close</span></button>
   </div>
