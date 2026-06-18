@@ -69,7 +69,7 @@ CREATE TABLE public.user_settings (
     user_id        UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
     -- Calorie profile
     cal_rest            NUMERIC CHECK (cal_rest > 0),
-    cal_training        NUMERIC CHECK (cal_training > 0),
+    cal_training        NUMERIC CHECK (cal_training > 0), -- nullable: new users have no training target until their first profile save
     protein_g           NUMERIC CHECK (protein_g >= 0),
     protein_per_kg      NUMERIC CHECK (protein_per_kg > 0),
     carbs_g             NUMERIC CHECK (carbs_g >= 0),
