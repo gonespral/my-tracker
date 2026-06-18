@@ -403,6 +403,39 @@ function statusForToolCalls(toolCalls) {
   return [...new Set(toolCalls.map(toolCallLabel))].join(', ') + '…'
 }
 
+const TOOL_GROUP_LABEL = {
+  lookup_food: 'Checking food database',
+  log_food: 'Logging food',
+  edit_food: 'Updating food entries',
+  delete_food: 'Deleting food entries',
+  log_workout: 'Logging activities',
+  edit_workout: 'Updating activities',
+  delete_workout: 'Deleting activities',
+  log_weight: 'Logging weight',
+  save_meal_preset: 'Saving presets',
+  set_targets: 'Updating targets',
+}
+
+// A meal with several items fires several lookup_food/log_food calls in one
+// round — one chat line per item gets noisy fast. Group same-tool calls in a
+// round into a single line ("Checking food database (8 items)") and only
+// show the red icon if any of them failed.
+function groupToolCalls(executed) {
+  const order = []
+  const groups = new Map()
+  for (const { tc, content } of executed) {
+    if (!groups.has(tc.name)) { groups.set(tc.name, { count: 0, failed: false, tc }); order.push(tc.name) }
+    const g = groups.get(tc.name)
+    g.count++
+    g.failed = g.failed || toolCallFailed(tc.name, content)
+  }
+  return order.map(name => {
+    const g = groups.get(name)
+    const label = g.count > 1 ? `${TOOL_GROUP_LABEL[name] || 'Working'} (${g.count} items)` : toolCallLabel(g.tc)
+    return { label, ok: !g.failed }
+  })
+}
+
 // A tool call counts as failed if executeTool caught an error, or — for
 // lookup_food specifically — if the database search came back empty.
 function toolCallFailed(name, resultContent) {
@@ -645,18 +678,22 @@ export async function sendChatMessage(text, renderActiveFn, images = []) {
       }))
       logClaudeRound(round, msg, executed)
 
-      // Turn the "thinking" placeholder into a permanent log line of what was
-      // attempted (and whether it failed), then queue a fresh one for the next round.
-      // Silent tools (e.g. calculate) are logged to console above but skipped here.
+      // Turn the "thinking" placeholder into a permanent, grouped log line of
+      // what was attempted (and whether any of it failed), then queue a fresh
+      // placeholder for the next round. Silent tools (e.g. calculate) are
+      // logged to console above but never shown in the chat — and if a round
+      // was *only* silent tools, reuse the same placeholder instead of
+      // pushing a new one, so it doesn't get left behind as an orphaned bubble.
       const visible = executed.filter(({ tc }) => !SILENT_TOOLS.has(tc.name))
       const toolLogIdx = state.chatDisplay.length - 1
-      if (state.chatDisplay[toolLogIdx]?.thinking && visible.length) {
-        state.chatDisplay[toolLogIdx] = {
-          role: 'tool',
-          items: visible.map(({ tc, content }) => ({ label: toolCallLabel(tc), ok: !toolCallFailed(tc.name, content) })),
+      if (state.chatDisplay[toolLogIdx]?.thinking) {
+        if (visible.length) {
+          state.chatDisplay[toolLogIdx] = { role: 'tool', items: groupToolCalls(visible) }
+          state.chatDisplay.push({ role: 'assistant', text: thinkingVerb() + '…', thinking: true })
+        } else {
+          state.chatDisplay[toolLogIdx].text = thinkingVerb() + '…'
         }
       }
-      state.chatDisplay.push({ role: 'assistant', text: thinkingVerb() + '…', thinking: true })
       renderChat()
 
       const toolResults = executed.map(({ tc, content }) => ({ type: 'tool_result', tool_use_id: tc.id, content }))

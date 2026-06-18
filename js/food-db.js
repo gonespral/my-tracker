@@ -63,19 +63,26 @@ function makeThrottledFetch(minGapMs) {
   }
 }
 
-// USDA's queue re-checks the cooldown right before each dispatch (not just
-// once at the top of searchUSDA). All N calls in one burst pass the early
-// check simultaneously, before any response has come back to set a cooldown —
-// but each one's turn in this serialized queue only comes up after the
-// previous one has already finished and had a chance to record it, so calls
-// 2..N in the same burst still get short-circuited once call 1 reveals it.
+// USDA's queue re-checks the cooldown, and sets it on a 429, entirely inside
+// the queued task itself — not in searchUSDA after awaiting the result. That
+// makes it provably sequential: task N+1 cannot start until task N (and any
+// cooldown it just recorded) has fully finished, so a burst of N calls for
+// one meal only ever wastes one real request once the limit is hit, not N.
 let _usdaChain = Promise.resolve()
 function usdaFetch(url, apiKey, minGapMs) {
   const run = _usdaChain.then(async () => {
     const cooldownUntil = getCooldownUntil(apiKey)
     if (cooldownUntil) return { cooldownUntil }
-    try { return await fetch(url) }
-    finally { await new Promise(res => setTimeout(res, minGapMs)) }
+    try {
+      const r = await fetch(url)
+      if (r.status === 429) {
+        setCooldown(apiKey, r.headers.get('retry-after'))
+        return { cooldownUntil: getCooldownUntil(apiKey) }
+      }
+      return r
+    } finally {
+      await new Promise(res => setTimeout(res, minGapMs))
+    }
   })
   _usdaChain = run.catch(() => {})
   return run
@@ -91,10 +98,6 @@ async function searchUSDA(query) {
   const url = `https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(query)}&pageSize=5&dataType=Foundation,SR%20Legacy,Branded&api_key=${encodeURIComponent(key)}`
   const r = await usdaFetch(url, key, 350)
   if (r.cooldownUntil) throw new Error(`rate_limited:${r.cooldownUntil}`)
-  if (r.status === 429) {
-    setCooldown(key, r.headers.get('retry-after'))
-    throw new Error(`rate_limited:${getCooldownUntil(key)}`)
-  }
   if (!r.ok) return []
   const data = await r.json()
   return (data.foods || []).map(f => {
