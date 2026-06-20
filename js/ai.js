@@ -82,7 +82,7 @@ export const CLAUDE_TOOLS = [
       properties: {
         description:     { type: 'string' },
         intensity:       { type: 'string', enum: ['low','medium','high'] },
-        calories_burned: { type: 'number', description: 'kcal burned (optional)' },
+        calories_burned: { type: 'number', description: 'ACTIVE kcal burned, i.e. above resting metabolism (optional) — see system prompt rules on estimating this' },
         duration_min:    { type: 'number', description: 'duration in minutes (optional)' },
         distance_km:     { type: 'number', description: 'distance in km (optional)' },
         heart_rate_avg:  { type: 'number', description: 'average heart rate in bpm (optional)' },
@@ -100,7 +100,7 @@ export const CLAUDE_TOOLS = [
         id:              { type: 'string' },
         description:     { type: 'string' },
         intensity:       { type: 'string', enum: ['low','medium','high'] },
-        calories_burned: { type: 'number' },
+        calories_burned: { type: 'number', description: 'ACTIVE kcal burned, i.e. above resting metabolism' },
         duration_min:    { type: 'number' },
         distance_km:     { type: 'number' },
         heart_rate_avg:  { type: 'number' },
@@ -248,8 +248,9 @@ ${mealsList}
 ${autoSaveSection}${suggestSection}
 Rules:
 - Log food/workouts/weight for ANY date the user mentions. Use YYYY-MM-DD format.
-  Current targets: maintenance ${TARGETS.calories.rest} kcal / goal ${TARGETS.calories.goal || TARGETS.calories.rest} kcal / P${TARGETS.protein}g C${TARGETS.carbs}g F${TARGETS.fat}g
+  Current targets: maintenance ${TARGETS.calories.rest} kcal / goal ${TARGETS.calories.goal || TARGETS.calories.rest} kcal / P${TARGETS.protein}g C${TARGETS.carbs}g F${TARGETS.fat}g / BMR ${TARGETS.calories.bmr || 1800} kcal/day
 - You may call multiple tools in one turn (e.g. lookup_food + calculate + log_food together).
+- This app tracks workout calories_burned as ACTIVE calories only (burn above resting metabolism), never total/gross burn — eat-back math depends on this. If the user gives an explicit calories_burned number, log it as-is. If you're estimating it yourself (no number given), estimate the realistic TOTAL/gross burn for that activity and duration first, then use calculate to subtract resting calories for that duration (BMR ÷ 1440 × duration_min) before calling log_workout — the same conversion this app already applies to Strava imports.
 - Before calling log_food, edit_food, or save_meal_preset for any food whose calories the user did NOT explicitly state, and that doesn't exactly match a saved preset above: first call lookup_food, then call calculate to scale the matched per-100g values to the actual portion eaten. Never invent calorie/macro numbers from memory when these tools are available.
 - If lookup_food returns no usable match or a rate-limited error, call it at most once for that food — do not retry with a reworded/rephrased query. Just say so and estimate from context as a last resort.
 - If the AUTO-SAVE REQUIRED section lists any foods, call save_meal_preset for each one in this response — do not wait, do not ask.

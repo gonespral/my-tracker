@@ -423,6 +423,27 @@ body {
   color: #92400e;
 }
 
+/* Stacked active (bold)/total (small, faded) calorie badge, matching the
+   same active/total split shown on individual workout cards. */
+.badge-burned {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 4px 12px;
+  line-height: 1.3;
+}
+
+.badge-burned-active {
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.badge-burned-total {
+  font-size: 9px;
+  font-weight: 500;
+  opacity: 0.65;
+}
+
 /* ── Macro rings ───────────────────────────────────────────── */
 .macro-rings {
   display: grid;
