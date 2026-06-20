@@ -403,9 +403,9 @@ function thinkingVerb() {
   return 'Thinking'
 }
 
-// Surfaces which tools/databases Claude is using, so lookups against the food
-// database (or any other tool call) are visible to the user — both while in
-// flight (the "thinking" bubble) and afterwards as a persistent log line.
+// Surfaces which tools/databases Claude is using as a persistent log line
+// below the chat bubble (grouped further down) — never inside the "thinking"
+// bubble itself, which always just says "Thinking…" while a turn is in flight.
 function toolCallLabel(tc) {
   switch (tc.name) {
     case 'lookup_food':      return `Checking food database for "${tc.input?.query || '…'}"`
@@ -421,10 +421,6 @@ function toolCallLabel(tc) {
     case 'set_targets':      return 'Updating targets'
     default:                 return 'Working'
   }
-}
-
-function statusForToolCalls(toolCalls) {
-  return [...new Set(toolCalls.map(toolCallLabel))].join(', ') + '…'
 }
 
 const TOOL_GROUP_LABEL = {
@@ -743,11 +739,6 @@ export async function sendChatMessage(text, renderActiveFn, images = []) {
         logClaudeRound(round, msg, [])
         state.chatApiMessages.push({ role: 'assistant', content: msg.content })
         break
-      }
-      const thinkingMsg = state.chatDisplay[state.chatDisplay.length - 1]
-      if (thinkingMsg?.thinking) {
-        thinkingMsg.text = statusForToolCalls(toolCalls)
-        renderChat()
       }
       const executed = await Promise.all(toolCalls.map(async tc => {
         if (tc.name === 'lookup_food' && ++lookupCount > LOOKUP_CAP) {
