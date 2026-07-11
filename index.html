@@ -4,9 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>MyTracker</title>
-  <link rel="icon" href="/brand/icons/favicon-mono-dark.svg" />
-  <link rel="apple-touch-icon" href="/brand/icons/apple-touch-icon-mono-dark.png" />
-  <link rel="manifest" href="/manifest.json" />
+  <link rel="icon" href="brand/icons/favicon-mono-dark.svg" />
+  <link rel="apple-touch-icon" href="brand/icons/apple-touch-icon-mono-dark.png" />
+  <link rel="manifest" href="manifest.json" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-title" content="MyTracker" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
@@ -29,7 +29,9 @@
   <div id="root"></div>
   <script>
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').catch(() => {})
+      // Relative path (not '/sw.js'): the app is hosted under a subpath on
+      // GitHub Pages, and inline scripts are not rewritten by Vite's base.
+      navigator.serviceWorker.register('sw.js').catch(() => {})
     }
   </script>
   <script type="module" src="/src/main.tsx"></script>

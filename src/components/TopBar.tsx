@@ -56,8 +56,8 @@ export default function TopBar() {
     <header className="top-bar">
       <div className="top-bar-inner">
         <span className="top-bar-title">
-          <img src="/brand/svg/logo-mono-light.svg" alt="MyTracker" className="app-icon app-icon-light" />
-          <img src="/brand/svg/logo-mono-dark.svg" alt="MyTracker" className="app-icon app-icon-dark" />
+          <img src="brand/svg/logo-mono-light.svg" alt="MyTracker" className="app-icon app-icon-light" />
+          <img src="brand/svg/logo-mono-dark.svg" alt="MyTracker" className="app-icon app-icon-dark" />
           MyTracker
         </span>
         {isDemo && (
