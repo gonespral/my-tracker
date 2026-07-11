@@ -1,11 +1,11 @@
-# <picture><source media="(prefers-color-scheme: dark)" srcset="brand/svg/logo-mono-light.svg"><source media="(prefers-color-scheme: light)" srcset="brand/svg/logo-mono-dark.svg"><img alt="MyTracker" src="brand/svg/logo-mono-dark.svg" width="36" align="top"></picture> MyTracker
+# <picture><source media="(prefers-color-scheme: dark)" srcset="public/brand/svg/logo-mono-light.svg"><source media="(prefers-color-scheme: light)" srcset="public/brand/svg/logo-mono-dark.svg"><img alt="MyTracker" src="public/brand/svg/logo-mono-dark.svg" width="36" align="top"></picture> MyTracker
 
 <p align="center">
-	<img src="brand/shots/510_1x_shots_so.png" alt="MyTracker Screenshot 1" width="48%">
-	<img src="brand/shots/866_1x_shots_so.png" alt="MyTracker Screenshot 2" width="48%">
+	<img src="public/brand/shots/510_1x_shots_so.png" alt="MyTracker Screenshot 1" width="48%">
+	<img src="public/brand/shots/866_1x_shots_so.png" alt="MyTracker Screenshot 2" width="48%">
 </p>
 
-Self-hosted health and fitness tracker. Vanilla HTML/CSS/JS, Supabase backend, Claude AI assistant for natural-language logging. No framework, no build step, no subscriptions.
+Self-hosted health and fitness tracker. React + TypeScript + Vite, Supabase backend, Claude AI assistant for natural-language logging. No subscriptions.
 
 Try the demo at [gonespral.github.io/my-tracker](https://gonespral.github.io/my-tracker/?demo=1).
 
@@ -14,9 +14,9 @@ Try the demo at [gonespral.github.io/my-tracker](https://gonespral.github.io/my-
 
 ## Features
 
-- **AI Logging:** Chat with Claude to log food, workouts, and weight in plain English. Attach photos and Claude uses vision to identify meals. Frequently logged items are suggested as presets automatically.
-- **Nutrition:** Daily food tracking with calorie and macro targets (rest vs. training day). Protein target can be set as a fixed amount or as g/kg of body weight. Meal presets for quick re-logging.
-- **Workouts:** Manual logging with intensity, duration, distance, and heart rate. Activity presets.
+- **AI Logging:** Chat with Claude to log food, activities, and weight in plain English. Attach photos and Claude uses vision to identify meals. Frequently logged items are suggested as presets automatically.
+- **Nutrition:** Daily food tracking with calorie and macro targets (rest vs. training day). Protein target can be set as a fixed amount or as g/kg of body weight. Meal presets for quick re-logging, with autocomplete while typing.
+- **Activities:** Manual logging with intensity, duration, distance, and heart rate. Activity presets.
 - **Voice input:** Dictate food or workout entries via the Web Speech API.
 - **PWA:** Installable, mobile-first, dark mode, smooth animations.
 - **Privacy-first:** Your Supabase instance, your data. Row-Level Security on all tables. API keys live only in `localStorage`.

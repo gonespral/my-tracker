@@ -9,11 +9,12 @@ Step-by-step instructions for self-hosting MyTracker. You will need accounts on 
 ```bash
 git clone https://github.com/gonespral/my-tracker.git
 cd my-tracker
-cp js/env.example.js js/env.js
+npm install
+cp .env.example .env.local
 npm run dev   # http://localhost:3000
 ```
 
-`js/env.js` is gitignored. Fill it in as you complete the steps below.
+`.env.local` is gitignored. Fill it in as you complete the steps below.
 
 ---
 
@@ -77,20 +78,20 @@ npx supabase secrets set GOOGLE_HEALTH_CLIENT_SECRET=your_secret
 
 > **Note:** If you prefer not to use the shared edge function approach, you can skip deploying these functions and enter your own client credentials directly in the app's Settings sheet using the "Use custom credentials" option for each integration.
 
-### 2.6 Update env.js
+### 2.6 Update .env.local
 
-```js
-export const SUPABASE_URL = "https://yourproject.supabase.co"
-export const SUPABASE_ANON_KEY = "your-anon-key"
-export const STRAVA_CLIENT_ID = "your-strava-client-id"          // default/shared (optional)
-export const GOOGLE_HEALTH_CLIENT_ID = "your-google-client-id"  // default/shared (optional)
+```bash
+VITE_SUPABASE_URL=https://yourproject.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key
+VITE_STRAVA_CLIENT_ID=your-strava-client-id          # default/shared (optional)
+VITE_GOOGLE_HEALTH_CLIENT_ID=your-google-client-id   # default/shared (optional)
 ```
 
 ---
 
 ## 3. GitHub Pages deployment
 
-The included workflow (`.github/workflows/deploy.yml`) builds and publishes to GitHub Pages on every push to `main`. It injects the secrets below into a generated `js/env.js` before publishing, so you never commit credentials.
+The included workflow (`.github/workflows/deploy.yml`) builds and publishes to GitHub Pages on every push to `main`. It injects the secrets below into a generated `.env.production` (as `VITE_`-prefixed vars) before running `npm run build`, so you never commit credentials.
 
 ### 3.1 Enable GitHub Pages
 
@@ -118,7 +119,7 @@ Once saved, push any commit to `main` to trigger the first deploy. The published
 The Strava integration supports two-way sync: pull activities from Strava and push locally logged workouts to Strava. The following features are available once connected:
 
 - **Auto-sync on load** — last 90 days of activities pulled on each app load; activities deleted from Strava are removed locally on the next sync.
-- **Push to Strava** — push any locally logged workout to Strava from the Workouts tab.
+- **Push to Strava** — push any locally logged workout to Strava from the Activities tab.
 - **Auto-push** — toggle in Settings to automatically push every new local activity to Strava.
 - **Cross-push from Google Health** — toggle to automatically push Google Health imports to Strava.
 - **Delete from Strava** — delete a synced activity from Strava directly in the app (with confirmation prompt).
@@ -142,7 +143,7 @@ npx supabase secrets set STRAVA_CLIENT_SECRET=your_client_secret
 
 ### 4.3 Connect in the app
 
-Open MyTracker → Settings → Strava → Connect. You can also enable "Use custom credentials" and paste your own Client ID and Secret to bypass the shared edge function entirely.
+Open MyTracker → Settings (gear icon) → Integrations & API Keys → Manage Integrations → Strava → Connect. You can also enable "Use custom credentials" and paste your own Client ID and Secret to bypass the shared edge function entirely.
 
 ### 4.4 Calories and heart rate
 
@@ -155,7 +156,7 @@ Activities are pushed to Strava as TCX file uploads. The TCX file includes your 
 Google Health supports bidirectional sync: pull activities from Google Health and push locally logged workouts back. The following features are available once connected:
 
 - **Auto-sync on load** — last 90 days of activities pulled on each app load.
-- **Push to Google Health** — push any locally logged workout to Google Health from the Workouts tab.
+- **Push to Google Health** — push any locally logged workout to Google Health from the Activities tab.
 - **Auto-push** — toggle in Settings to automatically push every new local activity to Google Health.
 - **Cross-push from Strava** — toggle to automatically push Strava imports to Google Health.
 - **Delete from Google Health** — delete a synced activity from Google Health directly in the app (with confirmation prompt).
@@ -198,7 +199,7 @@ npx supabase secrets set GOOGLE_HEALTH_CLIENT_SECRET=your_client_secret
 
 ### 5.5 Connect in the app
 
-Open MyTracker → Settings → Google Health → Connect. To use your own credentials instead of the shared ones, enable "Use custom credentials" and paste your Client ID and Client Secret before connecting.
+Open MyTracker → Settings (gear icon) → Integrations & API Keys → Manage Integrations → Google Health → Connect. To use your own credentials instead of the shared ones, enable "Use custom credentials" and paste your Client ID and Client Secret before connecting.
 
 > **Note on testing mode:** Apps in testing mode are limited to 100 users and tokens expire every 7 days (users will be asked to re-authorize weekly). This is fine for personal use. If you want to share the app publicly with Google Health sync, you would need to go through Google's verification process, which requires a custom domain you own.
 
@@ -206,13 +207,13 @@ Open MyTracker → Settings → Google Health → Connect. To use your own crede
 
 ## 6. Claude AI (optional)
 
-Get an API key from the [Anthropic Console](https://console.anthropic.com/) and paste it in MyTracker → Settings → AI. The key is stored only in your browser's `localStorage` and is never sent to any server other than Anthropic's API directly.
+Get an API key from the [Anthropic Console](https://console.anthropic.com/) and paste it in MyTracker → Settings (gear icon) → Integrations & API Keys → Manage Anthropic API Key. The key is stored only in your browser's `localStorage` and is never sent to any server other than Anthropic's API directly.
 
 ---
 
 ## 7. Profile settings (optional)
 
-Some features require profile data set in Settings → Profile:
+Some features require profile data set in Settings (gear icon) → Calories:
 
 | Field | Used by |
 |:---|:---|

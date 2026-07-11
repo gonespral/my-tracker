@@ -22,25 +22,29 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Bust asset cache
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Stamp service worker cache version
         run: |
           SHA=$(git rev-parse --short HEAD)
-          sed -i "s|style\.css?v=[^\"]*|style.css?v=$SHA|g" index.html
-          sed -i "s|app\.js?v=[^\"]*|app.js?v=$SHA|g" index.html
-      - name: Generate version file
+          sed -i "s|const VERSION = 'dev'|const VERSION = '$SHA'|" public/sw.js
+      - name: Write production env
         run: |
           SHA=$(git rev-parse --short HEAD)
-          echo "export const APP_VERSION = \"$SHA\"" > js/version.js
-          sed -i "s|const VERSION = 'dev'|const VERSION = '$SHA'|" sw.js
-      - name: Generate env.js from secrets
-        run: |
-          echo "export const SUPABASE_URL = \"${{ secrets.SUPABASE_URL }}\"" > js/env.js
-          echo "export const SUPABASE_ANON_KEY = \"${{ secrets.SUPABASE_ANON_KEY }}\"" >> js/env.js
-          echo "export const STRAVA_CLIENT_ID = \"${{ secrets.STRAVA_CLIENT_ID }}\"" >> js/env.js
-          echo "export const GOOGLE_HEALTH_CLIENT_ID = \"${{ secrets.GOOGLE_HEALTH_CLIENT_ID }}\"" >> js/env.js
+          cat <<EOF > .env.production
+          VITE_SUPABASE_URL=${{ secrets.SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
+          VITE_STRAVA_CLIENT_ID=${{ secrets.STRAVA_CLIENT_ID }}
+          VITE_GOOGLE_HEALTH_CLIENT_ID=${{ secrets.GOOGLE_HEALTH_CLIENT_ID }}
+          VITE_APP_VERSION=$SHA
+          EOF
+      - run: npm ci
+      - run: npm run build
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: '.'
+          path: 'dist'
       - id: deployment
         uses: actions/deploy-pages@v4

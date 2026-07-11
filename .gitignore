@@ -1,8 +1,13 @@
 # Environment variables
-js/env.js
+.env.local
+.env.*.local
 
 # Dependencies
 node_modules/
+
+# Build output
+dist/
+*.tsbuildinfo
 
 # Local Claude reference docs (not committed)
 .claude/docs/
