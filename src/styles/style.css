@@ -1872,7 +1872,7 @@ body {
 /* ── Input bar ────────────────────────────────────────────── */
 .input-bar {
   position: relative;
-  z-index: 350;
+  z-index: 460;
   flex-shrink: 0;
   display: flex;
   align-items: flex-end;
@@ -1885,7 +1885,6 @@ body {
 }
 
 #chat-panel.expanded~.input-bar {
-  z-index: 460;
   border-radius: 0;
   border: none;
   border-top: 1px solid var(--border);
