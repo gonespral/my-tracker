@@ -128,7 +128,7 @@ export const ACTIVITY_TYPE: Record<string, { iconName: string; label: string; co
   yoga: { iconName: 'self_improvement', label: 'Yoga', color: '#a855f7' },
   hiit: { iconName: 'bolt', label: 'HIIT', color: '#f59e0b' },
   tennis: { iconName: 'sports_tennis', label: 'Tennis', color: '#eab308' },
-  climb: { iconName: 'hiking', label: 'Climbing', color: '#ef4444' },
+  climb: { iconName: 'sports_climbing', label: 'Climbing', color: '#ef4444' },
   row: { iconName: 'rowing', label: 'Rowing', color: '#0ea5e9' },
   ball: { iconName: 'sports_soccer', label: 'Ball sport', color: '#22c55e' },
   box: { iconName: 'sports_martial_arts', label: 'Martial arts', color: '#dc2626' },
