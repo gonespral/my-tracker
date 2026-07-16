@@ -29,7 +29,7 @@ html, body, * {
   --track: #eaeef2;
   --nav-shadow: 0 -4px 20px rgba(0, 0, 0, 0.05);
   --safe-bot: env(safe-area-inset-bottom, 0px);
-  --bar-h: 66px;
+  --bar-h: calc(66px + var(--safe-bot));
   --chat-peek-h: 0px;
 }
 

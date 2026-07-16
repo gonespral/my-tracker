@@ -7,7 +7,7 @@ export const TYPE_ICON_NAME: Record<string, string> = {
   yoga: 'self_improvement',
   hiit: 'bolt',
   tennis: 'sports_tennis',
-  climb: 'sports_climbing',
+  climb: 'mountain_flag',
   row: 'rowing',
   ball: 'sports_soccer',
   box: 'sports_martial_arts',
