@@ -37,8 +37,9 @@ export default function WeekChart({ data }: { data: DbCache }) {
     })
   }
 
-  const maxCal = Math.max(...days.map(d => Math.max(d.cals, d.target)), TARGETS.calories.rest * 1.1, 100)
-  const restTargetY = PT + (1 - TARGETS.calories.rest / maxCal) * cH
+  const calGoal = TARGETS.calories.goal || TARGETS.calories.rest
+  const maxCal = Math.max(...days.map(d => Math.max(d.cals, d.target)), calGoal * 1.1, 100)
+  const goalTargetY = PT + (1 - calGoal / maxCal) * cH
   const bW = cW / 7 * 0.6
   const bStep = cW / 7
 
@@ -53,9 +54,9 @@ export default function WeekChart({ data }: { data: DbCache }) {
         <span className="chart-sub">avg {wkAvg.toLocaleString()} kcal/day{hasWeekOutliers ? ' · excl. incomplete' : ''}</span>
       </div>
       <svg viewBox={`0 0 ${W} ${H}`} className="week-svg">
-        <text x={PL - 4} y={(restTargetY + 3).toFixed(1)} textAnchor="end" fontSize={8} fill="var(--tx3)">{Math.round(TARGETS.calories.rest)}</text>
+        <text x={PL - 4} y={(goalTargetY + 3).toFixed(1)} textAnchor="end" fontSize={8} fill="var(--tx3)">{Math.round(calGoal)}</text>
         <text x={PL - 4} y={(PT + cH + 3).toFixed(1)} textAnchor="end" fontSize={8} fill="var(--tx3)">0</text>
-        <line x1={PL} y1={restTargetY.toFixed(1)} x2={(W - PR).toFixed(1)} y2={restTargetY.toFixed(1)} stroke="var(--border)" strokeWidth={1} strokeDasharray="4 3" />
+        <line x1={PL} y1={goalTargetY.toFixed(1)} x2={(W - PR).toFixed(1)} y2={goalTargetY.toFixed(1)} stroke="var(--border)" strokeWidth={1} strokeDasharray="4 3" />
         {days.map((d, i) => {
           const bH = d.cals > 0 ? Math.max((d.cals / maxCal) * cH, 3) : 0
           const x = PL + i * bStep + (bStep - bW) / 2

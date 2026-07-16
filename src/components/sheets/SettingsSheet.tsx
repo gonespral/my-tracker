@@ -454,7 +454,12 @@ export default function SettingsSheet() {
         <div className="form-field" style={{ marginBottom: 14 }}>
           <label className="form-label">Target (kcal)</label>
           <input className="form-input" type="number" inputMode="numeric" style={{ maxWidth: 160 }}
-            value={calRestInput} disabled={useBmr || useGHCalibration} onChange={(e) => setCalRestInput(e.target.value)} />
+            value={useBmr
+              ? String(Math.round(estimatedProfile
+                  ? withDeficit(estimatedProfile.rest, deficitNow)
+                  : (TARGETS.calories.goal || TARGETS.calories.rest)))
+              : calRestInput}
+            disabled={useBmr || useGHCalibration} onChange={(e) => setCalRestInput(e.target.value)} />
         </div>
         {!useBmr && !useGHCalibration && <button className="btn-integration" onClick={handleSaveTargets}>Save</button>}
         {useGHCalibration && (

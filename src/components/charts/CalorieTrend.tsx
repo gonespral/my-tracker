@@ -62,7 +62,7 @@ export default function CalorieTrend({ data, nDays = 30, title, primary = 'input
   const W = 320, H = 108, PL = 30, PR = 8, PT = 10, PB = 24
   const cW = W - PL - PR, cH = H - PT - PB
   const dataMax = Math.max(...days.map((d) => Math.max(d.primary || 0, d.secondary || 0)), 0)
-  const maxCal = Math.max(Math.max(dataMax, TARGETS.calories.rest) * 1.1, 100)
+  const maxCal = Math.max(Math.max(dataMax, TARGETS.calories.goal || TARGETS.calories.rest) * 1.1, 100)
   const tY = (v: number) => {
     const clamped = Math.max(0, Math.min(v, maxCal))
     return PT + (1 - clamped / maxCal) * cH

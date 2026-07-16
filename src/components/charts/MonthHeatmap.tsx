@@ -113,7 +113,7 @@ export default function MonthHeatmap({ data, monthOffset = 0, type = 'workouts',
         )
       } else if (food.length > 0) {
         const input = sumFood(food).calories
-        const tdee = TARGETS.calories.rest
+        const tdee = TARGETS.calories.goal || TARGETS.calories.rest
         const diff = input - tdee
         const { background, color, onTargetWindow } = nutritionHeatmapStyle(diff, tdee)
         const absDiff = Math.abs(diff)
