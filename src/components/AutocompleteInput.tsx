@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 
 export interface AutocompleteSuggestion {
   id: string
@@ -10,13 +10,14 @@ export interface AutocompleteSuggestion {
 // `f-desc-ac`/`w-desc-ac` autocomplete in app.js). The parent supplies the
 // already-filtered suggestion list; the dropdown shows while the user is
 // typing and closes on selection or on any click outside the wrap.
-export default function AutocompleteInput({ id, value, placeholder, suggestions, onChange, onSelect }: {
+export default function AutocompleteInput({ id, value, placeholder, suggestions, onChange, onSelect, endButton }: {
   id: string
   value: string
   placeholder?: string
   suggestions: AutocompleteSuggestion[]
   onChange: (text: string) => void
   onSelect: (id: string) => void
+  endButton?: ReactNode
 }) {
   const [open, setOpen] = useState(false)
   const wrapRef = useRef<HTMLDivElement>(null)
@@ -35,7 +36,7 @@ export default function AutocompleteInput({ id, value, placeholder, suggestions,
   return (
     <div className="autocomplete-wrap" ref={wrapRef}>
       <input
-        className="form-input"
+        className={`form-input${endButton ? ' has-end-btn' : ''}`}
         id={id}
         type="text"
         placeholder={placeholder}
@@ -43,6 +44,7 @@ export default function AutocompleteInput({ id, value, placeholder, suggestions,
         value={value}
         onChange={(e) => { onChange(e.target.value); setOpen(true) }}
       />
+      {endButton && <div className="autocomplete-end-btn">{endButton}</div>}
       <div className={`autocomplete-list${show ? ' open' : ''}`}>
         {show && suggestions.map((s) => (
           <div key={s.id} className="autocomplete-item" onClick={() => { onSelect(s.id); setOpen(false) }}>

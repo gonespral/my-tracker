@@ -367,7 +367,9 @@ interface ClaudeContentBlock {
 }
 interface ClaudeMessage { content: ClaudeContentBlock[] }
 
-export async function callClaudeApi(messages: ChatApiMessage[], system: string, signal: AbortSignal): Promise<ClaudeMessage> {
+interface ClaudeTool { name: string; description: string; input_schema: Record<string, unknown> }
+
+export async function callClaudeApi(messages: ChatApiMessage[], system: string, signal: AbortSignal, tools: ClaudeTool[] = CLAUDE_TOOLS): Promise<ClaudeMessage> {
   const key = localStorage.getItem('tracker-anthropic-key') || ''
   if (!key) { openApiKeySheet(); throw new Error('No API key') }
   const r = await fetch('https://api.anthropic.com/v1/messages', {
@@ -378,7 +380,7 @@ export async function callClaudeApi(messages: ChatApiMessage[], system: string, 
       'anthropic-version': '2023-06-01',
       'anthropic-dangerous-direct-browser-access': 'true',
     },
-    body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 512, system, tools: CLAUDE_TOOLS, messages }),
+    body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 512, system, tools, messages }),
     signal,
   })
   if (!r.ok) {
@@ -462,7 +464,7 @@ function logClaudeRound(round: number, msg: ClaudeMessage, executed: ExecutedToo
   console.groupEnd()
 }
 
-async function executeTool(name: string, input: Record<string, unknown>): Promise<string> {
+export async function executeTool(name: string, input: Record<string, unknown>): Promise<string> {
   const date = (input.date as string) || dateStr()
   try {
     if (name === 'lookup_food') return JSON.stringify(await searchFoodDatabase(input.query as string))
@@ -704,4 +706,77 @@ export function openChat(initialText: string, images: { data: string; mediaType:
     return sendChatMessage(initialText, images)
   }
   return Promise.resolve()
+}
+
+export interface NutritionEstimate { calories: number; protein: number; carbs: number; fat: number }
+
+const NUTRITION_ESTIMATE_TOOLS: ClaudeTool[] = [
+  ...CLAUDE_TOOLS.filter((t) => t.name === 'lookup_food' || t.name === 'calculate'),
+  {
+    name: 'submit_nutrition_estimate',
+    description: 'Submit the final total nutrition estimate for the described food. Call this exactly once, as the last step, after using lookup_food and calculate to determine real values scaled to the portion(s) described.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        calories: { type: 'number', description: 'total kcal' },
+        protein: { type: 'number', description: 'total grams' },
+        carbs: { type: 'number', description: 'total grams' },
+        fat: { type: 'number', description: 'total grams' },
+      },
+      required: ['calories', 'protein', 'carbs', 'fat'],
+    },
+  },
+]
+
+const NUTRITION_ESTIMATE_SYSTEM = `You are a nutrition estimator. Given a short food description — possibly with a quantity or portion (e.g. "2 eggs", "200g chicken breast"), or multiple items (e.g. "pasta pesto + 2 eggs") — determine the TOTAL calories and macros (protein, carbs, fat in grams) across everything described.
+For each distinct food item, call lookup_food to get real per-100g data (USDA FoodData Central, then Open Food Facts), then call calculate to scale it to the portion described. Sum across multiple items yourself before submitting. Never invent numbers from memory when lookup_food is available.
+If lookup_food returns no usable match for an item after one try, do not retry with a reworded query — estimate that item from context as a last resort.
+When you have the final totals, call submit_nutrition_estimate exactly once. Do not reply with any other text.`
+
+function demoNutritionEstimate(description: string): NutritionEstimate {
+  let seed = 0
+  for (const ch of description) seed += ch.charCodeAt(0)
+  const rnd = (min: number, max: number, salt: number) => min + ((seed * salt) % (max - min))
+  return { calories: rnd(180, 650, 7), protein: rnd(8, 35, 13), carbs: rnd(15, 70, 17), fat: rnd(5, 30, 23) }
+}
+
+// Standalone one-shot estimate (not part of the persisted chat conversation)
+// used by the wand button in FoodSheet to auto-fill macros from a
+// description, reusing the same lookup_food/calculate tools Claude uses
+// when logging food from chat.
+export async function estimateNutritionFromDescription(description: string): Promise<NutritionEstimate | null> {
+  const trimmed = description.trim()
+  if (!trimmed) return null
+
+  if (isDemo) {
+    await new Promise((r) => setTimeout(r, 500 + Math.random() * 700))
+    return demoNutritionEstimate(trimmed)
+  }
+
+  const key = localStorage.getItem('tracker-anthropic-key') || ''
+  if (!key) { openApiKeySheet(); return null }
+
+  let messages: ChatApiMessage[] = [{ role: 'user', content: `Estimate total nutrition for: ${trimmed}` }]
+  const controller = new AbortController()
+
+  for (let round = 0; round < 5; round++) {
+    const msg = await callClaudeApi(messages, NUTRITION_ESTIMATE_SYSTEM, controller.signal, NUTRITION_ESTIMATE_TOOLS)
+    const toolCalls = msg.content.filter((b) => b.type === 'tool_use')
+    const submit = toolCalls.find((b) => b.name === 'submit_nutrition_estimate')
+    if (submit) {
+      const input = (submit.input || {}) as Record<string, unknown>
+      return {
+        calories: Math.round(Number(input.calories) || 0),
+        protein: Math.round(Number(input.protein) || 0),
+        carbs: Math.round(Number(input.carbs) || 0),
+        fat: Math.round(Number(input.fat) || 0),
+      }
+    }
+    if (!toolCalls.length) return null
+
+    const executed = await Promise.all(toolCalls.map(async (tc) => ({ tc, content: String(await executeTool(tc.name!, tc.input || {})) })))
+    const toolResults = executed.map(({ tc, content }) => ({ type: 'tool_result', tool_use_id: tc.id, content }))
+    messages = [...messages, { role: 'assistant', content: msg.content }, { role: 'user', content: toolResults }]
+  }
+  return null
 }

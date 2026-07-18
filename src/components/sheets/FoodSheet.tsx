@@ -5,8 +5,10 @@ import { db } from '../../lib/db'
 import { dateStr } from '../../lib/utils'
 import { MEAL_ORDER, MEAL_LABEL } from '../../lib/config'
 import { showToast } from '../../lib/toast'
+import { estimateNutritionFromDescription } from '../../lib/ai'
 import Sheet from '../Sheet'
 import AutocompleteInput from '../AutocompleteInput'
+import Icon from '../Icon'
 
 const ALL_MEALS = [...MEAL_ORDER]
 
@@ -73,6 +75,27 @@ export default function FoodSheet() {
     document.getElementById('f-cal')?.focus()
   }
 
+  const [estimating, setEstimating] = useState(false)
+
+  async function handleAutoEstimate() {
+    const trimmed = desc.trim()
+    if (!trimmed || estimating) return
+    setEstimating(true)
+    try {
+      const result = await estimateNutritionFromDescription(trimmed)
+      if (!result) { showToast('Could not estimate — try a more specific description'); return }
+      setCalories(String(result.calories))
+      setProtein(String(result.protein))
+      setCarbs(String(result.carbs))
+      setFat(String(result.fat))
+      showToast('Nutrition estimated')
+    } catch (err) {
+      showToast((err as Error).message || 'Estimate failed')
+    } finally {
+      setEstimating(false)
+    }
+  }
+
   async function handleSave() {
     const trimmed = desc.trim()
     if (!trimmed) return
@@ -119,7 +142,26 @@ export default function FoodSheet() {
       </div>
       <div className="form-field">
         <label className="form-label" htmlFor="f-desc">Description</label>
-        <AutocompleteInput id="f-desc" placeholder="e.g. Pasta pesto + 2 eggs" value={desc} suggestions={suggestions} onChange={setDesc} onSelect={handlePickPreset} />
+        <AutocompleteInput
+          id="f-desc"
+          placeholder="e.g. Pasta pesto + 2 eggs"
+          value={desc}
+          suggestions={suggestions}
+          onChange={setDesc}
+          onSelect={handlePickPreset}
+          endButton={
+            <button
+              type="button"
+              className={`desc-magic-btn${estimating ? ' loading' : ''}`}
+              aria-label="Auto-calculate nutrition from description"
+              data-tip="Auto-calculate from description"
+              disabled={!desc.trim() || estimating}
+              onClick={handleAutoEstimate}
+            >
+              <Icon name="auto_awesome" size={18} />
+            </button>
+          }
+        />
       </div>
       <div className="form-field">
         <label className="form-label" htmlFor="f-cal">Calories (kcal)</label>
