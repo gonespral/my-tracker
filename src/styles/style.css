@@ -135,36 +135,6 @@ body {
   animation: spin 1s linear infinite;
 }
 
-#sync-status[hidden] { display: none; }
-#sync-status {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 11px;
-  color: var(--text2);
-}
-
-.sync-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--accent);
-  animation: sync-pulse 1.2s ease-in-out infinite;
-}
-.sync-dot--failed {
-  background: var(--warn);
-  animation: none;
-}
-
-.sync-label {
-  white-space: nowrap;
-}
-
-@keyframes sync-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.3; }
-}
-
 .top-bar-tabrow {
   display: flex;
   align-items: center;
@@ -3325,19 +3295,6 @@ body {
 }
 
 @media (max-width: 767px) {
-  #sync-status {
-    font-size: 11px;
-    min-width: 0;
-    overflow: hidden;
-    flex-shrink: 1;
-  }
-
-  .sync-label {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 90px;
-  }
-
   #chat-panel {
     border-left: none;
     border-right: none;
