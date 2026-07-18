@@ -46,6 +46,8 @@ export default function TopBar() {
         </div>
       )}
       <div className="top-bar-tabrow">
+        <img src="brand/svg/logo-mono-light.svg" alt="MyTracker" className="app-icon app-icon-light" />
+        <img src="brand/svg/logo-mono-dark.svg" alt="MyTracker" className="app-icon app-icon-dark" />
         <div className="top-bar-tabs">
           {TABS.map((tab) => (
             <button
