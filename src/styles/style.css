@@ -250,28 +250,14 @@ body {
   user-select: none;
 }
 
-.date-nav-today-row {
-  display: flex;
-  justify-content: center;
-  padding-bottom: 8px;
-}
-
-.date-nav-today-btn {
-  font-size: 11px;
-  font-weight: 500;
-  font-family: 'DM Sans', sans-serif;
-  padding: 2px 12px;
-  border-radius: 8px;
-  border: 1px solid var(--accent);
-  color: var(--accent);
-  background: transparent;
+.date-nav-label--past {
+  color: var(--tx3);
   cursor: pointer;
-  transition: background 0.15s;
   -webkit-tap-highlight-color: transparent;
 }
 
-.date-nav-today-btn:hover {
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
+.date-nav-label--past:hover {
+  color: var(--tx2);
 }
 
 .icon-btn {
