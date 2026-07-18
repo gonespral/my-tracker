@@ -142,6 +142,33 @@ body {
   padding: 14px 16px 12px;
 }
 
+.app-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  object-fit: contain;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+/* Mono logo: invert variants so dark logo shows in light theme and
+  light logo shows in dark theme (per preference) */
+.app-icon-light {
+  display: none;
+}
+
+.app-icon-dark {
+  display: inline-block;
+}
+
+[data-theme="dark"] .app-icon-light {
+  display: inline-block;
+}
+
+[data-theme="dark"] .app-icon-dark {
+  display: none;
+}
+
 .top-bar-tabs {
   flex: 1;
   display: flex;
