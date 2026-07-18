@@ -1802,6 +1802,7 @@ body {
   border-radius: 18px 18px 0 0;
   overflow: hidden;
   display: none;
+  flex-direction: column;
   height: 75px;
   transition: height 0.3s cubic-bezier(.4, 0, .2, 1), transform 0.18s ease;
   will-change: height, transform;
@@ -1812,17 +1813,17 @@ body {
 }
 
 #chat-panel.collapsed {
-  display: block;
+  display: flex;
   height: 18px;
 }
 
 #chat-panel.peek {
-  display: block;
+  display: flex;
   height: 75px;
 }
 
 #chat-panel.expanded {
-  display: block;
+  display: flex;
   height: 65dvh;
 }
 
@@ -1892,7 +1893,8 @@ body {
 #chat-panel-body {
   display: none;
   flex-direction: column;
-  height: calc(65dvh - 75px);
+  flex: 1;
+  min-height: 0;
   overflow: hidden;
 }
 
