@@ -229,6 +229,47 @@ body {
   margin: 0 16px 12px;
 }
 
+/* ── Date navigator (Daily tab) ─────────────────────────── */
+.date-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 16px 10px;
+}
+
+.date-nav-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--tx2);
+  padding: 4px 6px;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  transition: color 0.15s, background 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.date-nav-btn:hover:not(:disabled) {
+  color: var(--tx);
+  background: var(--border);
+}
+
+.date-nav-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.date-nav-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--tx);
+  min-width: 110px;
+  text-align: center;
+  user-select: none;
+}
+
 .icon-btn {
   display: flex;
   align-items: center;

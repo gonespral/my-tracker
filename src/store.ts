@@ -51,6 +51,9 @@ interface AppState {
   editingMealPreset: MealPreset | null
   editingWorkoutPreset: WorkoutPreset | null
 
+  // Selected date for the Daily tab (null = today)
+  dailyDate: string | null
+
   // Date pickers in history tabs
   nutritionDate: string | null
   activitiesDate: string | null
@@ -63,7 +66,6 @@ interface AppState {
 
   // UI
   tutorialOpen: boolean
-  statsOpen: boolean
   expandedConflictGroups: Set<string>
   openEntryMenuId: string | null
 
@@ -96,6 +98,8 @@ export const useAppStore = create<AppState>(() => ({
   editingMealPreset: null,
   editingWorkoutPreset: null,
 
+  dailyDate: null,
+
   nutritionDate: null,
   activitiesDate: null,
 
@@ -105,7 +109,6 @@ export const useAppStore = create<AppState>(() => ({
   chatPanelState: 'collapsed',
 
   tutorialOpen: false,
-  statsOpen: false,
   expandedConflictGroups: new Set(),
   openEntryMenuId: null,
 

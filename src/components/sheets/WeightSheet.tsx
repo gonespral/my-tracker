@@ -9,6 +9,7 @@ import Sheet from '../Sheet'
 export default function WeightSheet() {
   const open = useAppStore((s) => s.openSheetId === 'weight')
   const editing = useAppStore((s) => s.editingWeight)
+  const sheetDate = useAppStore((s) => s.sheetDate)
 
   const [date, setDate] = useState(dateStr())
   const [kg, setKg] = useState('')
@@ -20,10 +21,10 @@ export default function WeightSheet() {
       setDate(editing.date)
       setKg(String(editing.kg))
     } else {
-      setDate(dateStr())
+      setDate(sheetDate || dateStr())
       setKg('')
     }
-  }, [open, editing])
+  }, [open, editing, sheetDate])
 
   async function handleSave() {
     const kgNum = Number(kg)
