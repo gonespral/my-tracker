@@ -289,6 +289,51 @@ body {
   overscroll-behavior: contain;
 }
 
+/* ── Pull to refresh ──────────────────────────────────────── */
+.ptr-wrap {
+  position: relative;
+  touch-action: pan-y;
+}
+
+.ptr-indicator {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.ptr-badge {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--card);
+  border: 1.5px solid var(--border);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, .12);
+  color: var(--tx3);
+  transition: color .15s, border-color .15s;
+}
+
+.ptr-badge.ready {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.ptr-badge .material-symbols-outlined {
+  transition: transform .1s linear;
+}
+
+.ptr-badge.refreshing .material-symbols-outlined {
+  animation: spin 0.8s linear infinite;
+}
+
+.ptr-content {
+  will-change: transform;
+}
+
 /* ── Tab inner (settings) ────────────────────────────────── */
 .tab-inner {
   padding: 0 14px calc(24px + var(--chat-peek-h));

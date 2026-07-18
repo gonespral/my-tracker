@@ -20,10 +20,12 @@ import InputBar from './components/InputBar'
 import TodayTab from './tabs/Today'
 import NutritionTab from './tabs/Nutrition'
 import ActivitiesTab from './tabs/Activities'
+import PullToRefresh from './components/PullToRefresh'
 import { handleStravaCallback, syncStrava, stravaIsConnected } from './lib/strava'
 import { handleGoogleHealthCallback, syncGoogleHealth, googleHealthIsConnected } from './lib/google-health'
 import { restoreChatIfFresh } from './lib/ai'
 import { showToast } from './lib/toast'
+import { syncAll } from './lib/syncAll'
 
 function useAuth() {
   const [ready, setReady] = useState(isDemo)
@@ -114,13 +116,13 @@ export default function App() {
       <TopBar />
       <main className="panels">
         <div className={`panel ${activeTab === 'today' ? 'active' : ''}`} id="panel-today">
-          {activeTab === 'today' && <TodayTab />}
+          {activeTab === 'today' && <PullToRefresh onRefresh={syncAll}><TodayTab /></PullToRefresh>}
         </div>
         <div className={`panel ${activeTab === 'nutrition' ? 'active' : ''}`} id="panel-nutrition">
-          {activeTab === 'nutrition' && <NutritionTab />}
+          {activeTab === 'nutrition' && <PullToRefresh onRefresh={syncAll}><NutritionTab /></PullToRefresh>}
         </div>
         <div className={`panel ${activeTab === 'activities' ? 'active' : ''}`} id="panel-activities">
-          {activeTab === 'activities' && <ActivitiesTab />}
+          {activeTab === 'activities' && <PullToRefresh onRefresh={syncAll}><ActivitiesTab /></PullToRefresh>}
         </div>
       </main>
       <div className="toast" id="toast" />
