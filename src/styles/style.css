@@ -2461,7 +2461,7 @@ body {
   border: none;
   border-radius: 8px;
   background: none;
-  color: var(--accent);
+  color: var(--tx3);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -2471,7 +2471,8 @@ body {
 }
 
 .desc-magic-btn:hover:not(:disabled) {
-  background: var(--accent-soft);
+  color: var(--tx);
+  background: var(--track);
 }
 
 .desc-magic-btn:disabled {
