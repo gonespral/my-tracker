@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from 'react'
 import Icon from './Icon'
 
-const REFRESH_THRESHOLD = 64
-const MAX_PULL = 96
-const LOCKED_PULL = 44
+const REFRESH_THRESHOLD = 40
+const MAX_PULL = 80
+const LOCKED_PULL = 36
+const PULL_DAMPING = 0.7
 const MIN_REFRESH_MS = 500
 const MOBILE_QUERY = '(max-width: 767px)'
 
@@ -54,7 +55,7 @@ export default function PullToRefresh({ onRefresh, children }: { onRefresh: () =
     }
     d.dragging = true
     e.preventDefault()
-    setPull(Math.min(MAX_PULL, delta * 0.5))
+    setPull(Math.min(MAX_PULL, delta * PULL_DAMPING))
   }
 
   async function endDrag(e: PointerEvent<HTMLDivElement>) {
