@@ -2444,6 +2444,49 @@ body {
   position: relative;
 }
 
+.form-input.has-end-btn {
+  padding-right: 42px;
+}
+
+.autocomplete-end-btn {
+  position: absolute;
+  right: 5px;
+  top: 5px;
+  display: flex;
+}
+
+.desc-magic-btn {
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: var(--accent);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background .15s, color .15s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.desc-magic-btn:hover:not(:disabled) {
+  background: var(--accent-soft);
+}
+
+.desc-magic-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.desc-magic-btn .material-symbols-outlined {
+  animation: none;
+}
+
+.desc-magic-btn.loading .material-symbols-outlined {
+  animation: spin 1s linear infinite;
+}
+
 .autocomplete-list {
   display: none;
   position: absolute;
