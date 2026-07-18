@@ -18,6 +18,7 @@ const TABS = [
 export default function TopBar() {
   const activeTab = useAppStore((s) => s.activeTab)
   const dailyDate = useAppStore((s) => s.dailyDate)
+  const monthOffset = useAppStore((s) => s.heatmapMonthOffset)
 
   const todayStr = dateStr()
   const isToday = !dailyDate || dailyDate === todayStr
@@ -30,6 +31,13 @@ export default function TopBar() {
     const next = dateStr(d)
     useAppStore.setState({ dailyDate: next >= todayStr ? null : next })
   }
+
+  const monthDate = new Date()
+  monthDate.setDate(1)
+  monthDate.setMonth(monthDate.getMonth() + monthOffset)
+  const monthLabel = monthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+  const isCurrentMonth = monthOffset === 0
+  const canGoNextMonth = monthOffset < 0
 
   function switchTab(tab: typeof TABS[number]['id']) {
     useAppStore.setState({ activeTab: tab })
@@ -73,6 +81,20 @@ export default function TopBar() {
             onClick={isToday ? undefined : () => useAppStore.setState({ dailyDate: null })}
           >{navLabel}</span>
           <button className="hm-nav-btn" aria-label="Next day" disabled={isToday} onClick={() => goDay(1)}>
+            <Icon name="chevron_right" size={22} />
+          </button>
+        </div>
+      )}
+      {(activeTab === 'activities' || activeTab === 'nutrition') && (
+        <div className="date-nav">
+          <button className="hm-nav-btn" aria-label="Previous month" onClick={() => useAppStore.setState({ heatmapMonthOffset: monthOffset - 1 })}>
+            <Icon name="chevron_left" size={22} />
+          </button>
+          <span
+            className={`date-nav-label${isCurrentMonth ? '' : ' date-nav-label--past'}`}
+            onClick={isCurrentMonth ? undefined : () => useAppStore.setState({ heatmapMonthOffset: 0 })}
+          >{monthLabel}</span>
+          <button className="hm-nav-btn" aria-label="Next month" disabled={!canGoNextMonth} onClick={() => useAppStore.setState({ heatmapMonthOffset: monthOffset + 1 })}>
             <Icon name="chevron_right" size={22} />
           </button>
         </div>
