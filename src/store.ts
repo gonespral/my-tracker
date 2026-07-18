@@ -66,7 +66,6 @@ interface AppState {
 
   // UI
   tutorialOpen: boolean
-  statsOpen: boolean
   expandedConflictGroups: Set<string>
   openEntryMenuId: string | null
 
@@ -110,7 +109,6 @@ export const useAppStore = create<AppState>(() => ({
   chatPanelState: 'collapsed',
 
   tutorialOpen: false,
-  statsOpen: false,
   expandedConflictGroups: new Set(),
   openEntryMenuId: null,
 

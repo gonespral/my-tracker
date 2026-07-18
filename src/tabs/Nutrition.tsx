@@ -6,6 +6,7 @@ import { useAppStore } from '../store'
 import type { DbCache } from '../store'
 import MonthNav from '../components/MonthNav'
 import MonthHeatmap from '../components/charts/MonthHeatmap'
+import WeekChart from '../components/charts/WeekChart'
 import CalorieTrend from '../components/charts/CalorieTrend'
 import MealMacroAvg from '../components/charts/MealMacroAvg'
 import Sparkline from '../components/charts/Sparkline'
@@ -113,6 +114,7 @@ export default function NutritionTab() {
             force-shows .stats-section and hides .stats-toggle, so the section
             must exist in the DOM even while "collapsed". */}
         <div className="stats-section" style={{ display: statsOpen ? 'block' : 'none' }}>
+          <div className="chart-card"><WeekChart data={data} /></div>
           <div className="section-divider" />
           <div className="section-label">Last 30 days</div>
           <div className="chart-card"><CalorieTrend data={data} nDays={30} title="Caloric intake" primary="input" /></div>

@@ -10,9 +10,6 @@ import type { DbCache } from '../store'
 import { openFoodSheet, openActivitySheet, openWeightSheet, openEditWeightSheet } from '../lib/sheets'
 import CalRing from '../components/charts/CalRing'
 import MacroRing from '../components/charts/MacroRing'
-import WeekChart from '../components/charts/WeekChart'
-import Streak from '../components/charts/Streak'
-import Sparkline from '../components/charts/Sparkline'
 import FoodItem from '../components/FoodItem'
 import { ActivityItem, ActivityStack, groupActivitiesByConflict } from '../components/ActivityItem'
 import EntryMenu from '../components/EntryMenu'
@@ -89,8 +86,7 @@ function WeightSection({ weights, today, onChanged }: { weights: { date: string;
 
   return (
     <>
-      <button className="log-add-btn" style={{ marginBottom: 12 }} onClick={() => openWeightSheet(today)}>+ Log weight</button>
-      <Sparkline weights={sorted} compact={false} />
+      <button className="log-add-btn" onClick={() => openWeightSheet(today)}>+ Log weight</button>
       <div className="weight-entry">
         <div className="weight-entry-date">{fmtDateShort(todayEntry.date)}</div>
         <div className="weight-entry-right">
@@ -108,7 +104,6 @@ function WeightSection({ weights, today, onChanged }: { weights: { date: string;
 
 export default function TodayTab() {
   const [data, setData] = useState<DbCache | null>(null)
-  const statsOpen = useAppStore((s) => s.statsOpen)
   const expandedGroups = useAppStore((s) => s.expandedConflictGroups)
   const dailyDate = useAppStore((s) => s.dailyDate)
 
@@ -171,17 +166,6 @@ export default function TodayTab() {
           <MacroRing label="Protein" value={totals.protein} target={TARGETS.protein} unit="g" accentColor={MACRO_COLORS.protein} />
           <MacroRing label="Carbs" value={totals.carbs} target={TARGETS.carbs} unit="g" accentColor={MACRO_COLORS.carbs} />
           <MacroRing label="Fat" value={totals.fat} target={TARGETS.fat} unit="g" accentColor={MACRO_COLORS.fat} />
-        </div>
-        <button className="stats-toggle" onClick={() => useAppStore.setState({ statsOpen: !statsOpen })}>
-          <span className="panel-toggle-label">{statsOpen ? 'Hide stats' : 'Stats'}</span>
-          <Icon name={statsOpen ? 'expand_less' : 'expand_more'} size={16} className="panel-toggle-arrow" />
-        </button>
-        {/* Kept mounted (inline display, not conditional render): desktop CSS
-            force-shows .stats-section and hides .stats-toggle, so the section
-            must exist in the DOM even while "collapsed". */}
-        <div className="stats-section" style={{ display: statsOpen ? 'block' : 'none' }}>
-          <div className="chart-card"><WeekChart data={data} /></div>
-          <div className="streak-card"><Streak data={data} /></div>
         </div>
         <WisdomCard />
       </div>
