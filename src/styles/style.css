@@ -238,8 +238,8 @@ body {
 }
 
 .date-nav-arrow {
-  padding-left: 20px;
-  padding-right: 20px;
+  flex: 1;
+  max-width: 96px;
 }
 
 .date-nav-label {
