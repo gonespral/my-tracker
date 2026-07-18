@@ -356,8 +356,7 @@ export default function SettingsSheet() {
   const commitLabel = (() => {
     try {
       return new Date(commitIso).toLocaleString('en-US', {
-        month: 'short', day: 'numeric', year: 'numeric',
-        hour: 'numeric', minute: '2-digit', timeZoneName: 'short',
+        month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
       })
     } catch {
       return commitIso
@@ -368,11 +367,21 @@ export default function SettingsSheet() {
     <Sheet
       open={open}
       title="Settings"
-      titleBadge={isDemo ? (
-        <span className="settings-version settings-version-demo" data-tip="Tap to exit demo mode" aria-label="Demo mode" onClick={handleDisableDemo}>
-          Demo
-        </span>
-      ) : undefined}
+      titleBadge={
+        <div className="settings-version-block">
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            {isDemo && (
+              <span className="settings-version settings-version-demo" data-tip="Tap to exit demo mode" aria-label="Demo mode" onClick={handleDisableDemo}>
+                Demo
+              </span>
+            )}
+            <span className="settings-version" data-tip="Tap to force update" aria-label="App version" onClick={handleForceUpdate}>
+              {appVersion}
+            </span>
+          </div>
+          <span className="settings-version-time">{commitLabel}</span>
+        </div>
+      }
     >
       <SettingsSection title="Presets" open={openSection === 'presets'} onToggle={() => toggleSection('presets')}>
         <div className="section-label">Meals</div>
@@ -616,18 +625,6 @@ export default function SettingsSheet() {
           <Icon name="menu_book" size={15} />
           Docs
         </a>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, marginTop: 4 }}>
-          <span
-            className="settings-version"
-            data-tip="Tap to force update"
-            aria-label="App version"
-            style={{ cursor: 'pointer' }}
-            onClick={handleForceUpdate}
-          >
-            {appVersion}
-          </span>
-          <span style={{ fontSize: 10, color: 'var(--tx3)' }}>{commitLabel}</span>
-        </div>
       </div>
     </Sheet>
   )

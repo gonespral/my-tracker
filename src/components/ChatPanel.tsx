@@ -6,11 +6,16 @@ const HANDLE_HEIGHT = 18
 const PEEK_HEIGHT = 75
 const expandedHeight = () => Math.round(window.innerHeight * 0.65)
 
+// Auto-minimize the expanded panel to peek after this long with no new
+// message sent or received (paused while a reply is still in flight).
+const INACTIVITY_MS = 90_000
+
 interface DragState { pointerId: number; startY: number; startHeight: number; dragging: boolean }
 
 export default function ChatPanel() {
   const panelState = useAppStore((s) => s.chatPanelState)
   const chatDisplay = useAppStore((s) => s.chatDisplay)
+  const chatPending = useAppStore((s) => s.chatPending)
   const messagesRef = useRef<HTMLDivElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
   const drag = useRef<DragState | null>(null)
@@ -24,6 +29,16 @@ export default function ChatPanel() {
   useEffect(() => {
     document.documentElement.style.setProperty('--chat-peek-h', panelState === 'collapsed' ? '18px' : '75px')
   }, [panelState])
+
+  useEffect(() => {
+    if (panelState !== 'expanded' || chatPending) return
+    const t = setTimeout(() => {
+      if (useAppStore.getState().chatPanelState === 'expanded') {
+        useAppStore.setState({ chatPanelState: 'peek' })
+      }
+    }, INACTIVITY_MS)
+    return () => clearTimeout(t)
+  }, [panelState, chatPending, chatDisplay.length])
 
   const lastAssistant = [...chatDisplay].reverse().find((m) => m.role === 'assistant')
 
