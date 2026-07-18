@@ -4,7 +4,6 @@ import { dateStr, sumFood, fmt, round, type FoodEntry } from '../lib/utils'
 import { openFoodSheet, openEditWeightSheet, openWeightSheet } from '../lib/sheets'
 import { useAppStore } from '../store'
 import type { DbCache } from '../store'
-import MonthNav from '../components/MonthNav'
 import MonthHeatmap from '../components/charts/MonthHeatmap'
 import WeekChart from '../components/charts/WeekChart'
 import CalorieTrend from '../components/charts/CalorieTrend'
@@ -98,7 +97,6 @@ export default function NutritionTab() {
   return (
     <div className="panel-inner">
       <div className="panel-left">
-        <MonthNav />
         <div className="chart-card">
           <div className="chart-header">
             <span className="chart-title">Nutrition</span>

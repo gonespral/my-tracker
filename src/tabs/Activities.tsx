@@ -4,7 +4,6 @@ import { dateStr, type WorkoutEntry } from '../lib/utils'
 import { openActivitySheet } from '../lib/sheets'
 import { useAppStore } from '../store'
 import type { DbCache } from '../store'
-import MonthNav from '../components/MonthNav'
 import MonthHeatmap from '../components/charts/MonthHeatmap'
 import IntensityTrend from '../components/charts/IntensityTrend'
 import ActivityStats from '../components/charts/ActivityStats'
@@ -66,7 +65,6 @@ export default function ActivitiesTab() {
   return (
     <div className="panel-inner">
       <div className="panel-left">
-        <MonthNav />
         <div className="chart-card">
           <div className="chart-header">
             <span className="chart-title">Activities</span>
