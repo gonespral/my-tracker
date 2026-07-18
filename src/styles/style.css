@@ -237,11 +237,6 @@ body {
   padding: 0 16px 8px;
 }
 
-.date-nav-arrow {
-  flex: 1;
-  max-width: 96px;
-}
-
 .date-nav-label {
   font-size: 13px;
   font-weight: 600;
@@ -2065,13 +2060,29 @@ body {
 
 .sheet-title {
   display: flex;
-  align-items: baseline;
+  align-items: flex-start;
+  justify-content: space-between;
   gap: 8px;
+  width: 100%;
   font-family: 'Space Grotesk', sans-serif;
   font-weight: 700;
   font-size: 18px;
   color: var(--tx);
   margin-bottom: 4px;
+}
+
+.settings-version-block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+}
+
+.settings-version-time {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--tx3);
+  white-space: nowrap;
 }
 
 .settings-version {
