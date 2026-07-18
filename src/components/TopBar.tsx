@@ -5,6 +5,7 @@ import { syncGoogleHealth, googleHealthIsConnected } from '../lib/google-health'
 import { db, supabase, isDemo } from '../lib/db'
 import { showToast } from '../lib/toast'
 import { clearFailed } from '../lib/sync-status'
+import { dateStr, fmtDateShort } from '../lib/utils'
 import Icon from './Icon'
 
 async function handleDisableDemo() {
@@ -30,15 +31,28 @@ async function syncAll() {
 }
 
 const TABS = [
-  { id: 'today', label: 'Today' },
+  { id: 'today', label: 'Daily' },
   { id: 'activities', label: 'Activities' },
   { id: 'nutrition', label: 'Nutrition' },
 ] as const
 
 export default function TopBar() {
   const activeTab = useAppStore((s) => s.activeTab)
+  const dailyDate = useAppStore((s) => s.dailyDate)
   const syncCounts = useAppStore((s) => s.syncCounts)
   const syncFailed = useAppStore((s) => s.syncFailed)
+
+  const todayStr = dateStr()
+  const isToday = !dailyDate || dailyDate === todayStr
+  const navLabel = isToday ? 'Today' : fmtDateShort(dailyDate!)
+
+  function goDay(delta: number) {
+    const cur = dailyDate ?? todayStr
+    const d = new Date(cur + 'T12:00:00')
+    d.setDate(d.getDate() + delta)
+    const next = dateStr(d)
+    useAppStore.setState({ dailyDate: next >= todayStr ? null : next })
+  }
 
   const syncingNames = Object.keys(syncCounts)
   const isSyncing = syncingNames.length > 0
@@ -95,6 +109,17 @@ export default function TopBar() {
           </button>
         ))}
       </div>
+      {activeTab === 'today' && (
+        <div className="date-nav">
+          <button className="date-nav-btn" aria-label="Previous day" onClick={() => goDay(-1)}>
+            <Icon name="chevron_left" size={20} />
+          </button>
+          <span className="date-nav-label">{navLabel}</span>
+          <button className="date-nav-btn" aria-label="Next day" disabled={isToday} onClick={() => goDay(1)}>
+            <Icon name="chevron_right" size={20} />
+          </button>
+        </div>
+      )}
     </header>
   )
 }

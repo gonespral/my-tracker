@@ -51,6 +51,9 @@ interface AppState {
   editingMealPreset: MealPreset | null
   editingWorkoutPreset: WorkoutPreset | null
 
+  // Selected date for the Daily tab (null = today)
+  dailyDate: string | null
+
   // Date pickers in history tabs
   nutritionDate: string | null
   activitiesDate: string | null
@@ -95,6 +98,8 @@ export const useAppStore = create<AppState>(() => ({
   editingWeight: null,
   editingMealPreset: null,
   editingWorkoutPreset: null,
+
+  dailyDate: null,
 
   nutritionDate: null,
   activitiesDate: null,

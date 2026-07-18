@@ -75,7 +75,7 @@ function WeightSection({ weights, today, onChanged }: { weights: { date: string;
   const sorted = [...weights].sort((a, b) => b.date.localeCompare(a.date))
   const todayEntry = sorted.find((w) => w.date === today)
   if (!todayEntry) {
-    return <button className="log-add-btn" onClick={() => openWeightSheet()}>+ Log today's weight</button>
+    return <button className="log-add-btn" onClick={() => openWeightSheet(today)}>+ Log weight</button>
   }
   const prev = sorted.find((w) => w.date < today)
   const delta = prev ? todayEntry.kg - prev.kg : null
@@ -89,7 +89,7 @@ function WeightSection({ weights, today, onChanged }: { weights: { date: string;
 
   return (
     <>
-      <button className="log-add-btn" style={{ marginBottom: 12 }} onClick={() => openWeightSheet()}>+ Log today's weight</button>
+      <button className="log-add-btn" style={{ marginBottom: 12 }} onClick={() => openWeightSheet(today)}>+ Log weight</button>
       <Sparkline weights={sorted} compact={false} />
       <div className="weight-entry">
         <div className="weight-entry-date">{fmtDateShort(todayEntry.date)}</div>
@@ -110,6 +110,7 @@ export default function TodayTab() {
   const [data, setData] = useState<DbCache | null>(null)
   const statsOpen = useAppStore((s) => s.statsOpen)
   const expandedGroups = useAppStore((s) => s.expandedConflictGroups)
+  const dailyDate = useAppStore((s) => s.dailyDate)
 
   const dataGen = useAppStore((s) => s.dataGen)
   function reload() {
@@ -123,8 +124,10 @@ export default function TodayTab() {
   if (!data) return <div className="today-inner">Loading…</div>
 
   const today = dateStr()
-  const food = data.food[today] || []
-  const workouts = data.workouts[today] || []
+  const selectedDate = dailyDate ?? today
+  const isToday = selectedDate === today
+  const food = data.food[selectedDate] || []
+  const workouts = data.workouts[selectedDate] || []
   const totals = sumFood(food)
   const calTarget = getCalorieGoal()
   const burnedToday = calculateNetActiveCalories(workouts)
@@ -153,7 +156,7 @@ export default function TodayTab() {
     <div className="today-inner">
       <div className="today-left">
         <div className="cal-section">
-          <CalRing consumed={totals.calories} target={effectiveTarget} burned={burnedToday} mealFrac={computeMealFrac(data, effectiveTarget)} />
+          <CalRing consumed={totals.calories} target={effectiveTarget} burned={burnedToday} mealFrac={isToday ? computeMealFrac(data, effectiveTarget) : 1} />
           <div className="cal-badges">
             <span className="badge">Target: {effectiveTarget.toLocaleString()} kcal{eatback > 0 ? ` (+${eatback} eat-back)` : ''}</span>
             {burnedToday > 0 && (
@@ -185,7 +188,7 @@ export default function TodayTab() {
       <div className="today-right" id="today-logs">
         <div className="section-label">Food</div>
         {orderedFood.map((e) => <FoodItem key={e.id} entry={e} onDeleted={reload} />)}
-        <button className="log-add-btn" onClick={() => openFoodSheet(today)}>+ Add meal</button>
+        <button className="log-add-btn" onClick={() => openFoodSheet(selectedDate)}>+ Add meal</button>
 
         <div className="section-label" style={{ marginTop: 14 }}>Activities</div>
         {groupActivitiesByConflict(workouts).map((item) =>
@@ -193,10 +196,10 @@ export default function TodayTab() {
             ? <ActivityStack key={item.groupId} entries={item.entries} expanded={expandedGroups.has(item.groupId)} onToggle={() => toggleGroup(item.groupId)} onChanged={reload} />
             : <ActivityItem key={item.entry.id} entry={item.entry} onChanged={reload} />
         )}
-        <button className="log-add-btn" onClick={() => openActivitySheet(today)}>+ Add activity</button>
+        <button className="log-add-btn" onClick={() => openActivitySheet(selectedDate)}>+ Add activity</button>
 
         <div className="section-label" style={{ marginTop: 14 }}>Weight</div>
-        <WeightSection weights={data.weights || []} today={today} onChanged={reload} />
+        <WeightSection weights={data.weights || []} today={selectedDate} onChanged={reload} />
       </div>
     </div>
   )

@@ -17,8 +17,8 @@ export function openEditActivitySheet(entry: WorkoutEntry) {
   useAppStore.setState({ openSheetId: 'activity', editingWorkout: entry })
 }
 
-export function openWeightSheet() {
-  useAppStore.setState({ openSheetId: 'weight', editingWeight: null })
+export function openWeightSheet(date: string | null = null) {
+  useAppStore.setState({ openSheetId: 'weight', sheetDate: date, editingWeight: null })
 }
 
 export function openEditWeightSheet(entry: { date: string; kg: number }) {
