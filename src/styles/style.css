@@ -3322,6 +3322,10 @@ body {
     border-right: none;
     border-radius: 0;
   }
+
+  .sheet {
+    border-radius: 0;
+  }
 }
 
 /* ── Tutorial ────────────────────────────────────────────── */
