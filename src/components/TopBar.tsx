@@ -18,8 +18,6 @@ const TABS = [
 export default function TopBar() {
   const activeTab = useAppStore((s) => s.activeTab)
   const dailyDate = useAppStore((s) => s.dailyDate)
-  const syncCounts = useAppStore((s) => s.syncCounts)
-  const syncFailed = useAppStore((s) => s.syncFailed)
 
   const todayStr = dateStr()
   const isToday = !dailyDate || dailyDate === todayStr
@@ -33,13 +31,6 @@ export default function TopBar() {
     useAppStore.setState({ dailyDate: next >= todayStr ? null : next })
   }
 
-  const syncingNames = Object.keys(syncCounts)
-  const isSyncing = syncingNames.length > 0
-  const hasFailed = syncFailed.size > 0
-  const syncLabel = isSyncing
-    ? `Syncing ${syncingNames.join(' · ')}…`
-    : hasFailed ? `${[...syncFailed].join(' · ')} sync failed` : ''
-
   function switchTab(tab: typeof TABS[number]['id']) {
     useAppStore.setState({ activeTab: tab })
     localStorage.setItem('tracker-tab', tab)
@@ -47,19 +38,11 @@ export default function TopBar() {
 
   return (
     <header className="top-bar">
-      {(isSyncing || hasFailed || isDemo) && (
+      {isDemo && (
         <div className="top-bar-status-row">
-          {isDemo && (
-            <span className="settings-version settings-version-demo" data-tip="Tap to exit demo mode" aria-label="Demo mode" onClick={handleDisableDemo}>
-              Demo
-            </span>
-          )}
-          {(isSyncing || hasFailed) && (
-            <div id="sync-status" aria-live="polite" style={hasFailed && !isSyncing ? { color: 'var(--warn)' } : undefined}>
-              <span className={`sync-dot${hasFailed && !isSyncing ? ' sync-dot--failed' : ''}`} />
-              <span className="sync-label">{syncLabel}</span>
-            </div>
-          )}
+          <span className="settings-version settings-version-demo" data-tip="Tap to exit demo mode" aria-label="Demo mode" onClick={handleDisableDemo}>
+            Demo
+          </span>
         </div>
       )}
       <div className="top-bar-tabrow">

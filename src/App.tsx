@@ -23,6 +23,7 @@ import ActivitiesTab from './tabs/Activities'
 import { handleStravaCallback, syncStrava, stravaIsConnected } from './lib/strava'
 import { handleGoogleHealthCallback, syncGoogleHealth, googleHealthIsConnected } from './lib/google-health'
 import { restoreChatIfFresh } from './lib/ai'
+import { showToast } from './lib/toast'
 
 function useAuth() {
   const [ready, setReady] = useState(isDemo)
@@ -46,6 +47,23 @@ function useAuth() {
   return { ready, currentUser }
 }
 
+// No persistent top bar left to host a "Syncing…" indicator, so background
+// sync results surface as toasts instead: silent when nothing new comes in
+// (the common case, every 60s), a toast when new activities land, and a
+// toast on failure.
+function runBackgroundSync() {
+  if (stravaIsConnected()) {
+    syncStrava()
+      .then((n) => { if (n) showToast(`Synced ${n} new ${n === 1 ? 'activity' : 'activities'} from Strava`) })
+      .catch((e) => { console.warn('Strava sync:', e); showToast('Strava sync failed') })
+  }
+  if (googleHealthIsConnected()) {
+    syncGoogleHealth()
+      .then((n) => { if (n) showToast(`Synced ${n} new ${n === 1 ? 'activity' : 'activities'} from Google Health`) })
+      .catch((e) => { console.warn('GH sync:', e); showToast('Google Health sync failed') })
+  }
+}
+
 // Handles Strava/Google Health OAuth redirect callbacks once, then kicks off
 // background sync (immediately + every 60s) for whichever integrations are
 // already connected — mirrors the old app.js bootstrap sequence.
@@ -57,15 +75,10 @@ function useIntegrationSync(currentUser: unknown) {
       await handleStravaCallback()
       await handleGoogleHealthCallback()
       if (cancelled) return
-
-      if (stravaIsConnected()) syncStrava().catch((e) => console.warn('Strava sync:', e))
-      if (googleHealthIsConnected()) syncGoogleHealth().catch((e) => console.warn('GH sync:', e))
+      runBackgroundSync()
     })()
 
-    const interval = setInterval(() => {
-      if (stravaIsConnected()) syncStrava().catch((e) => console.warn('Strava sync:', e))
-      if (googleHealthIsConnected()) syncGoogleHealth().catch((e) => console.warn('GH sync:', e))
-    }, 60000)
+    const interval = setInterval(runBackgroundSync, 60000)
 
     return () => { cancelled = true; clearInterval(interval) }
   }, [currentUser])

@@ -6,8 +6,9 @@ const HANDLE_HEIGHT = 18
 const PEEK_HEIGHT = 75
 const expandedHeight = () => Math.round(window.innerHeight * 0.65)
 
-// Auto-minimize the expanded panel to peek after this long with no new
-// message sent or received (paused while a reply is still in flight).
+// Auto-minimize from peek (medium) down to collapsed after this long with no
+// new message sent or received (paused while a reply is still in flight).
+// The fully expanded view is left alone — only the medium/peek state shrinks.
 const INACTIVITY_MS = 3_000
 
 interface DragState { pointerId: number; startY: number; startHeight: number; dragging: boolean }
@@ -31,10 +32,10 @@ export default function ChatPanel() {
   }, [panelState])
 
   useEffect(() => {
-    if (panelState !== 'expanded' || chatPending) return
+    if (panelState !== 'peek' || chatPending) return
     const t = setTimeout(() => {
-      if (useAppStore.getState().chatPanelState === 'expanded') {
-        useAppStore.setState({ chatPanelState: 'peek' })
+      if (useAppStore.getState().chatPanelState === 'peek') {
+        useAppStore.setState({ chatPanelState: 'collapsed' })
       }
     }, INACTIVITY_MS)
     return () => clearTimeout(t)
