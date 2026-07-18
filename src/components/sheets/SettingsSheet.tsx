@@ -11,10 +11,9 @@ import {
   TARGETS, CALORIE_SEX, CALORIE_ACTIVITY_LEVELS, CALORIE_PROFILE_DEFAULTS,
   computeCalorieTargets, setCalorieDeficit, type CalorieProfile,
 } from '../../lib/config'
-import { syncStrava, stravaIsConnected } from '../../lib/strava'
-import { syncGoogleHealth, googleHealthIsConnected, calibrateTDEETargets } from '../../lib/google-health'
-import { clearFailed } from '../../lib/sync-status'
+import { googleHealthIsConnected, calibrateTDEETargets } from '../../lib/google-health'
 import { fetchChangelog, type ChangelogEntry } from '../../lib/changelog'
+import { syncAll } from '../../lib/syncAll'
 import Sheet from '../Sheet'
 import Icon from '../Icon'
 
@@ -27,17 +26,6 @@ function toggleTheme() {
   const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'
   document.documentElement.setAttribute('data-theme', next)
   localStorage.setItem('tracker-theme', next)
-}
-
-async function syncAll() {
-  clearFailed()
-  db.bust()
-  const results = await Promise.all([
-    stravaIsConnected() ? syncStrava().catch(() => 0) : 0,
-    googleHealthIsConnected() ? syncGoogleHealth().catch(() => 0) : 0,
-  ])
-  const total = results.reduce((s: number, n) => s + (n || 0), 0)
-  showToast(total ? `Synced ${total} new activities` : 'All up to date')
 }
 
 function SettingsSection({ title, open, onToggle, children }: { title: string; open: boolean; onToggle: () => void; children: ReactNode }) {
