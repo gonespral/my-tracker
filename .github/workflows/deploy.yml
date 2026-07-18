@@ -33,12 +33,14 @@ jobs:
       - name: Write production env
         run: |
           SHA=$(git rev-parse --short HEAD)
+          COMMIT_TIME=$(git log -1 --format=%cI HEAD)
           cat <<EOF > .env.production
           VITE_SUPABASE_URL=${{ secrets.SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
           VITE_STRAVA_CLIENT_ID=${{ secrets.STRAVA_CLIENT_ID }}
           VITE_GOOGLE_HEALTH_CLIENT_ID=${{ secrets.GOOGLE_HEALTH_CLIENT_ID }}
           VITE_APP_VERSION=$SHA
+          VITE_COMMIT_TIME=$COMMIT_TIME
           EOF
       - run: npm ci
       - run: npm run build
