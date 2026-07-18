@@ -11,7 +11,9 @@ import {
   TARGETS, CALORIE_SEX, CALORIE_ACTIVITY_LEVELS, CALORIE_PROFILE_DEFAULTS,
   computeCalorieTargets, setCalorieDeficit, type CalorieProfile,
 } from '../../lib/config'
-import { googleHealthIsConnected, calibrateTDEETargets } from '../../lib/google-health'
+import { syncStrava, stravaIsConnected } from '../../lib/strava'
+import { syncGoogleHealth, googleHealthIsConnected, calibrateTDEETargets } from '../../lib/google-health'
+import { clearFailed } from '../../lib/sync-status'
 import { fetchChangelog, type ChangelogEntry } from '../../lib/changelog'
 import Sheet from '../Sheet'
 import Icon from '../Icon'
@@ -19,6 +21,23 @@ import Icon from '../Icon'
 function withDeficit(rest: number, deficitKcal: number) {
   const deficit = Math.max(0, Number(deficitKcal) || 0)
   return Math.max(0, Math.round(rest - deficit))
+}
+
+function toggleTheme() {
+  const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'
+  document.documentElement.setAttribute('data-theme', next)
+  localStorage.setItem('tracker-theme', next)
+}
+
+async function syncAll() {
+  clearFailed()
+  db.bust()
+  const results = await Promise.all([
+    stravaIsConnected() ? syncStrava().catch(() => 0) : 0,
+    googleHealthIsConnected() ? syncGoogleHealth().catch(() => 0) : 0,
+  ])
+  const total = results.reduce((s: number, n) => s + (n || 0), 0)
+  showToast(total ? `Synced ${total} new activities` : 'All up to date')
 }
 
 function SettingsSection({ title, open, onToggle, children }: { title: string; open: boolean; onToggle: () => void; children: ReactNode }) {
@@ -44,6 +63,7 @@ export default function SettingsSheet() {
   const latestWeightKg = dbCache?.weights?.[0]?.kg ?? null
   const mealsCache = useAppStore((s) => s.mealsCache)
   const workoutPresetsCache = useAppStore((s) => s.workoutPresetsCache)
+  const isSyncing = useAppStore((s) => Object.keys(s.syncCounts).length > 0)
 
   // Caches are nulled whenever a preset is added/edited/deleted (here or by
   // Claude); reload while the sheet is open so the lists stay current.
@@ -376,11 +396,22 @@ export default function SettingsSheet() {
     <Sheet
       open={open}
       title="Settings"
-      titleBadge={isDemo ? (
-        <span className="settings-version settings-version-demo" data-tip="Tap to exit demo mode" aria-label="Demo mode" onClick={handleDisableDemo}>
-          Demo
-        </span>
-      ) : undefined}
+      titleBadge={
+        <div className="sheet-title-actions">
+          <button id="refresh-btn" className={`icon-btn${isSyncing ? ' spinning' : ''}`} aria-label="Sync all" onClick={syncAll}>
+            <Icon name="sync" size={18} />
+          </button>
+          <button className="icon-btn" aria-label="Toggle dark mode" onClick={toggleTheme}>
+            <Icon name="light_mode" size={18} className="icon-sun" />
+            <Icon name="dark_mode" size={18} className="icon-moon" />
+          </button>
+          {isDemo && (
+            <span className="settings-version settings-version-demo" data-tip="Tap to exit demo mode" aria-label="Demo mode" onClick={handleDisableDemo}>
+              Demo
+            </span>
+          )}
+        </div>
+      }
     >
       <SettingsSection title="Presets" open={openSection === 'presets'} onToggle={() => toggleSection('presets')}>
         <div className="section-label">Meals</div>
