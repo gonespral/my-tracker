@@ -12,6 +12,7 @@ import {
   computeCalorieTargets, setCalorieDeficit, type CalorieProfile,
 } from '../../lib/config'
 import { googleHealthIsConnected, calibrateTDEETargets } from '../../lib/google-health'
+import { fetchChangelog, type ChangelogEntry } from '../../lib/changelog'
 import Sheet from '../Sheet'
 import Icon from '../Icon'
 
@@ -80,6 +81,14 @@ export default function SettingsSheet() {
   useEffect(() => {
     if (open) setOpenSection('')
   }, [open])
+
+  const [changelog, setChangelog] = useState<ChangelogEntry[] | null>(null)
+  const [changelogLoading, setChangelogLoading] = useState(false)
+  useEffect(() => {
+    if (openSection !== 'appinfo' || changelog || changelogLoading) return
+    setChangelogLoading(true)
+    fetchChangelog().then(setChangelog).catch(() => setChangelog([])).finally(() => setChangelogLoading(false))
+  }, [openSection, changelog, changelogLoading])
 
   const [useBmr, setUseBmr] = useState(true)
   const [useGHCalibration, setUseGHCalibration] = useState(false)
@@ -367,21 +376,11 @@ export default function SettingsSheet() {
     <Sheet
       open={open}
       title="Settings"
-      titleBadge={
-        <div className="settings-version-block">
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-            {isDemo && (
-              <span className="settings-version settings-version-demo" data-tip="Tap to exit demo mode" aria-label="Demo mode" onClick={handleDisableDemo}>
-                Demo
-              </span>
-            )}
-            <span className="settings-version" data-tip="Tap to force update" aria-label="App version" onClick={handleForceUpdate}>
-              {appVersion}
-            </span>
-          </div>
-          <span className="settings-version-time">{commitLabel}</span>
-        </div>
-      }
+      titleBadge={isDemo ? (
+        <span className="settings-version settings-version-demo" data-tip="Tap to exit demo mode" aria-label="Demo mode" onClick={handleDisableDemo}>
+          Demo
+        </span>
+      ) : undefined}
     >
       <SettingsSection title="Presets" open={openSection === 'presets'} onToggle={() => toggleSection('presets')}>
         <div className="section-label">Meals</div>
@@ -614,6 +613,39 @@ export default function SettingsSheet() {
         <p className="setup-note">Signed in as {userEmail} via Supabase Auth. Your data is stored securely in a private Supabase database and synced across devices.</p>
         <button className="btn-integration" style={{ marginTop: 16 }} onClick={() => { closeSheet(); openTutorial() }}>Show tutorial again</button>
         <button className="btn-integration" style={{ marginTop: 10, color: 'var(--danger)' }} onClick={handleSignOut}>Sign out</button>
+      </SettingsSection>
+
+      <SettingsSection title="App Info" open={openSection === 'appinfo'} onToggle={() => toggleSection('appinfo')}>
+        <div className="toggle-row" style={{ marginBottom: 4 }}>
+          <div>
+            <div className="toggle-row-label">Version</div>
+            <div className="toggle-row-sub">Built {commitLabel}</div>
+          </div>
+          <span className="settings-version" data-tip="Tap to force update" aria-label="App version" onClick={handleForceUpdate}>
+            {appVersion}
+          </span>
+        </div>
+
+        <div className="settings-section-divider" />
+
+        <div className="section-label">Changelog</div>
+        {changelogLoading ? (
+          <div className="empty">Loading…</div>
+        ) : changelog?.length ? (
+          <div className="changelog-list">
+            {changelog.map((c) => (
+              <a key={c.sha} className="changelog-item" href={c.url} target="_blank" rel="noopener">
+                <div className="changelog-item-title">{c.title}</div>
+                <div className="changelog-item-meta">
+                  <span className="changelog-sha">{c.sha}</span>
+                  <span>{c.date}</span>
+                </div>
+              </a>
+            ))}
+          </div>
+        ) : (
+          <div className="empty">Changelog unavailable.</div>
+        )}
       </SettingsSection>
 
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: 32, marginBottom: 16, gap: 8 }}>
