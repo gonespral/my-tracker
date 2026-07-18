@@ -167,7 +167,7 @@ export default function TodayTab() {
           <MacroRing label="Carbs" value={totals.carbs} target={TARGETS.carbs} unit="g" accentColor={MACRO_COLORS.carbs} />
           <MacroRing label="Fat" value={totals.fat} target={TARGETS.fat} unit="g" accentColor={MACRO_COLORS.fat} />
         </div>
-        <WisdomCard />
+        {isToday && <WisdomCard />}
       </div>
       <div className="today-right" id="today-logs">
         <div className="section-label">Food</div>
