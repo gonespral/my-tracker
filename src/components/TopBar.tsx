@@ -111,12 +111,16 @@ export default function TopBar() {
       </div>
       {activeTab === 'today' && (
         <div className="date-nav">
-          <button className="hm-nav-btn date-nav-arrow" aria-label="Previous day" onClick={() => goDay(-1)}>‹</button>
+          <button className="hm-nav-btn date-nav-arrow" aria-label="Previous day" onClick={() => goDay(-1)}>
+            <Icon name="chevron_left" size={22} />
+          </button>
           <span
             className={`date-nav-label${isToday ? '' : ' date-nav-label--past'}`}
             onClick={isToday ? undefined : () => useAppStore.setState({ dailyDate: null })}
           >{navLabel}</span>
-          <button className="hm-nav-btn date-nav-arrow" aria-label="Next day" disabled={isToday} onClick={() => goDay(1)}>›</button>
+          <button className="hm-nav-btn date-nav-arrow" aria-label="Next day" disabled={isToday} onClick={() => goDay(1)}>
+            <Icon name="chevron_right" size={22} />
+          </button>
         </div>
       )}
     </header>
