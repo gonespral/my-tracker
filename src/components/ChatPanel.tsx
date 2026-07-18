@@ -8,7 +8,7 @@ const expandedHeight = () => Math.round(window.innerHeight * 0.65)
 
 // Auto-minimize the expanded panel to peek after this long with no new
 // message sent or received (paused while a reply is still in flight).
-const INACTIVITY_MS = 90_000
+const INACTIVITY_MS = 3_000
 
 interface DragState { pointerId: number; startY: number; startHeight: number; dragging: boolean }
 

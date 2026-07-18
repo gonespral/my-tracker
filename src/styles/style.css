@@ -124,66 +124,12 @@ body {
   border-bottom: 1px solid var(--border);
 }
 
-.top-bar-inner {
-  position: relative;
+.top-bar-status-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 14px 16px 10px;
+  gap: 10px;
+  padding: 10px 16px 0;
 }
-
-.top-bar-demo-badge {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  cursor: pointer;
-}
-
-.top-bar-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-family: 'Space Grotesk', sans-serif;
-  font-weight: 700;
-  font-size: 20px;
-  color: var(--tx);
-  letter-spacing: -0.2px;
-}
-
-.app-icon {
-  width: 28px;
-  height: 28px;
-  border-radius: 7px;
-  object-fit: contain;
-  display: inline-block;
-  flex-shrink: 0;
-}
-
-/* Header mono logo: invert variants so dark logo shows in light theme and
-  light logo shows in dark theme (per preference) */
-.app-icon-light {
-  display: none;
-}
-
-.app-icon-dark {
-  display: inline-block;
-}
-
-[data-theme="dark"] .app-icon-light {
-  display: inline-block;
-}
-
-[data-theme="dark"] .app-icon-dark {
-  display: none;
-}
-
-.top-bar-actions {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-}
-
 
 #refresh-btn.spinning .material-symbols-outlined {
   animation: spin 1s linear infinite;
@@ -196,7 +142,6 @@ body {
   gap: 5px;
   font-size: 11px;
   color: var(--text2);
-  margin-right: 4px;
 }
 
 .sync-dot {
@@ -220,13 +165,24 @@ body {
   50% { opacity: 0.3; }
 }
 
+.top-bar-tabrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 16px 12px;
+}
+
 .top-bar-tabs {
+  flex: 1;
   display: flex;
   gap: 3px;
   background: var(--track);
   border-radius: 12px;
   padding: 3px;
-  margin: 0 16px 12px;
+}
+
+.top-bar-settings-btn {
+  flex-shrink: 0;
 }
 
 /* ── Date navigator (Daily tab) ─────────────────────────── */
@@ -2120,7 +2076,7 @@ body {
 
 .sheet-title {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 8px;
   width: 100%;
@@ -2129,6 +2085,12 @@ body {
   font-size: 18px;
   color: var(--tx);
   margin-bottom: 4px;
+}
+
+.sheet-title-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .settings-version {
@@ -3213,12 +3175,12 @@ body {
     max-width: 1400px;
   }
 
-  .top-bar-inner {
-    padding: 18px 28px 12px;
+  .top-bar-status-row {
+    padding: 12px 28px 0;
   }
 
-  .top-bar-tabs {
-    margin: 0 24px 14px;
+  .top-bar-tabrow {
+    padding: 18px 28px 14px;
   }
 
   /* Today: two-column grid inside the scrolling panel */
