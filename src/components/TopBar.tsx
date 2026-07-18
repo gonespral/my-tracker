@@ -1,13 +1,7 @@
 import { useAppStore } from '../store'
 import { openSettingsSheet } from '../lib/sheets'
-import { isDemo, supabase } from '../lib/db'
 import { dateStr, fmtDateShort } from '../lib/utils'
 import Icon from './Icon'
-
-async function handleDisableDemo() {
-  if (!confirm('Exit demo mode?')) return
-  await supabase.auth.signOut()
-}
 
 const TABS = [
   { id: 'today', label: 'Daily' },
@@ -46,13 +40,6 @@ export default function TopBar() {
 
   return (
     <header className="top-bar">
-      {isDemo && (
-        <div className="top-bar-status-row">
-          <span className="settings-version settings-version-demo" data-tip="Tap to exit demo mode" aria-label="Demo mode" onClick={handleDisableDemo}>
-            Demo
-          </span>
-        </div>
-      )}
       <div className="top-bar-tabrow">
         <img src="brand/svg/logo-mono-light.svg" alt="MyTracker" className="app-icon app-icon-light" />
         <img src="brand/svg/logo-mono-dark.svg" alt="MyTracker" className="app-icon app-icon-dark" />

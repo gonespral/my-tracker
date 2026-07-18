@@ -124,13 +124,6 @@ body {
   border-bottom: 1px solid var(--border);
 }
 
-.top-bar-status-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 16px 0;
-}
-
 #refresh-btn.spinning .material-symbols-outlined {
   animation: spin 1s linear infinite;
 }
@@ -3170,10 +3163,6 @@ body {
 @media (min-width: 768px) {
   #app {
     max-width: 1400px;
-  }
-
-  .top-bar-status-row {
-    padding: 12px 28px 0;
   }
 
   .top-bar-tabrow {
