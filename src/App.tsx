@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase, isDemo } from './lib/db'
 import { useAppInit } from './lib/useAppInit'
+import { useViewportKeyboard } from './lib/useViewportKeyboard'
 import { useAppStore } from './store'
 import SignInOverlay from './components/SignInOverlay'
 import TopBar from './components/TopBar'
@@ -104,6 +105,7 @@ export default function App() {
   useAppInit(currentUser as { id: string } | null)
   useIntegrationSync(currentUser)
   useRestoreChatOnce(currentUser)
+  useViewportKeyboard()
 
   if (!ready) return null
 
