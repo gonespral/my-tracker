@@ -112,7 +112,10 @@ body {
 #app {
   display: flex;
   flex-direction: column;
-  height: 100dvh;
+  /* --app-height tracks window.visualViewport.height (set in JS) so the
+     shell itself shrinks above an open on-screen keyboard instead of the
+     browser scrolling the page to reveal a focused input. */
+  height: var(--app-height, 100dvh);
   max-width: 540px;
   margin: 0 auto;
 }
@@ -1840,7 +1843,10 @@ body {
   right: 0;
   max-width: 540px;
   margin: 0 auto;
-  bottom: var(--bar-h, 66px);
+  /* fixed positioning is relative to the viewport, not #app, so the
+     keyboard inset has to be added explicitly to keep this above the
+     keyboard rather than behind it */
+  bottom: calc(var(--bar-h, 66px) + var(--keyboard-inset, 0px));
   z-index: 450;
   background: var(--card);
   border: 1.5px solid var(--border);
