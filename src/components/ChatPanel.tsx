@@ -133,8 +133,11 @@ export default function ChatPanel() {
               return (
                 <div className="chat-tool-row" key={i}>
                   {m.items.map((it, j) => (
-                    <span className={`chat-tool-item${it.ok ? '' : ' fail'}`} key={j}>
-                      <Icon name={it.ok ? 'travel_explore' : 'error'} className="chat-tool-icon" />
+                    <span className={`chat-tool-item${it.status !== 'ok' ? ` ${it.status}` : ''}`} key={j}>
+                      <Icon
+                        name={it.status === 'fail' ? 'error' : 'travel_explore'}
+                        className={`chat-tool-icon${it.status === 'pending' ? ' spinning' : ''}`}
+                      />
                       {it.label}
                     </span>
                   ))}

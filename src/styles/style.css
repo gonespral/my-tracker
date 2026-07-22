@@ -2799,9 +2799,17 @@ body {
   color: var(--danger);
 }
 
+.chat-tool-item.pending {
+  color: var(--accent);
+}
+
 .chat-tool-icon {
   font-size: 14px !important;
   flex-shrink: 0;
+}
+
+.chat-tool-icon.spinning {
+  animation: spin 1s linear infinite;
 }
 
 .chat-reply-row {

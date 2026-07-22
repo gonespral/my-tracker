@@ -21,7 +21,7 @@ export type SheetId = 'food' | 'activity' | 'weight' | 'integrations' | 'apikey'
 export type ChatDisplayMessage =
   | { role: 'user'; text: string; imageCount?: number }
   | { role: 'assistant'; text: string; thinking?: boolean }
-  | { role: 'tool'; items: { label: string; ok: boolean }[] }
+  | { role: 'tool'; items: { label: string; status: 'pending' | 'ok' | 'fail' }[] }
 
 export interface ChatApiMessage {
   role: 'user' | 'assistant'
