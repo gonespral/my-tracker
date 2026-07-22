@@ -439,7 +439,26 @@ function groupToolCalls(executed: ExecutedTool[]) {
   return order.map((name) => {
     const g = groups.get(name)!
     const label = g.count > 1 ? `${TOOL_GROUP_LABEL[name] || 'Working'} (${g.count} items)` : toolCallLabel(g.tc)
-    return { label, ok: !g.failed }
+    return { label, status: g.failed ? ('fail' as const) : ('ok' as const) }
+  })
+}
+
+// Same grouping as groupToolCalls, but built from the raw tool_use blocks
+// before they're executed — shown immediately so the user sees which tool
+// is running live, rather than only after the network call resolves.
+function groupToolCallsPending(toolCalls: ClaudeContentBlock[]) {
+  const order: string[] = []
+  const groups = new Map<string, { count: number; tc: ClaudeContentBlock }>()
+  for (const tc of toolCalls) {
+    const name = tc.name!
+    if (SILENT_TOOLS.has(name)) continue
+    if (!groups.has(name)) { groups.set(name, { count: 0, tc }); order.push(name) }
+    groups.get(name)!.count++
+  }
+  return order.map((name) => {
+    const g = groups.get(name)!
+    const label = g.count > 1 ? `${TOOL_GROUP_LABEL[name] || 'Working'} (${g.count} items)` : toolCallLabel(g.tc)
+    return { label, status: 'pending' as const }
   })
 }
 
@@ -640,6 +659,24 @@ export async function sendChatMessage(text: string, images: { data: string; medi
         useAppStore.setState((s) => ({ chatApiMessages: [...s.chatApiMessages, { role: 'assistant', content: msg.content }] }))
         break
       }
+
+      // Show which tools are about to run immediately, before executing them,
+      // so the user sees live activity instead of just "Thinking…" the whole
+      // time a lookup/calculation is in flight.
+      const pending = groupToolCallsPending(toolCalls)
+      if (pending.length) {
+        setChatDisplay((prev) => {
+          const idx = prev.length - 1
+          const last = prev[idx]
+          if (last?.role === 'assistant' && last.thinking) {
+            const next = [...prev]
+            next[idx] = { role: 'tool', items: pending }
+            return next
+          }
+          return prev
+        })
+      }
+
       const executed: ExecutedTool[] = await Promise.all(toolCalls.map(async (tc) => {
         if (tc.name === 'lookup_food' && ++lookupCount > LOOKUP_CAP) {
           return { tc, content: 'error: lookup limit reached for this message — stop retrying, estimate this item from context instead' }
@@ -652,17 +689,11 @@ export async function sendChatMessage(text: string, images: { data: string; medi
       setChatDisplay((prev) => {
         const idx = prev.length - 1
         const last = prev[idx]
-        if (last?.role === 'assistant' && last.thinking) {
-          if (visible.length) {
-            const next = [...prev]
-            next[idx] = { role: 'tool', items: groupToolCalls(visible) }
-            next.push({ role: 'assistant', text: thinkingVerb() + '…', thinking: true })
-            return next
-          } else {
-            const next = [...prev]
-            next[idx] = { ...last, text: thinkingVerb() + '…' }
-            return next
-          }
+        if (last?.role === 'tool') {
+          const next = [...prev]
+          next[idx] = { role: 'tool', items: groupToolCalls(visible) }
+          next.push({ role: 'assistant', text: thinkingVerb() + '…', thinking: true })
+          return next
         }
         return prev
       })
